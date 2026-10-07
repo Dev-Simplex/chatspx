@@ -5,7 +5,7 @@ import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import { GROUP_BY_FILTER, METRIC_CHART } from './constants';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import format from 'date-fns/format';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration } from 'dashboard/helper/reportFormat';
 import ChartStats from './components/ChartElements/ChartStats.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
 import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
@@ -94,6 +94,40 @@ export default {
     },
   },
   methods: {
+    // "Como ler" + o ponto mais alto e o mais baixo do grafico, em frase.
+    chartCaption(metric) {
+      const data = (this.accountReport.data[metric.KEY] || []).filter(
+        point => point.value !== null && point.value !== undefined
+      );
+      if (data.length < 2) return '';
+      const labels = this.getCollection(metric).labels || [];
+      const all = this.accountReport.data[metric.KEY];
+      const isTime = this.isAverageMetricType(metric.KEY);
+      const show = value =>
+        isTime
+          ? formatDuration(value, this.$t)
+          : Number(value).toLocaleString();
+      const ranked = (isTime ? data.filter(point => point.value > 0) : data)
+        .slice()
+        .sort((a, b) => b.value - a.value);
+      if (ranked.length < 2) return '';
+      const high = ranked[0];
+      const low = ranked[ranked.length - 1];
+      const period = this.groupBy?.period || 'day';
+      const how = this.$t(
+        `REPORT.CHART_CAPTION.${isTime ? 'HOW_TIME' : 'HOW_COUNT'}.${period.toUpperCase()}`
+      );
+      const peak = this.$t(
+        `REPORT.CHART_CAPTION.${isTime ? 'PEAK_TIME' : 'PEAK_COUNT'}`,
+        {
+          high: labels[all.indexOf(high)],
+          highValue: show(high.value),
+          low: labels[all.indexOf(low)],
+          lowValue: show(low.value),
+        }
+      );
+      return `${how} ${peak}`;
+    },
     openDrilldown(metric) {
       this.drilldownMetric = { key: metric.KEY, name: metric.NAME };
     },
@@ -117,18 +151,18 @@ export default {
           const last_day = first_day + 6;
           const week_first_date = new Date(week_date.setDate(first_day));
           const week_last_date = new Date(week_date.setDate(last_day));
-          return `${format(week_first_date, 'dd-MMM')} - ${format(
+          return `${format(week_first_date, 'dd/MM')} - ${format(
             week_last_date,
-            'dd-MMM'
+            'dd/MM'
           )}`;
         }
         if (this.groupBy?.period === GROUP_BY_FILTER[3].period) {
-          return format(fromUnixTime(element.timestamp), 'MMM-yyyy');
+          return format(fromUnixTime(element.timestamp), 'MM/yyyy');
         }
         if (this.groupBy?.period === GROUP_BY_FILTER[4].period) {
           return format(fromUnixTime(element.timestamp), 'yyyy');
         }
-        return format(fromUnixTime(element.timestamp), 'dd-MMM');
+        return format(fromUnixTime(element.timestamp), 'dd/MM');
       });
       const datasets = METRIC_CHART[metric.KEY].datasets.map(dataset => {
         switch (dataset.type) {
@@ -173,6 +207,14 @@ export default {
         },
       };
 
+      if (this.isAverageMetricType(metric.KEY) && options.scales?.y) {
+        const tickCallback = options.scales.y.ticks.callback;
+        options.scales.y.ticks.callback = (value, index, ticks) =>
+          tickCallback(value, index, ticks) === ''
+            ? ''
+            : formatDuration(value, this.$t);
+      }
+
       const { valueMax, countMax } = this.getMetricMax(metric);
       if (options.scales?.y && valueMax > 0) {
         options.scales.y.suggestedMax = Math.ceil(valueMax * 1.1);
@@ -191,7 +233,7 @@ export default {
                   return `${this.$t('REPORT.METRICS.CONVERSATIONS.NAME')}: ${raw}`;
                 }
                 return this.$t(metric.TOOLTIP_TEXT, {
-                  metricValue: formatTime(raw || 0),
+                  metricValue: formatDuration(raw || 0, this.$t),
                   conversationCount:
                     this.accountReport.data[metric.KEY][dataIndex]?.count || 0,
                 });
@@ -255,6 +297,12 @@ export default {
           </span>
         </div>
       </div>
+      <p
+        v-if="chartCaption(metric)"
+        class="text-sm text-n-slate-11 -mt-2 px-1 leading-relaxed"
+      >
+        {{ chartCaption(metric) }}
+      </p>
       <p v-if="metric.signal" class="text-xs text-n-slate-11 -mt-2 px-1">
         {{ phraseFor(metric.signal) }}
       </p>

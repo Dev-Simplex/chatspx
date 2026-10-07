@@ -10,6 +10,7 @@ import ReportHeader from './components/ReportHeader.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import SpeedInsightsPanel from './components/SpeedInsightsPanel.vue';
 import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
+import ReportPlainSummary from 'dashboard/components-next/reports/ReportPlainSummary.vue';
 import { mapGetters } from 'vuex';
 
 const REPORTS_KEYS = {
@@ -34,6 +35,7 @@ export default {
     DownloadPdfButton,
     SpeedInsightsPanel,
     ReportNarrativeSummary,
+    ReportPlainSummary,
   },
   data() {
     return {
@@ -48,6 +50,10 @@ export default {
     ...mapGetters({
       accountSummary: 'getAccountSummary',
     }),
+    drilldownFilters() {
+      const { from, to, businessHours, inboxId } = this;
+      return { from, to, type: 'account', businessHours, inboxId };
+    },
   },
   methods: {
     fetchAllData() {
@@ -154,17 +160,9 @@ export default {
       show-group-by
       @filter-change="onFilterChange"
     />
+    <ReportPlainSummary :drilldown-filters="drilldownFilters" />
     <ReportNarrativeSummary :signals="accountSummary.signals || []" />
     <SpeedInsightsPanel />
-    <ReportContainer
-      :group-by="groupBy"
-      :drilldown-filters="{
-        from,
-        to,
-        type: 'account',
-        businessHours,
-        inboxId,
-      }"
-    />
+    <ReportContainer :group-by="groupBy" :drilldown-filters="drilldownFilters" />
   </div>
 </template>

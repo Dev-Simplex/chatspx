@@ -37,38 +37,38 @@
     },
     "METRICS": {
       "CONVERSATIONS": {
-        "NAME": "Conversations",
-        "DESC": "( Total )"
+        "NAME": "How many conversations came in?",
+        "DESC": "Each customer who sent a message and opened a conversation in the period."
       },
       "INCOMING_MESSAGES": {
-        "NAME": "Messages received",
-        "DESC": "( Total )"
+        "NAME": "How many messages did customers send?",
+        "DESC": "Every message that came in from customers."
       },
       "OUTGOING_MESSAGES": {
-        "NAME": "Messages sent",
-        "DESC": "( Total )"
+        "NAME": "How many messages did the team send?",
+        "DESC": "Every reply sent to customers, by agents and by the AI."
       },
       "FIRST_RESPONSE_TIME": {
-        "NAME": "First Response Time",
-        "DESC": "( Avg )",
+        "NAME": "How long did the customer wait for the first reply?",
+        "DESC": "On average, from the customer writing until the first reply from a person. Lower is better.",
         "INFO_TEXT": "Average time until the first human reply to the customer. Lower is better.",
         "TOOLTIP_TEXT": "First Response Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
-        "NAME": "First Response After Transfer",
-        "DESC": "( Avg )",
+        "NAME": "After reaching an agent, how long until they replied?",
+        "DESC": "On average, from the conversation reaching the agent until their first reply. Lower is better.",
         "INFO_TEXT": "Average time until the first reply after a conversation is transferred to an agent. Lower is better.",
         "TOOLTIP_TEXT": "First Response After Transfer is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_TIME": {
-        "NAME": "Resolution Time",
-        "DESC": "( Avg )",
+        "NAME": "How long did it take to resolve?",
+        "DESC": "On average, from the first message until the conversation was marked as resolved. Lower is better.",
         "INFO_TEXT": "Average time from when a conversation opens until it is resolved. Lower is better.",
         "TOOLTIP_TEXT": "Resolution Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_COUNT": {
-        "NAME": "Resolution Count",
-        "DESC": "( Total )"
+        "NAME": "How many conversations were resolved?",
+        "DESC": "Conversations the team marked as resolved in the period."
       },
       "BOT_RESOLUTION_COUNT": {
         "NAME": "Resolution Count",
@@ -79,9 +79,9 @@
         "DESC": "( Total )"
       },
       "REPLY_TIME": {
-        "NAME": "Customer waiting time",
+        "NAME": "How long did the customer wait between messages?",
         "TOOLTIP_TEXT": "Waiting time is {metricValue} (based on {conversationCount} replies)",
-        "DESC": ""
+        "DESC": "On average, each time the customer sent a message and waited for the reply. Lower is better."
       }
     },
     "DATE_RANGE_OPTIONS": {
@@ -161,30 +161,30 @@
       "PER_PAGE_TEMPLATE": "{size} / page"
     },
     "INSIGHTS": {
-      "EYEBROW": "Insights",
-      "TITLE": "Speed Insights",
-      "BASE": "Base:",
-      "AVG_FIRST_RESPONSE_TIME": "Avg. first response",
-      "P50_FIRST_RESPONSE_TIME": "First response p50",
-      "P90_FIRST_RESPONSE_TIME": "First response p90",
-      "AVG_REPLY_TIME": "Avg. customer waiting time",
-      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Avg. after transfer",
-      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p50",
-      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p90"
+      "EYEBROW": "Response speed",
+      "TITLE": "How long does the customer wait?",
+      "BASE": "based on {count} conversations",
+      "AVG_FIRST_RESPONSE_TIME": "On average, the first reply came in",
+      "P50_FIRST_RESPONSE_TIME": "Half of the customers got the first reply within",
+      "P90_FIRST_RESPONSE_TIME": "9 out of 10 customers got the first reply within",
+      "AVG_REPLY_TIME": "On average, between messages, the customer waited",
+      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After reaching the agent, the first reply came on average in",
+      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After reaching the agent, half got a reply within",
+      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After reaching the agent, 9 out of 10 got a reply within"
     },
     "NARRATIVE": {
-      "EYEBROW": "Auto-insights",
+      "EYEBROW": "Quick summary",
       "LEVEL": {
         "GOOD": "on target",
-        "WARN": "needs attention",
+        "WARN": "attention",
         "BAD": "needs improvement"
       },
-      "HIGHLIGHT_TITLE": "Highlight",
-      "ATTENTION_TITLE": "Point of attention",
+      "HIGHLIGHT_TITLE": "What went best",
+      "ATTENTION_TITLE": "What needs attention",
       "ALL_GOOD": "All indicators are on target — keep up the pace.",
       "INSIGHT_BETTER": "{pct}% better than the previous period",
       "INSIGHT_WORSE": "{pct}% worse than the previous period",
-      "VS_GOAL": "goal {goal}",
+      "VS_GOAL": "the target is {goal}",
       "METRIC": {
         "FIRST_RESPONSE": "First response time",
         "RESOLUTION": "Resolution time",
@@ -195,9 +195,58 @@
         "SLA_HIT_RATE": "SLA hit rate",
         "BOT_RESOLUTION_RATE": "Bot resolution rate",
         "BOT_HANDOFF_RATE": "Bot handoff rate"
+      },
+      "INSIGHT_BETTER_TIMES": "{times} times better than the previous period",
+      "INSIGHT_WORSE_TIMES": "{times} times worse than the previous period"
+    },
+    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes",
+    "TIME": {
+      "ZERO": "0 s",
+      "SECONDS": "{s} s",
+      "MINUTES": "{min} min",
+      "MINUTES_SECONDS": "{min} min {s} s",
+      "HOURS": "{h} h",
+      "HOURS_MINUTES": "{h} h {min} min",
+      "DAYS": "{d} day | {d} days",
+      "DAYS_HOURS": "{d} day and {h} h | {d} days and {h} h"
+    },
+    "CHANGE": {
+      "SAME": "the same",
+      "MORE": "{pct}% more",
+      "LESS": "{pct}% less",
+      "TIMES_MORE": "{times} times more",
+      "VS_PREVIOUS": "{change} than the previous period",
+      "VERDICT": {
+        "GOOD": "good sign",
+        "BAD": "attention"
       }
     },
-    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes"
+    "CHART_CAPTION": {
+      "HOW_COUNT": {
+        "HOUR": "Each bar is one hour.",
+        "DAY": "Each bar is one day.",
+        "WEEK": "Each bar is one week.",
+        "MONTH": "Each bar is one month.",
+        "YEAR": "Each bar is one year."
+      },
+      "HOW_TIME": {
+        "HOUR": "Each bar is the average time of one hour; the line shows how many conversations were counted.",
+        "DAY": "Each bar is the average time of one day; the line shows how many conversations were counted.",
+        "WEEK": "Each bar is the average time of one week; the line shows how many conversations were counted.",
+        "MONTH": "Each bar is the average time of one month; the line shows how many conversations were counted.",
+        "YEAR": "Each bar is the average time of one year; the line shows how many conversations were counted."
+      },
+      "PEAK_COUNT": "The highest was {high} ({highValue}) and the lowest, {low} ({lowValue}).",
+      "PEAK_TIME": "The slowest was {high} ({highValue}) and the fastest, {low} ({lowValue})."
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "The period in a few words",
+      "VOLUME": "{conversations} came in. Customers sent {incoming} messages and the team replied with {outgoing}.",
+      "CONVERSATIONS": "{count} conversations",
+      "FIRST_RESPONSE": "On average, the customer waited {avg} for the first reply. Half waited up to {half}; 9 out of 10, up to {most}.",
+      "RESOLUTION": "{resolved}, and each one took {time} on average to be resolved.",
+      "RESOLVED": "{count} conversations were resolved"
+    }
   },
   "AGENT_REPORTS": {
     "HEADER": "Agents Overview",

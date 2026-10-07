@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration } from 'dashboard/helper/reportFormat';
 import { STATUS } from 'dashboard/store/constants';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { useI18n } from 'vue-i18n';
@@ -36,7 +36,7 @@ const { fetchingStatus, isAverageMetricType } = useReportMetrics(
 const formatMetric = key => {
   const value = summary.value?.[key];
   if (!value) return '--';
-  if (isAverageMetricType(key)) return formatTime(value);
+  if (isAverageMetricType(key)) return formatDuration(value, t);
   return Number(value || 0).toLocaleString();
 };
 
@@ -128,7 +128,7 @@ const insightCards = computed(() => {
         class="rounded-2xl border border-n-container/40 bg-n-background/80 p-4 shadow-sm"
       >
         <div class="flex items-center justify-between">
-          <p class="text-[11px] uppercase tracking-[0.2em] text-n-slate-10">
+          <p class="text-sm text-n-slate-11">
             {{ card.label }}
           </p>
           <span class="h-2 w-2 rounded-full bg-n-brand/70" />
@@ -137,7 +137,7 @@ const insightCards = computed(() => {
           {{ formatMetric(card.valueKey) }}
         </div>
         <p v-if="card.countKey" class="mt-1 text-xs text-n-slate-10">
-          {{ t('REPORT.INSIGHTS.BASE') }} {{ formatCount(card.countKey) }}
+          {{ t('REPORT.INSIGHTS.BASE', { count: formatCount(card.countKey) }) }}
         </p>
       </div>
     </div>

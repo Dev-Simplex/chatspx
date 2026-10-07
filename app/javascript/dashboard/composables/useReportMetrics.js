@@ -1,5 +1,6 @@
+import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration } from 'dashboard/helper/reportFormat';
 
 /**
  * A composable function for report metrics calculations and display.
@@ -11,6 +12,7 @@ export function useReportMetrics(
   accountSummaryKey = 'getAccountSummary',
   summarFetchingKey = 'getAccountSummaryFetchingStatus'
 ) {
+  const { t } = useI18n();
   const accountSummary = useMapGetter(accountSummaryKey);
   const fetchingStatus = useMapGetter(summarFetchingKey);
 
@@ -53,7 +55,7 @@ export function useReportMetrics(
    */
   const displayMetric = key => {
     if (isAverageMetricType(key)) {
-      return formatTime(accountSummary.value[key]);
+      return formatDuration(accountSummary.value[key], t);
     }
     return Number(accountSummary.value[key] || '').toLocaleString();
   };

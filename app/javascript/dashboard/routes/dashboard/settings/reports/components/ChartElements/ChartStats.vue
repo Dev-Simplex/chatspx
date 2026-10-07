@@ -5,6 +5,7 @@ import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { STATUS } from 'dashboard/store/constants';
 import { useI18n } from 'vue-i18n';
+import { formatChange } from 'dashboard/helper/reportFormat';
 
 const props = defineProps({
   metric: {
@@ -34,27 +35,49 @@ const emit = defineEmits(['select']);
 
 const { t } = useI18n();
 
-const { calculateTrend, displayMetric, isAverageMetricType, fetchingStatus } =
-  useReportMetrics(props.accountSummaryKey, props.summaryFetchingKey);
+const { displayMetric, isAverageMetricType, fetchingStatus } = useReportMetrics(
+  props.accountSummaryKey,
+  props.summaryFetchingKey
+);
 
 const { pillFor } = useReportNarrative();
 const pill = computed(() => pillFor(props.signal));
 
-const trendColor = (value, key) => {
-  if (isAverageMetricType(key)) {
-    return value > 0
-      ? 'border-n-ruby-9 text-n-ruby-9'
-      : 'border-n-teal-10 text-n-teal-10';
-  }
-  return value < 0
-    ? 'border-n-ruby-9 text-n-ruby-9'
-    : 'border-n-teal-10 text-n-teal-10';
+// A variacao em frase ("5% a menos que no periodo anterior") e, quando da para julgar, se isso e bom:
+// tempo que cai e bom, resolucao que sobe e boa; volume de conversa e mensagem nao tem certo ou errado.
+const HIGHER_IS_BETTER = ['resolutions_count'];
+
+const trendVerdict = (value, key) => {
+  if (isAverageMetricType(key)) return value < 0 ? 'good' : 'bad';
+  if (HIGHER_IS_BETTER.includes(key)) return value > 0 ? 'good' : 'bad';
+  return 'neutral';
 };
+
+const TREND_CLASSES = {
+  good: 'border-n-teal-7 bg-n-teal-2 text-n-teal-11',
+  bad: 'border-n-ruby-7 bg-n-ruby-2 text-n-ruby-11',
+  neutral: 'border-n-slate-6 bg-n-slate-2 text-n-slate-11',
+};
+
+const trend = computed(() => {
+  if (!props.metric.trend) return null;
+  const change = formatChange(props.metric.trend, t);
+  const verdict = trendVerdict(props.metric.trend, props.metric.KEY);
+  return {
+    arrow: change.direction === 'down' ? '▼' : '▲',
+    text: t('REPORT.CHANGE.VS_PREVIOUS', { change: change.text }),
+    verdict:
+      verdict === 'neutral'
+        ? ''
+        : t(`REPORT.CHANGE.VERDICT.${verdict.toUpperCase()}`),
+    classes: TREND_CLASSES[verdict],
+  };
+});
 </script>
 
 <template>
   <div>
-    <span class="text-xs font-medium uppercase tracking-wider text-n-slate-10">
+    <span class="text-sm font-medium text-n-slate-11">
       {{ metric.NAME }}
     </span>
     <div class="flex items-end gap-3 text-n-slate-12 mt-1">
@@ -82,23 +105,19 @@ const trendColor = (value, key) => {
       >
         {{ displayMetric(metric.KEY) }}
       </div>
-      <div
-        v-if="metric.trend && fetchingStatus === STATUS.FINISHED"
-        class="text-xs flex items-center gap-1 px-2 py-1 rounded-full border"
-        :class="trendColor(metric.trend, metric.KEY)"
-      >
-        <div
-          v-if="metric.trend < 0"
-          class="h-0 w-0 border-x-4 medium border-x-transparent border-t-[8px]"
-          :class="trendColor(metric.trend, metric.KEY)"
-        />
-        <div
-          v-else
-          class="h-0 w-0 border-x-4 medium border-x-transparent border-b-[8px]"
-          :class="trendColor(metric.trend, metric.KEY)"
-        />
-        <span class="font-medium"> {{ calculateTrend(metric.KEY) }}% </span>
-      </div>
+    </div>
+    <div
+      v-if="trend && fetchingStatus === STATUS.FINISHED"
+      class="mt-2 inline-flex flex-wrap items-center gap-1 px-2 py-1 rounded-lg border text-xs"
+      :class="trend.classes"
+    >
+      <span aria-hidden="true">{{ trend.arrow }}</span>
+      <span>{{ trend.text }}</span>
+      <span v-if="trend.verdict" class="font-semibold">
+        {{ trend.verdict }}
+      </span>
+    </div>
+    <div class="flex items-end gap-3 mt-1">
       <div
         v-if="pill && fetchingStatus === STATUS.FINISHED"
         class="text-xs flex items-center gap-1 px-2 py-1 rounded-full border font-medium"

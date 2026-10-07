@@ -1,5 +1,5 @@
 import { useI18n } from 'vue-i18n';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration, timesFromPct } from 'dashboard/helper/reportFormat';
 
 /**
  * Camada narrativa dos relatórios: transforma os `signals` estruturados que o
@@ -104,7 +104,7 @@ export function useReportNarrative() {
   const goalDisplay = signal => {
     if (PERCENT_METRICS.includes(signal.metric)) return `${signal.goal}%`;
     if (signal.metric === 'nps') return `${signal.goal}`;
-    return formatTime(signal.goal || 0);
+    return formatDuration(signal.goal || 0, t);
   };
 
   /** Pílula de semáforo: { tone, icon, colorClass, label }. */
@@ -140,10 +140,19 @@ export function useReportNarrative() {
 
     if (improved === null) return goal;
 
+    // "5422% pior" ninguem le: acima de +100% vira "N vezes".
     const pct = Math.abs(signal.delta_pct);
-    const trend = improved
-      ? t('REPORT.NARRATIVE.INSIGHT_BETTER', { pct })
-      : t('REPORT.NARRATIVE.INSIGHT_WORSE', { pct });
+    const times = timesFromPct(pct);
+    let trend;
+    if (pct >= 100) {
+      trend = improved
+        ? t('REPORT.NARRATIVE.INSIGHT_BETTER_TIMES', { times })
+        : t('REPORT.NARRATIVE.INSIGHT_WORSE_TIMES', { times });
+    } else {
+      trend = improved
+        ? t('REPORT.NARRATIVE.INSIGHT_BETTER', { pct })
+        : t('REPORT.NARRATIVE.INSIGHT_WORSE', { pct });
+    }
     return `${trend} · ${goal}`;
   };
 
