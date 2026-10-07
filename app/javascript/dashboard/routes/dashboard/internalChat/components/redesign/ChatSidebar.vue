@@ -186,7 +186,7 @@ defineExpose({ openCompose });
   <aside class="flex flex-col h-full bg-n-solid-1">
     <!-- Cabeçalho: título grande + o que é novo, como no app Mensagens -->
     <header
-      class="flex items-start justify-between px-4 pt-5 pb-3 flex-shrink-0"
+      class="flex flex-wrap items-center justify-between px-4 pt-5 pb-3 flex-shrink-0"
     >
       <div class="min-w-0">
         <h1
@@ -194,25 +194,8 @@ defineExpose({ openCompose });
         >
           {{ t('INTERNAL_CHAT.TITLE') }}
         </h1>
-        <p
-          v-if="summary"
-          class="mb-0 flex items-center gap-1.5 mt-0.5 text-[13px]"
-          :class="
-            counts.unread ? 'text-n-teal-11 font-semibold' : 'text-n-slate-11'
-          "
-        >
-          <span
-            class="flex-shrink-0 size-3.5"
-            :class="
-              counts.unread
-                ? 'i-lucide-message-circle-more'
-                : 'i-lucide-check-check'
-            "
-          />
-          {{ summary }}
-        </p>
       </div>
-      <div class="flex items-center gap-1 pt-1">
+      <div class="flex items-center gap-1">
         <!-- Configurações de notificação -->
         <div class="relative">
           <button
@@ -396,6 +379,23 @@ defineExpose({ openCompose });
           </template>
         </div>
       </div>
+      <p
+        v-if="summary"
+        class="flex items-center gap-1.5 mt-0.5 mb-0 text-[13px] basis-full"
+        :class="
+          counts.unread ? 'text-n-teal-11 font-semibold' : 'text-n-slate-11'
+        "
+      >
+        <span
+          class="flex-shrink-0 size-3.5"
+          :class="
+            counts.unread
+              ? 'i-lucide-message-circle-more'
+              : 'i-lucide-check-check'
+          "
+        />
+        {{ summary }}
+      </p>
     </header>
 
     <!-- Busca arredondada -->

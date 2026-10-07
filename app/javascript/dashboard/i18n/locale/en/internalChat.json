@@ -150,7 +150,7 @@
       "PICK_MEMBERS": "Check who is in the group:",
       "CREATE_GROUP": "Create group",
       "TEAMS_HINT": "One group per team, with every team member. Click to open.",
-      "SEARCH_PLACEHOLDER": "Search person, group or message…",
+      "SEARCH_PLACEHOLDER": "Search name or message…",
       "EMPTY_TITLE": "No conversations yet",
       "EMPTY_HINT": "Talk to a teammate or your team without leaving the app.",
       "NO_UNREAD": "All caught up. No conversation with new messages.",
@@ -229,7 +229,8 @@
       "UNMUTE": "Unmute",
       "FAVORITE": "Favorite",
       "UNFAVORITE": "Unfavorite",
-      "MANAGE": "Manage"
+      "MANAGE": "Manage",
+      "TITLE": "Details"
     },
     "EMPTY_STATE": {
       "PICK": "Pick a conversation on the side or start a new one.",

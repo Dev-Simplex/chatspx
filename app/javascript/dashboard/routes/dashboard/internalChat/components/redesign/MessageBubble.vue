@@ -325,17 +325,17 @@ const iReacted = emoji =>
         <!-- Cauda do balão: só no último da sequência (estilo iMessage) -->
         <svg
           v-if="message.tail && !jumbo"
-          viewBox="0 0 12 16"
+          viewBox="0 0 14 20"
           aria-hidden="true"
-          class="absolute bottom-0 w-3 h-4 pointer-events-none"
+          class="absolute bottom-0 w-3.5 h-5 pointer-events-none"
           :class="
             message.mine
-              ? '-right-[5px] text-n-teal-11 dark:text-n-teal-4'
-              : '-left-[5px] -scale-x-100 text-n-slate-3 dark:text-n-slate-4'
+              ? '-right-[6px] text-n-teal-11 dark:text-n-teal-4'
+              : '-left-[6px] -scale-x-100 text-n-slate-3 dark:text-n-slate-4'
           "
         >
           <path
-            d="M0 0 H5 C5 7 7.5 12.5 12 16 C7 16.3 3 14.8 0 12.5 Z"
+            d="M0 0 H7 C7 9 9 15 14 20 C8 20.4 3.5 18.6 0 15.5 Z"
             fill="currentColor"
           />
         </svg>

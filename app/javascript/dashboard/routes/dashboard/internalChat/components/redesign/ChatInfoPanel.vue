@@ -64,8 +64,8 @@ const members = computed(() =>
     <header
       class="flex items-center flex-shrink-0 h-16 gap-2 px-4 border-b border-n-weak"
     >
-      <h3 class="flex-1 text-sm font-semibold text-n-slate-12">
-        {{ t('INTERNAL_CHAT.HEADER.DETAILS') }}
+      <h3 class="flex-1 mb-0 text-base font-semibold text-n-slate-12">
+        {{ t('INTERNAL_CHAT.INFO.TITLE') }}
       </h3>
       <button
         v-tooltip="t('INTERNAL_CHAT.INFO.CLOSE')"
