@@ -136,6 +136,12 @@ class Rack::Attack
     nil
   end
 
+  # Frota do Captador (Spx::Captador::FrotaController): token único da instalação, então limita por IP
+  # quem tenta adivinhá-lo. O Captador lista a frota de vez em quando e ativa uma conta por vez.
+  throttle('captador_frota/ip', limit: 30, period: 1.minute) do |req|
+    req.ip if req.path_without_extentions.start_with?('/spx/captador/v1/frota/')
+  end
+
   ## Reset password throttling
   throttle('reset_password/ip', limit: 5, period: 30.minutes) do |req|
     req.ip if req.path_without_extentions == '/auth/password' && req.post?
