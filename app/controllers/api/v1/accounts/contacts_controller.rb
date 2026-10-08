@@ -1,4 +1,8 @@
 class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
+  # SUP-1415: duas gravacoes simultaneas do mesmo telefone passavam juntas pela validacao do Rails e criavam
+  # duas fichas. O indice unico do banco barra a segunda; aqui ela vira o mesmo 422 que a tela ja sabe mostrar.
+  rescue_from ActiveRecord::RecordNotUnique, with: :render_duplicate_contact
+
   include Sift
 
   WAHA_VALIDATION_SESSION_NAME = ENV.fetch('WAHA_DEFAULT_SESSION', nil).freeze
@@ -422,5 +426,12 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController 
 
   def render_error(error, error_status)
     render json: error, status: error_status
+  end
+
+  def render_duplicate_contact(exception)
+    raise exception unless exception.message.include?(Contact::PHONE_UNIQUE_INDEX)
+
+    render json: { message: I18n.t('errors.contacts.phone_number.taken'), attributes: ['phone_number'] },
+           status: :unprocessable_entity
   end
 end
