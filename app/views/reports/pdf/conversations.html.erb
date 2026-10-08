@@ -49,7 +49,7 @@
 
 <%# ============ 2. MELHOROU OU PIOROU? ============ %>
 <div class="section">
-  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?</div>
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?<% if cmp.values.any? { |c| c[:delta_pct] } && @data.dig(:period, :previous) %><span class="vs">comparado com o período de <%= @data.dig(:period, :previous) %></span><% end %></div>
   <%= render 'reports/pdf/kpi_band', cards: [
     { label: 'Conversas', value: number_with_delimiter(total), hero: true,
       meaning: 'quantas pessoas falaram com a equipe', delta: pdf_delta(cmp[:conversations]) },
