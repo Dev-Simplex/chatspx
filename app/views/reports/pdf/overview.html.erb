@@ -47,8 +47,9 @@
 </div>
 
 <%# ============ 2. QUEM ESPERA HÁ MAIS TEMPO? ============ %>
-<%# Tabela com colunas nomeadas (antes eram barras todas iguais e uma linha cinza sem dizer o que era cada coisa). %>
-<div class="section" style="break-inside: auto;">
+<%# Tabela com colunas nomeadas (antes eram barras todas iguais e uma linha cinza sem dizer o que era cada coisa).
+    Sao no maximo 10 linhas: a secao inteira fica numa pagina so (se nao couber, comeca na pagina seguinte). %>
+<div class="section" style="break-inside: avoid;">
   <div class="narrative-title" style="break-after: avoid;"><span class="q">2.</span> Quem está esperando resposta há mais tempo?</div>
   <% if waiting.any? %>
     <p class="section-lead" style="break-after: avoid;">
@@ -60,7 +61,7 @@
       <span><i class="cl-dot warn"></i> passou um pouco da meta</span>
       <span><i class="cl-dot bad"></i> passou muito da meta</span>
     </div>
-    <div class="card" style="padding: 2mm 4mm; break-inside: auto;">
+    <div class="card" style="padding: 2mm 4mm; break-inside: avoid;">
       <table class="cl-table">
         <colgroup>
           <col style="width: 9%;"><col style="width: 19%;"><col style="width: 17%;"><col style="width: 15%;">
