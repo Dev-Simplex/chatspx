@@ -343,19 +343,30 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def bot_data
     metrics = V2::Reports::BotMetricsBuilder.new(@account, builder_params).metrics
     {
-      report_type: 'bot', title: 'Relatório do Bot', period: period_meta,
-      overline: 'Automação · Confidencial',
-      subtitle: "Taxa de resolução automática de #{metrics[:resolution_rate]}% em #{metrics[:conversation_count]} conversas atendidas pelo bot.",
+      report_type: 'bot', title: 'Relatório do Robô', period: period_meta,
+      overline: 'Atendimento automático · Confidencial',
+      subtitle: "O robô resolveu sozinho #{metrics[:resolution_rate]}% das #{metrics[:conversation_count]} conversas que passaram por ele.",
       base_label: "#{metrics[:conversation_count]} conversas",
       kpis: bot_kpis(metrics),
-      verdict: bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolução pelo bot'),
-      verdict_secondary: bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Transferência do bot'),
+      verdict: bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolveu sozinho'),
+      verdict_secondary: bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Passou para uma pessoa'),
       timeseries: {
         resolutions: count_series('bot_resolutions_count'),
         handoffs: count_series('bot_handoffs_count')
       },
-      inboxes: bot_by_inbox
+      inboxes: bot_by_inbox, handoffs: bot_handoff_rows
     }
+  end
+
+  BOT_HANDOFF_LIMIT = 10
+
+  # As ultimas conversas que o robo passou para uma pessoa (a mesma lista do numero da tela).
+  def bot_handoff_rows
+    drilldown('bot_handoffs_count').top(BOT_HANDOFF_LIMIT).map do |row|
+      { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
+        agent: row[:agent_name].presence || 'sem atendente', status: STATUS_PT.fetch(row[:status], row[:status]),
+        date: Time.zone.at(row[:created_at]).in_time_zone(TZ).strftime('%d/%m %H:%M') }
+    end
   end
 
   def bot_kpis(metrics)
