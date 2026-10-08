@@ -414,6 +414,10 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return total < 600 && (total % 60).positive? ? "#{total / 60} min #{total % 60} s" : "#{total / 60} min" if total < 3600
     return (total % 3600) >= 60 ? "#{total / 3600} h #{(total % 3600) / 60} min" : "#{total / 3600} h" if total < 86_400
 
+    short_days(total)
+  end
+
+  def short_days(total)
     days = total / 86_400
     hours = (total % 86_400) / 3600
     "#{days} #{days == 1 ? 'dia' : 'dias'}#{" e #{hours} h" if hours.positive?}"
