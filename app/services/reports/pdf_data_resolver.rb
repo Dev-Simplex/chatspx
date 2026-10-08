@@ -510,7 +510,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def conversations_subtitle(summary)
     with_inbox_scope(
-      "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}."
+      if summary[:avg_first_response_time].to_i.positive?
+        "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}."
+      else
+        "#{summary[:conversations_count]} conversas no período."
+      end
     )
   end
 
@@ -582,7 +586,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
         human: format_seconds(summary[:avg_resolution_time]), metric: :resolution, kind: :time },
       { label: 'taxa de resolução', value: rate, human: "#{rate}%", metric: :resolution_rate, kind: :rate }
     ].select { |signal| signal_has_data?(signal, summary) }
-     .map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
+      .map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
   end
 
   # Sem conversa ou sem tempo medido não há o que julgar: "--" não está "dentro da meta".
@@ -1265,8 +1269,9 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     values.empty? ? 0 : (values.sum / values.size).round
   end
 
+  # Sem tempo medido mostra "--", como na tela (o "N/A" do presenter e o do CSV).
   def format_seconds(seconds)
-    Reports::TimeFormatPresenter.new(seconds).format
+    seconds.to_i.positive? ? Reports::TimeFormatPresenter.new(seconds).format : '--'
   end
 
   def entity_name(id, names)
