@@ -239,6 +239,7 @@ en:
         value_at: Counted at
       value:
         conversations_count: Conversations
+        resolved_conversations_count: Resolved conversations
         incoming_messages_count: Incoming messages
         outgoing_messages_count: Outgoing messages
         avg_first_response_time: First response time (seconds)

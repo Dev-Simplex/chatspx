@@ -280,6 +280,7 @@ pt_BR:
         value_at: Contada em
       value:
         conversations_count: Conversas
+        resolved_conversations_count: Conversas resolvidas
         incoming_messages_count: Mensagens recebidas
         outgoing_messages_count: Mensagens enviadas
         avg_first_response_time: Tempo de primeira resposta (segundos)

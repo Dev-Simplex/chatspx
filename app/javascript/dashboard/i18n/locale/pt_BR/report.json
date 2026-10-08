@@ -253,11 +253,33 @@
       "QUANTITY": "quantidade",
       "AVERAGE_TIME": "tempo médio",
       "CONVERSATIONS": "conversas"
+    },
+    "ENTITY_SUMMARY": {
+      "AGENT": {
+        "VOLUME": "{count} atendentes receberam {conversations} conversas no período.",
+        "BUSIEST": "Quem recebeu mais foi {name}, com {conversations}."
+      },
+      "INBOX": {
+        "VOLUME": "{count} caixas de entrada receberam {conversations} conversas no período.",
+        "BUSIEST": "A que recebeu mais foi {name}, com {conversations}."
+      },
+      "TEAM": {
+        "VOLUME": "{count} times receberam {conversations} conversas no período.",
+        "BUSIEST": "O que recebeu mais foi {name}, com {conversations}."
+      },
+      "LABEL": {
+        "VOLUME": "{count} etiquetas foram usadas em {conversations} conversas no período.",
+        "BUSIEST": "A mais usada foi {name}, com {conversations}."
+      },
+      "FASTEST": "A 1ª resposta mais rápida, em média, foi de {name}: {time}.",
+      "SLOWEST": "A mais demorada foi de {name}: {time}.",
+      "RESOLVED": "{resolved} conversas foram resolvidas.",
+      "HOW_TO_READ": "Clique em um número sublinhado para ver as conversas. A bolinha ao lado do tempo mostra a meta: verde está dentro, amarela está perto e vermelha está longe."
     }
   },
   "AGENT_REPORTS": {
-    "HEADER": "Visão Geral de Agentes",
-    "DESCRIPTION": "Acompanhe facilmente o desempenho dos agentes com métricas-chave, como conversas, tempos de resposta, tempos de resolução e casos resolvidos. Clique no nome de um agente para saber mais.",
+    "HEADER": "Agentes",
+    "DESCRIPTION": "Como cada atendente se saiu: quantas conversas recebeu, quanto o cliente esperou e quantas resolveu. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_AGENT_REPORTS": "Baixar relatórios de agentes",
@@ -375,8 +397,8 @@
     }
   },
   "LABEL_REPORTS": {
-    "HEADER": "Visão Geral das Etiquetas",
-    "DESCRIPTION": "Acompanhe o desempenho da sua etiqueta com métricas-chave incluindo conversas, tempo de resposta, tempos de resolução e casos resolvidos. Clique no nome da etiqueta para obter detalhes.",
+    "HEADER": "Etiquetas",
+    "DESCRIPTION": "Como foram as conversas de cada etiqueta: quantas foram, quanto o cliente esperou e quantas foram resolvidas. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_LABEL_REPORTS": "Baixar relatórios de etiquetas",
@@ -448,8 +470,8 @@
     }
   },
   "INBOX_REPORTS": {
-    "HEADER": "Visualizar Caixa de Entrada",
-    "DESCRIPTION": "Veja rapidamente o desempenho da caixa de entrada com métricas-chave como conversas, tempos de resposta, tempos de resolução, e casos resolvidos — tudo em um só lugar. Clique na caixa de entrada para mais detalhes",
+    "HEADER": "Caixas de entrada",
+    "DESCRIPTION": "Como foi cada caixa de entrada (WhatsApp, Instagram, site...): quantas conversas chegaram, quanto o cliente esperou e quantas foram resolvidas. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_INBOX_REPORTS": "Baixar relatórios de entrada",
@@ -523,8 +545,8 @@
     }
   },
   "TEAM_REPORTS": {
-    "HEADER": "Resumo do Time",
-    "DESCRIPTION": "Tenha uma visão geral do desempenho dos seus times com métricas essenciais, incluindo conversas, tempos de resposta, tempos de resolução e casos resolvidos. Clique no nome do time para ver mais detalhes.",
+    "HEADER": "Times",
+    "DESCRIPTION": "Como foi cada time: quantas conversas recebeu, quanto o cliente esperou e quantas resolveu. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_TEAM_REPORTS": "Baixar relatórios de time",
@@ -889,13 +911,13 @@
     "INBOX": "Caixa de Entrada",
     "AGENT": "Agente",
     "TEAM": "Time",
-    "LABEL": "Nome do campo",
-    "AVG_RESOLUTION_TIME": "Tempo Médio de Resolução",
-    "AVG_FIRST_RESPONSE_TIME": "Tempo Médio de Primeira Resposta",
-    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "Tempo Médio Após Transferência",
-    "AVG_REPLY_TIME": "Tempo Médio de Espera do Cliente",
-    "RESOLUTION_COUNT": "Contagem de Resolução",
-    "CONVERSATIONS": "Nº de Conversas"
+    "LABEL": "Etiqueta",
+    "AVG_RESOLUTION_TIME": "Tempo para resolver",
+    "AVG_FIRST_RESPONSE_TIME": "Espera pela 1ª resposta",
+    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "1ª resposta depois de chegar ao atendente",
+    "AVG_REPLY_TIME": "Espera entre mensagens",
+    "RESOLUTION_COUNT": "Resolvidas",
+    "CONVERSATIONS": "Conversas"
   },
   "LIVE_REPORTS": {
     "IN_SERVICE": {

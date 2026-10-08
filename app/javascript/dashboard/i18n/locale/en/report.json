@@ -253,11 +253,33 @@
       "QUANTITY": "quantity",
       "AVERAGE_TIME": "average time",
       "CONVERSATIONS": "conversations"
+    },
+    "ENTITY_SUMMARY": {
+      "AGENT": {
+        "VOLUME": "{count} agents got {conversations} conversations in the period.",
+        "BUSIEST": "The one who got the most was {name}, with {conversations}."
+      },
+      "INBOX": {
+        "VOLUME": "{count} inboxes got {conversations} conversations in the period.",
+        "BUSIEST": "The one that got the most was {name}, with {conversations}."
+      },
+      "TEAM": {
+        "VOLUME": "{count} teams got {conversations} conversations in the period.",
+        "BUSIEST": "The one that got the most was {name}, with {conversations}."
+      },
+      "LABEL": {
+        "VOLUME": "{count} labels were used in {conversations} conversations in the period.",
+        "BUSIEST": "The most used was {name}, with {conversations}."
+      },
+      "FASTEST": "The fastest first reply, on average, was from {name}: {time}.",
+      "SLOWEST": "The slowest was from {name}: {time}.",
+      "RESOLVED": "{resolved} conversations were resolved.",
+      "HOW_TO_READ": "Click an underlined number to see the conversations. The dot next to the time shows the target: green is within, yellow is close and red is far."
     }
   },
   "AGENT_REPORTS": {
-    "HEADER": "Agents Overview",
-    "DESCRIPTION": "Easily track agent performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click an agent's name to learn more.",
+    "HEADER": "Agents",
+    "DESCRIPTION": "How each agent did: how many conversations they got, how long the customer waited and how many they resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_AGENT_REPORTS": "Download agent reports",
@@ -375,8 +397,8 @@
     }
   },
   "LABEL_REPORTS": {
-    "HEADER": "Labels Overview",
-    "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",
+    "HEADER": "Labels",
+    "DESCRIPTION": "How the conversations of each label went: how many there were, how long the customer waited and how many were resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_LABEL_REPORTS": "Download label reports",
@@ -448,8 +470,8 @@
     }
   },
   "INBOX_REPORTS": {
-    "HEADER": "Inbox Overview",
-    "DESCRIPTION": "Quickly view your inbox performance with key metrics like conversations, response times, resolution times, and resolved cases—all in one place. Click an inbox name for more details.",
+    "HEADER": "Inboxes",
+    "DESCRIPTION": "How each inbox did (WhatsApp, Instagram, website...): how many conversations came in, how long the customer waited and how many were resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_INBOX_REPORTS": "Download inbox reports",
@@ -523,8 +545,8 @@
     }
   },
   "TEAM_REPORTS": {
-    "HEADER": "Team Overview",
-    "DESCRIPTION": "Get a snapshot of your team's performance with essential metrics, including conversations, response times, resolution times, and resolved cases. Click a team name for more details.",
+    "HEADER": "Teams",
+    "DESCRIPTION": "How each team did: how many conversations it got, how long the customer waited and how many it resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_TEAM_REPORTS": "Download team reports",
@@ -890,12 +912,12 @@
     "AGENT": "Agent",
     "TEAM": "Team",
     "LABEL": "Label",
-    "AVG_RESOLUTION_TIME": "Avg. Resolution Time",
-    "AVG_FIRST_RESPONSE_TIME": "Avg. First Response Time",
-    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "Avg. First Response After Transfer",
-    "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
-    "RESOLUTION_COUNT": "Resolution Count",
-    "CONVERSATIONS": "No. of conversations"
+    "AVG_RESOLUTION_TIME": "Time to resolve",
+    "AVG_FIRST_RESPONSE_TIME": "Wait for first reply",
+    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "First reply after reaching the agent",
+    "AVG_REPLY_TIME": "Wait between messages",
+    "RESOLUTION_COUNT": "Resolved",
+    "CONVERSATIONS": "Conversations"
   },
   "LIVE_REPORTS": {
     "IN_SERVICE": {

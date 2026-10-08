@@ -51,7 +51,7 @@ const isMessageMetric = computed(() =>
 const subtitle = computed(() => {
   if (!meta.value) return '';
   const { total_count: total, conversations_count: conversations } = meta.value;
-  if (props.metric.key === 'conversations_count') {
+  if (['conversations_count', 'resolved_conversations_count'].includes(props.metric.key)) {
     return t('REPORT.DRILLDOWN.TOTAL_CONVERSATIONS', { count: total });
   }
   if (isMessageMetric.value) {

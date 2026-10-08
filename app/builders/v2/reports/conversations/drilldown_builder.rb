@@ -8,7 +8,10 @@ class V2::Reports::Conversations::DrilldownBuilder < V2::Reports::Conversations:
   CSV_LIMIT = 5_000
   MESSAGE_METRICS = %w[incoming_messages_count outgoing_messages_count].freeze
   EVENT_METRICS = (AVG_METRICS + %w[resolutions_count]).freeze
-  SUPPORTED_METRICS = (%w[conversations_count] + MESSAGE_METRICS + EVENT_METRICS).freeze
+  # Conversas criadas no periodo que estao resolvidas hoje: e assim que a tabela de Agentes conta "Resolvidas"
+  # (V2::Reports::AgentSummaryBuilder#load_data), diferente das resolucoes feitas no periodo (resolutions_count).
+  CONVERSATION_METRICS = %w[conversations_count resolved_conversations_count].freeze
+  SUPPORTED_METRICS = (CONVERSATION_METRICS + MESSAGE_METRICS + EVENT_METRICS).freeze
 
   def supported?
     SUPPORTED_METRICS.include?(metric)
@@ -45,7 +48,7 @@ class V2::Reports::Conversations::DrilldownBuilder < V2::Reports::Conversations:
   end
 
   def conversations_count
-    @conversations_count ||= metric == 'conversations_count' ? total_count : scope.distinct.count(:conversation_id)
+    @conversations_count ||= CONVERSATION_METRICS.include?(metric) ? total_count : scope.distinct.count(:conversation_id)
   end
 
   private
@@ -55,11 +58,19 @@ class V2::Reports::Conversations::DrilldownBuilder < V2::Reports::Conversations:
   end
 
   def scope
-    @scope ||= builder_class(metric).new(account, params).drilldown_scope.unscope(:order)
+    @scope ||= if metric == 'resolved_conversations_count'
+                 conversations_scope.where(status: :resolved)
+               else
+                 builder_class(metric).new(account, params).drilldown_scope.unscope(:order)
+               end
+  end
+
+  def conversations_scope
+    V2::Reports::Timeseries::CountReportBuilder.new(account, params.merge(metric: 'conversations_count')).drilldown_scope.unscope(:order)
   end
 
   def rows(offset:, limit:)
-    if metric == 'conversations_count'
+    if CONVERSATION_METRICS.include?(metric)
       conversation_rows(offset, limit)
     elsif MESSAGE_METRICS.include?(metric)
       message_rows(offset, limit)
