@@ -1014,5 +1014,83 @@
       "SORT_BY_NAME_DESC": "Nome (Z–A)",
       "LOAD_MORE_CONVERSATIONS": "Carregar mais conversas"
     }
+  },
+  "REPORTS_PANEL": {
+    "TITLE": "Relatórios",
+    "TABS": {
+      "OVERVIEW": "Visão geral",
+      "AGENTS": "Agentes",
+      "NPS": "NPS",
+      "SLA": "SLA",
+      "AI": "IA",
+      "INBOXES_LABELS": "Caixas e etiquetas"
+    },
+    "PERIOD": {
+      "TODAY": "Hoje",
+      "LAST_7": "7 dias",
+      "LAST_30": "30 dias"
+    },
+    "VS": {
+      "TODAY": "que ontem até esta hora",
+      "LAST_7": "que nos 7 dias anteriores",
+      "LAST_30": "que nos 30 dias anteriores"
+    },
+    "KPI": {
+      "CONVERSATIONS": "Conversas",
+      "CONVERSATIONS_SUB": "chegaram no período",
+      "FIRST_RESPONSE": "1ª resposta",
+      "FIRST_RESPONSE_SUB": "metade dos clientes esperou até isso",
+      "RESOLVED": "Resolvidas",
+      "RESOLVED_SUB": "conversas encerradas",
+      "CSAT": "CSAT",
+      "CSAT_SUB": "clientes satisfeitos",
+      "CSAT_EMPTY": "ninguém respondeu a pesquisa",
+      "NO_DATA": "--",
+      "SEE_CONVERSATIONS": "Ver as conversas"
+    },
+    "SHORTCUT": {
+      "NPS": "NPS",
+      "NPS_SUB": "{pct} recomendariam",
+      "NPS_EMPTY": "sem respostas no período",
+      "SLA": "SLA cumprido",
+      "SLA_SUB": "nenhum estourou | 1 estourou | {n} estouraram",
+      "SLA_EMPTY": "nenhuma conversa com SLA",
+      "AI": "IA resolveu sozinha",
+      "AI_SUB": "conversas sem humano",
+      "OPEN": "Abrir o relatório"
+    },
+    "VOLUME": {
+      "TITLE": "Volume de conversas",
+      "SUB_TODAY": "por hora, hoje",
+      "SUB_DAYS": "por dia",
+      "RECEIVED": "Recebidas",
+      "RESOLVED": "Resolvidas",
+      "EMPTY": "Nenhuma conversa no período."
+    },
+    "LIVE": {
+      "TITLE": "Ao vivo",
+      "SUB": "Fila e presença num lugar só.",
+      "UPDATED": "atualizado {time}",
+      "WAITING": "esperando",
+      "OLDEST": "espera máx. {time}",
+      "NO_QUEUE": "Ninguém esperando resposta agora.",
+      "NO_TEAM": "Sem time",
+      "ONLINE": "{online} de {total} online",
+      "OPEN_COUNT": "nenhuma aberta | 1 aberta | {n} abertas",
+      "OPEN_QUEUE": "Abrir a fila",
+      "NOBODY_ONLINE": "Ninguém online agora."
+    },
+    "FIRST_RESPONSE": {
+      "TITLE": "Tempo de primeira resposta",
+      "SUB": "média por time, no período",
+      "GOAL": "meta {time}",
+      "EMPTY": "Nenhum time respondeu conversas no período."
+    },
+    "FUNNEL": {
+      "TITLE": "Funil de vendas",
+      "SUB": "quantos estão em cada etapa agora",
+      "OPEN": "Abrir o funil"
+    },
+    "LOAD_FAILED": "Não deu para carregar uma parte do relatório. Tente de novo em instantes."
   }
 }
