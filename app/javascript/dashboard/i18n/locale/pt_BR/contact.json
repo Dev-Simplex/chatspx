@@ -324,7 +324,10 @@
           "EMAIL_ADDRESS_DUPLICATE": "Esse endereço de e-mail já está sendo usado para outro contato.",
           "PHONE_NUMBER_DUPLICATE": "Este número de telefone está em uso para outro contato.",
           "SUCCESS_MESSAGE": "Contato salvo com sucesso",
-          "ERROR_MESSAGE": "Não foi possível atualizar o contato. Por favor, tente mais tarde."
+          "ERROR_MESSAGE": "Não foi possível atualizar o contato. Por favor, tente mais tarde.",
+          "DUPLICATE_PHONE_OWNER": "Este número já está salvo no contato “{name}”. Abra esse contato em vez de criar outro.",
+          "DUPLICATE_EMAIL_OWNER": "Este e-mail já está salvo no contato “{name}”. Abra esse contato em vez de criar outro.",
+          "OPEN_EXISTING": "Abrir contato"
         },
         "BLOCK_SUCCESS_MESSAGE": "Este contato foi bloqueado com sucesso",
         "BLOCK_ERROR_MESSAGE": "Não foi possível bloquear o contato. Tente novamente mais tarde.",
