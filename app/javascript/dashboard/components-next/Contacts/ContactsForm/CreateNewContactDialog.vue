@@ -23,7 +23,9 @@ const createNewContact = contactItem => {
 };
 
 const handleDialogConfirm = async () => {
-  if (!contact.value) return;
+  // SUP-1415: dois envios em 2 ms (clique duplo, Enter + clique) criavam duas fichas
+  // do mesmo número. A criação liga `isCreating` antes da requisição sair.
+  if (!contact.value || isCreatingContact.value) return;
   emit('create', contact.value);
 };
 
@@ -66,7 +68,7 @@ defineExpose({ dialogRef, contactsFormRef, onSuccess });
             t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.SAVE_CONTACT')
           "
           color="blue"
-          :disabled="contactsFormRef?.isFormInvalid"
+          :disabled="contactsFormRef?.isFormInvalid || isCreatingContact"
           :is-loading="isCreatingContact"
         />
       </div>
