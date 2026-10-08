@@ -93,6 +93,10 @@ export default {
     },
   },
   methods: {
+    // Numero zerado (ou tempo "--") nao tem conversa para mostrar: nem link, nem "Ver conversas".
+    hasData(metric) {
+      return Number(this.accountSummary[metric.KEY]) > 0;
+    },
     // "Como ler" + o ponto mais alto e o mais baixo do grafico, em frase.
     chartCaption(metric) {
       const data = (this.accountReport.data[metric.KEY] || []).filter(
@@ -283,14 +287,14 @@ export default {
             :signal="metric.signal"
             :account-summary-key="accountSummaryKey"
             :summary-fetching-key="summaryFetchingKey"
-            :clickable="!!drilldownFilters"
+            :clickable="!!drilldownFilters && hasData(metric)"
             @select="openDrilldown(metric)"
           />
           <span v-if="metric.DESC" class="text-sm text-n-slate-10">
             {{ metric.DESC }}
           </span>
           <button
-            v-if="drilldownFilters"
+            v-if="drilldownFilters && hasData(metric)"
             type="button"
             class="flex items-center gap-1 p-0 m-0 text-sm font-medium text-n-brand hover:underline w-fit"
             @click="openDrilldown(metric)"

@@ -5,6 +5,10 @@ const MINUTE = 60;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+// "95,5%" (virgula decimal, no maximo uma casa) e nao "95.45%".
+export const formatPercent = value =>
+  `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+
 // t: o `t` do vue-i18n. Chaves em REPORT.TIME.
 export const formatDuration = (seconds, t) => {
   const total = Math.round(Number(seconds) || 0);

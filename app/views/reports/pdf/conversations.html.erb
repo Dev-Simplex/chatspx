@@ -71,12 +71,14 @@
 </div>
 
 <%# Herói e vilão (princ. 6) — cards de veredito com hierarquia (métrica · valor · meta · status) %>
-<div class="section">
-  <div class="verdict-grid">
-    <%= render 'reports/pdf/verdict', v: @data[:highlight] %>
-    <%= render 'reports/pdf/verdict', v: @data[:attention] %>
+<% if @data[:highlight] %>
+  <div class="section">
+    <div class="verdict-grid">
+      <%= render 'reports/pdf/verdict', v: @data[:highlight] %>
+      <%= render 'reports/pdf/verdict', v: @data[:attention] %>
+    </div>
   </div>
-</div>
+<% end %>
 
 <%# Gráficos com meta + legenda automática (princ. 5 e 7) %>
 <% if trends[:conversations].present? %>

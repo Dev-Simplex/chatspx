@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { I18nT } from 'vue-i18n';
+import { formatPercent } from 'dashboard/helper/reportFormat';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import CsatMetricCard from './CsatMetricCard.vue';
@@ -24,8 +25,6 @@ const responseCount = computed(() =>
     ? metrics.value.totalResponseCount.toLocaleString()
     : '0'
 );
-
-const formatPercent = value => (value ? `${value}%` : '0%');
 
 // As notas em frases: quantas, quantos ficaram satisfeitos (4 e 5) e quantos nao (1 e 2), e quantos responderam.
 const countOf = (...ratings) =>

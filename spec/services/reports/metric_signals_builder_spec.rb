@@ -65,13 +65,10 @@ RSpec.describe Reports::MetricSignalsBuilder do
       expect(rate[:value]).to eq(75) # 90/120 -> 75%
     end
 
-    it 'protects against division by zero when conversations_count is 0' do
+    it 'gives no verdict on the rate when conversations_count is 0' do
       summary = { resolutions_count: 10, conversations_count: 0 }
 
-      rate = signal(described_class.new(summary: summary).build, :resolution_rate)
-
-      expect(rate[:value]).to eq(0)
-      expect(rate[:level]).to eq('bad')
+      expect(signal(described_class.new(summary: summary).build, :resolution_rate)).to be_nil
     end
   end
 
@@ -157,13 +154,8 @@ RSpec.describe Reports::MetricSignalsBuilder do
   end
 
   describe '#build graceful degradation' do
-    it 'does not raise on an empty summary and returns coherent zero-value signals' do
-      signals = described_class.new(summary: {}).build
-
-      expect(signals.size).to eq(4)
-      # tempos = 0 -> good; taxa = 0 -> bad
-      expect(signal(signals, :first_response)[:level]).to eq('good')
-      expect(signal(signals, :resolution_rate)[:level]).to eq('bad')
+    it 'returns no signals on an empty summary (nothing to judge)' do
+      expect(described_class.new(summary: {}).build).to eq([])
     end
 
     it 'accepts string-keyed hashes (indifferent access)' do
