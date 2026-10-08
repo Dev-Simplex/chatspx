@@ -53,11 +53,11 @@
   <%= render 'reports/pdf/kpi_band', cards: [
     { label: 'Conversas', value: number_with_delimiter(total), hero: true,
       meaning: 'quantas pessoas falaram com a equipe', delta: pdf_delta(cmp[:conversations]) },
-    { label: '1ª resposta', value: k[:avg_first_response], small: true, status: frt_status[:level],
+    { label: '1ª resposta', value: k[:avg_first_response], small: true, status: (frt_status[:level] if k[:frt_seconds].to_f.positive?),
       meaning: 'quanto o cliente espera pela primeira resposta', delta: pdf_delta(cmp[:first_response]) },
-    { label: 'Resolução', value: k[:avg_resolution], small: true, status: res_status[:level],
+    { label: 'Resolução', value: k[:avg_resolution], small: true, status: (res_status[:level] if k[:resolution_seconds].to_f.positive?),
       meaning: 'quanto tempo até o problema ser resolvido', delta: pdf_delta(cmp[:resolution]) },
-    { label: 'Taxa de resolução', value: "#{k[:resolution_rate]}%", status: rate_status[:level],
+    { label: 'Taxa de resolução', value: "#{k[:resolution_rate]}%", status: (rate_status[:level] if total.positive?),
       meaning: 'quantas conversas terminam resolvidas' },
   ] %>
 </div>
