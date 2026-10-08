@@ -156,6 +156,13 @@ watch(phoneNumber, async () => {
 watch(
   modelValue,
   newValue => {
+    // O valor que acabamos de emitir já está no campo como a pessoa digitou (com espaços).
+    if (
+      newValue &&
+      newValue === `${activeDialCode.value}${phoneDigits.value}`
+    ) {
+      return;
+    }
     const number = parsePhoneNumber(newValue);
     if (number) {
       if (number?.country) activeCountryCode.value = number.country;
