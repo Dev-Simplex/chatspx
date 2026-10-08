@@ -662,7 +662,7 @@
     },
     "LOAD_MORE": "Load more",
     "FORM": {
-      "EMAIL_INVALID": "Invalid email. Use a full address, for example name{'@'}company.com, or leave it blank."
+      "EMAIL_INVALID": "Invalid email. E.g.: name{'@'}company.com"
     }
   },
   "CONTACTS_BULK_ACTIONS": {
