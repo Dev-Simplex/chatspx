@@ -307,6 +307,8 @@ pt_BR:
         resolutions_count: Tempo de resolução (segundos)
         reply_time: Tempo de espera do cliente (segundos)
         waiting: Esperando há (segundos)
+        bot_resolutions_count: Resolvida pelo robô
+        bot_handoffs_count: Passada pelo robô
       status:
         open: Aberta
         resolved: Resolvida

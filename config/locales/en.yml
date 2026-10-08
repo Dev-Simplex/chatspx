@@ -266,6 +266,8 @@ en:
         resolutions_count: Resolution time (seconds)
         reply_time: Customer waiting time (seconds)
         waiting: Waiting for (seconds)
+        bot_resolutions_count: Resolved by the bot
+        bot_handoffs_count: Handed over by the bot
       status:
         open: Open
         resolved: Resolved

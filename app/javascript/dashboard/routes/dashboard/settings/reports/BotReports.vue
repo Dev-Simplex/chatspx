@@ -31,6 +31,11 @@ export default {
     };
   },
   computed: {
+    // Com eles, os numeros de resolvidas e passadas pelo robo abrem as conversas (ReportDrilldownPanel).
+    drilldownFilters() {
+      const { from, to, inboxId } = this;
+      return { from, to, type: 'account', businessHours: false, inboxId };
+    },
     requestPayload() {
       return {
         from: this.from,
@@ -109,6 +114,7 @@ export default {
       summary-fetching-key="getBotSummaryFetchingStatus"
       :group-by="groupBy"
       :report-keys="reportKeys"
+      :drilldown-filters="drilldownFilters"
     />
   </div>
 </template>

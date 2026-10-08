@@ -83,12 +83,12 @@
         "DESC": "Conversations the team marked as resolved in the period."
       },
       "BOT_RESOLUTION_COUNT": {
-        "NAME": "Resolution Count",
-        "DESC": "( Total )"
+        "NAME": "How many did the bot resolve by itself?",
+        "DESC": "Conversations resolved by the bot, without a person."
       },
       "BOT_HANDOFF_COUNT": {
-        "NAME": "Handoff Count",
-        "DESC": "( Total )"
+        "NAME": "How many did the bot hand to a person?",
+        "DESC": "Conversations where the bot called an agent."
       },
       "REPLY_TIME": {
         "NAME": "How long did the customer wait between messages?",
@@ -798,24 +798,28 @@
     }
   },
   "BOT_REPORTS": {
-    "HEADER": "Bot Reports",
+    "HEADER": "Bots (automatic service)",
     "METRIC": {
       "TOTAL_CONVERSATIONS": {
-        "LABEL": "No. of Conversations",
-        "TOOLTIP": "Total number of conversations handled by the bot"
+        "LABEL": "How many conversations went through the bot?",
+        "TOOLTIP": "Conversations that came into an inbox with a bot turned on."
       },
       "TOTAL_RESPONSES": {
-        "LABEL": "Total Responses",
-        "TOOLTIP": "Total number of responses sent by the bot"
+        "LABEL": "How many messages did the bot send?",
+        "TOOLTIP": "Messages sent to customers in those conversations."
       },
       "RESOLUTION_RATE": {
-        "LABEL": "Resolution Rate",
-        "TOOLTIP": "Total number of conversations resolved by the bot / Total number of conversations handled by the bot * 100"
+        "LABEL": "How many did the bot resolve by itself?",
+        "TOOLTIP": "Out of every 100 conversations with the bot, how many it resolved without a person."
       },
       "HANDOFF_RATE": {
-        "LABEL": "Handoff Rate",
-        "TOOLTIP": "Total number of conversations handed off to agents / Total number of conversations handled by the bot * 100"
+        "LABEL": "How many did the bot hand to a person?",
+        "TOOLTIP": "Out of every 100 conversations with the bot, how many it handed to an agent."
       }
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversations went through the bot. It resolved {resolved} of them by itself and handed {handoff} to a person. In total, {messages} messages were sent.",
+      "HOW_TO_READ": "Below, the charts show day by day how many conversations the bot resolved and how many it handed to a person. Click the number to see the conversations."
     }
   },
   "OVERVIEW_REPORTS": {

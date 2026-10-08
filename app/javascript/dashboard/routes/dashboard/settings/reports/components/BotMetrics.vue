@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
+import { I18nT } from 'vue-i18n';
 import ReportMetricCard from './ReportMetricCard.vue';
 import ReportNarrativeSummary from './ReportNarrativeSummary.vue';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
@@ -49,6 +50,36 @@ onMounted(fetchMetrics);
 </script>
 
 <template>
+  <section
+    v-if="Number(String(conversationCount).replace(/\D/g, '')) > 0"
+    class="rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+  >
+    <h3 class="text-base font-semibold text-n-slate-12">
+      {{ $t('REPORT.PLAIN_SUMMARY.TITLE') }}
+    </h3>
+    <p class="mt-3 flex gap-3 text-base leading-relaxed text-n-slate-12">
+      <span class="i-lucide-bot size-5 mt-1 shrink-0 text-n-brand" />
+      <span class="min-w-0">
+        <I18nT keypath="BOT_REPORTS.PLAIN_SUMMARY.TEXT" tag="span">
+          <template #conversations>
+            <strong>{{ conversationCount }}</strong>
+          </template>
+          <template #resolved>
+            <strong>{{ formatToPercent(resolutionRate) }}</strong>
+          </template>
+          <template #handoff>
+            <strong>{{ formatToPercent(handoffRate) }}</strong>
+          </template>
+          <template #messages>
+            <strong>{{ messageCount }}</strong>
+          </template>
+        </I18nT>
+      </span>
+    </p>
+    <p class="mt-4 text-sm text-n-slate-11">
+      {{ $t('BOT_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
+    </p>
+  </section>
   <ReportNarrativeSummary :signals="signals" />
   <div
     class="flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
