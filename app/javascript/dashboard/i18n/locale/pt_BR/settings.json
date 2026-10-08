@@ -938,7 +938,8 @@
     "CAPTAIN_AI": "Agentes IA",
     "CONVERSATION_WORKFLOW": "Fluxo de Conversa",
     "UNITS": "Unidades",
-    "CATALOG": "Catálogo"
+    "CATALOG": "Catálogo",
+    "REPORTS_PANEL": "Painel"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "Configurações de Agentes IA",

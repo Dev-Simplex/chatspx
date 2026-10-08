@@ -1014,5 +1014,83 @@
       "SORT_BY_NAME_DESC": "Name (Z–A)",
       "LOAD_MORE_CONVERSATIONS": "Load more conversations"
     }
+  },
+  "REPORTS_PANEL": {
+    "TITLE": "Reports",
+    "TABS": {
+      "OVERVIEW": "Overview",
+      "AGENTS": "Agents",
+      "NPS": "NPS",
+      "SLA": "SLA",
+      "AI": "AI",
+      "INBOXES_LABELS": "Inboxes and labels"
+    },
+    "PERIOD": {
+      "TODAY": "Today",
+      "LAST_7": "7 days",
+      "LAST_30": "30 days"
+    },
+    "VS": {
+      "TODAY": "than yesterday up to this time",
+      "LAST_7": "than the previous 7 days",
+      "LAST_30": "than the previous 30 days"
+    },
+    "KPI": {
+      "CONVERSATIONS": "Conversations",
+      "CONVERSATIONS_SUB": "arrived in the period",
+      "FIRST_RESPONSE": "First response",
+      "FIRST_RESPONSE_SUB": "half of the customers waited up to this",
+      "RESOLVED": "Resolved",
+      "RESOLVED_SUB": "conversations closed",
+      "CSAT": "CSAT",
+      "CSAT_SUB": "satisfied customers",
+      "CSAT_EMPTY": "nobody answered the survey",
+      "NO_DATA": "--",
+      "SEE_CONVERSATIONS": "See the conversations"
+    },
+    "SHORTCUT": {
+      "NPS": "NPS",
+      "NPS_SUB": "{pct} would recommend",
+      "NPS_EMPTY": "no answers in the period",
+      "SLA": "SLA met",
+      "SLA_SUB": "none breached | 1 breached | {n} breached",
+      "SLA_EMPTY": "no conversation with SLA",
+      "AI": "AI solved alone",
+      "AI_SUB": "conversations without a human",
+      "OPEN": "Open the report"
+    },
+    "VOLUME": {
+      "TITLE": "Conversation volume",
+      "SUB_TODAY": "per hour, today",
+      "SUB_DAYS": "per day",
+      "RECEIVED": "Received",
+      "RESOLVED": "Resolved",
+      "EMPTY": "No conversations in the period."
+    },
+    "LIVE": {
+      "TITLE": "Live",
+      "SUB": "Queue and presence in one place.",
+      "UPDATED": "updated {time}",
+      "WAITING": "waiting",
+      "OLDEST": "longest wait {time}",
+      "NO_QUEUE": "Nobody is waiting for a reply right now.",
+      "NO_TEAM": "No team",
+      "ONLINE": "{online} of {total} online",
+      "OPEN_COUNT": "none open | 1 open | {n} open",
+      "OPEN_QUEUE": "Open the queue",
+      "NOBODY_ONLINE": "Nobody online right now."
+    },
+    "FIRST_RESPONSE": {
+      "TITLE": "First response time",
+      "SUB": "average per team, in the period",
+      "GOAL": "goal {time}",
+      "EMPTY": "No team answered conversations in the period."
+    },
+    "FUNNEL": {
+      "TITLE": "Sales funnel",
+      "SUB": "how many are in each stage now",
+      "OPEN": "Open the funnel"
+    },
+    "LOAD_FAILED": "Part of the report could not be loaded. Try again in a moment."
   }
 }

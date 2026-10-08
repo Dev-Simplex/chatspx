@@ -937,7 +937,8 @@
     "CAPTAIN_AI": "AI Agents",
     "CONVERSATION_WORKFLOW": "Conversation Workflow",
     "UNITS": "Units",
-    "CATALOG": "Catalog"
+    "CATALOG": "Catalog",
+    "REPORTS_PANEL": "Dashboard"
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "AI Agents Settings",
