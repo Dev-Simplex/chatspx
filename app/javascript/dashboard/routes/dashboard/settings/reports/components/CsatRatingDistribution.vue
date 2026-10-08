@@ -32,7 +32,8 @@ const formatPercent = value => (value ? `${value}%` : '0%');
 
 const getRatingLabel = value => {
   const rating = CSAT_RATINGS.find(r => r.value === value);
-  return rating ? t(rating.translationKey) : '';
+  // Carinha + nota + nome: "😍 5 · Excelente" (so o nome nao dizia que nota era).
+  return rating ? `${rating.emoji} ${value} · ${t(rating.translationKey)}` : '';
 };
 
 const getRatingCount = value => {

@@ -636,7 +636,7 @@
     }
   },
   "CSAT_REPORTS": {
-    "HEADER": "CSAT Reports",
+    "HEADER": "Customer satisfaction (CSAT)",
     "NO_RECORDS": "No responses yet",
     "NO_RECORDS_DESCRIPTION": "CSAT survey responses will appear here once customers start providing feedback.",
     "DOWNLOAD": "Download CSAT Reports",
@@ -669,7 +669,7 @@
         "CONTACT_NAME": "Contact",
         "AGENT_NAME": "Agent",
         "RATING": "Rating",
-        "FEEDBACK_TEXT": "Feedback comment",
+        "FEEDBACK_TEXT": "What the customer wrote",
         "CONVERSATION": "Conversation",
         "CUSTOMER": "Customer",
         "RESPONSE": "Response",
@@ -681,18 +681,18 @@
     "NO_FEEDBACK": "No feedback provided",
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total responses",
-        "TOOLTIP": "Total number of responses collected"
+        "LABEL": "How many ratings did customers give?",
+        "TOOLTIP": "Each customer who answered the satisfaction survey with a rating from 1 to 5."
       },
       "SATISFACTION_SCORE": {
-        "LABEL": "Satisfaction score",
-        "TOOLTIP": "Total number of positive responses / Total number of responses * 100"
+        "LABEL": "How many were satisfied?",
+        "TOOLTIP": "Out of every 100 ratings, how many were 4 or 5."
       },
       "RESPONSE_RATE": {
-        "LABEL": "Response rate",
-        "TOOLTIP": "Total number of responses / Total number of CSAT survey messages sent * 100"
+        "LABEL": "How many answered the survey?",
+        "TOOLTIP": "Out of every 100 surveys sent, how many the customer answered."
       },
-      "RATING_DISTRIBUTION": "Rating distribution"
+      "RATING_DISTRIBUTION": "How the ratings went"
     },
     "REVIEW_NOTES": {
       "TITLE": "Review notes",
@@ -711,6 +711,11 @@
         "UPGRADE_NOW": "Upgrade now",
         "CANCEL_ANYTIME": "You can change or cancel your plan anytime"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "SCORE": "Customers gave {total} ratings. {satisfied} were satisfied (rating 4 or 5), that is {percent}. {unhappy} were unhappy (rating 1 or 2).",
+      "RATE": "Out of every 100 surveys sent, {rate} were answered.",
+      "HOW_TO_READ": "The rating goes from 1 (very bad) to 5 (excellent). Below are the answers, one per customer: click the conversation number to open it."
     }
   },
   "NPS_REPORTS": {

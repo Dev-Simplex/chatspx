@@ -636,7 +636,7 @@
     }
   },
   "CSAT_REPORTS": {
-    "HEADER": "Relatórios CSAT",
+    "HEADER": "Satisfação dos clientes (CSAT)",
     "NO_RECORDS": "Ainda não há respostas",
     "NO_RECORDS_DESCRIPTION": "As respostas da pesquisa de CSAT aparecerão aqui assim que os clientes começarem a fornecer comentários.",
     "DOWNLOAD": "Baixar relatórios de CSAT",
@@ -649,7 +649,7 @@
         "AGENTS": "Pesquisar agentes",
         "INBOXES": "Pesquisar caixas de entrada",
         "TEAMS": "Pesquisar times",
-        "RATINGS": "Pesquisar avaliações"
+        "RATINGS": "Pesquisar notas"
       },
       "AGENTS": {
         "LABEL": "Agente"
@@ -661,16 +661,16 @@
         "LABEL": "Time"
       },
       "RATINGS": {
-        "LABEL": "Classificação"
+        "LABEL": "Nota"
       }
     },
     "TABLE": {
       "HEADER": {
         "CONTACT_NAME": "Contato",
         "AGENT_NAME": "Agente",
-        "RATING": "Classificação",
-        "FEEDBACK_TEXT": "Comentário do feedback",
-        "CONVERSATION": "Conversas",
+        "RATING": "Nota",
+        "FEEDBACK_TEXT": "O que o cliente escreveu",
+        "CONVERSATION": "Conversa",
         "CUSTOMER": "Cliente",
         "RESPONSE": "Resposta",
         "HANDLED_BY": "Atendido por"
@@ -681,18 +681,18 @@
     "NO_FEEDBACK": "Nenhum comentário fornecido",
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total de respostas",
-        "TOOLTIP": "Número total de respostas coletadas"
+        "LABEL": "Quantas notas os clientes deram?",
+        "TOOLTIP": "Cada cliente que respondeu a pesquisa de satisfação com uma nota de 1 a 5."
       },
       "SATISFACTION_SCORE": {
-        "LABEL": "Pontuação de satisfação",
-        "TOOLTIP": "Número total de respostas positivas / Número total de respostas * 100"
+        "LABEL": "Quantos ficaram satisfeitos?",
+        "TOOLTIP": "De cada 100 notas, quantas foram 4 ou 5."
       },
       "RESPONSE_RATE": {
-        "LABEL": "Taxa de resposta",
-        "TOOLTIP": "Número total de respostas / Número total de mensagens CSAT de pesquisa enviadas * 100"
+        "LABEL": "Quantos responderam à pesquisa?",
+        "TOOLTIP": "De cada 100 pesquisas enviadas, quantas o cliente respondeu."
       },
-      "RATING_DISTRIBUTION": "Distribuição de avaliações"
+      "RATING_DISTRIBUTION": "Como foram as notas"
     },
     "REVIEW_NOTES": {
       "TITLE": "Notas da avaliação",
@@ -711,6 +711,11 @@
         "UPGRADE_NOW": "Atualizar agora",
         "CANCEL_ANYTIME": "Você pode alterar ou cancelar seu plano a qualquer momento"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "SCORE": "Os clientes deram {total} notas. {satisfied} ficaram satisfeitos (nota 4 ou 5), ou seja, {percent}. {unhappy} ficaram insatisfeitos (nota 1 ou 2).",
+      "RATE": "De cada 100 pesquisas enviadas, {rate} foram respondidas.",
+      "HOW_TO_READ": "A nota vai de 1 (muito ruim) a 5 (excelente). Embaixo estão as respostas, uma por cliente: clique no número da conversa para abrir."
     }
   },
   "NPS_REPORTS": {
