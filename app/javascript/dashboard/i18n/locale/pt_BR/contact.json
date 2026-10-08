@@ -660,7 +660,10 @@
       "SEARCH_EMPTY": "Nenhum atendimento para “{termo}”",
       "SEARCH_CLEAR": "Limpar busca"
     },
-    "LOAD_MORE": "Carregar mais"
+    "LOAD_MORE": "Carregar mais",
+    "FORM": {
+      "EMAIL_INVALID": "E-mail inválido. Use um endereço completo, por exemplo nome@empresa.com, ou deixe em branco."
+    }
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Atribuir rótulo",

@@ -660,7 +660,10 @@
       "SEARCH_EMPTY": "No attendance found for “{termo}”",
       "SEARCH_CLEAR": "Clear search"
     },
-    "LOAD_MORE": "Load more"
+    "LOAD_MORE": "Load more",
+    "FORM": {
+      "EMAIL_INVALID": "Invalid email. Use a full address, for example name@company.com, or leave it blank."
+    }
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Assign Labels",
