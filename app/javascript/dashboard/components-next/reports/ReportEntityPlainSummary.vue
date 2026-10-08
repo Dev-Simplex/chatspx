@@ -110,9 +110,7 @@ const time = seconds => formatDuration(seconds, t);
         </span>
       </li>
       <li class="flex gap-3">
-        <span
-          class="i-lucide-circle-check size-5 mt-1 shrink-0 text-n-brand"
-        />
+        <span class="i-lucide-circle-check size-5 mt-1 shrink-0 text-n-brand" />
         <span class="min-w-0">
           <I18nT keypath="REPORT.ENTITY_SUMMARY.RESOLVED" tag="span">
             <template #resolved>

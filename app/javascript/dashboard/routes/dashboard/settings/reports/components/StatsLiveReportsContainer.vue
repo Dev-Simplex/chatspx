@@ -57,6 +57,14 @@ const conversationMetrics = computed(() =>
 const metricValue = key => Number(accountConversationMetric.value?.[key] || 0);
 const agentValue = key => Number(agentStatus.value?.[key] || 0);
 
+const selectedTeam = ref(null);
+const selectedTeamLabel = computed(() => {
+  const team =
+    teamMenuList.value.find(
+      menuItem => menuItem.value === selectedTeam.value
+    ) || {};
+  return team.label;
+});
 const drilldown = ref(null);
 const openDrilldown = metric => {
   if (!metric.value) return;
@@ -66,14 +74,6 @@ const openDrilldown = metric => {
   };
 };
 
-const selectedTeam = ref(null);
-const selectedTeamLabel = computed(() => {
-  const team =
-    teamMenuList.value.find(
-      menuItem => menuItem.value === selectedTeam.value
-    ) || {};
-  return team.label;
-});
 const fetchData = () => {
   const params = {};
   if (selectedTeam.value) {
@@ -205,7 +205,9 @@ onMounted(() => {
           >
             {{ metric.value }}
           </button>
-          <p v-else class="text-n-slate-12 text-3xl mb-0 mt-1">0</p>
+          <p v-else class="text-n-slate-12 text-3xl mb-0 mt-1">
+            {{ metric.value }}
+          </p>
           <p class="mt-1 text-xs text-n-slate-10">{{ metric.hint }}</p>
         </div>
       </MetricCard>

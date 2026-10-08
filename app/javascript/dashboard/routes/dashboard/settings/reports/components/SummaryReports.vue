@@ -88,7 +88,10 @@ const DRILLDOWN = {
     key: 'avg_first_response_time_after_assignment',
     name: 'AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER',
   },
-  avgResolutionTime: { key: 'avg_resolution_time', name: 'AVG_RESOLUTION_TIME' },
+  avgResolutionTime: {
+    key: 'avg_resolution_time',
+    name: 'AVG_RESOLUTION_TIME',
+  },
   avgReplyTime: { key: 'reply_time', name: 'AVG_REPLY_TIME' },
   resolutionsCount: {
     key:

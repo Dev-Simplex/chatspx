@@ -78,18 +78,6 @@ const tableData = computed(() =>
     })
 );
 
-const defaulSpanRender = cellProps =>
-  h(
-    'span',
-
-    {
-      class: cellProps.getValue()
-        ? 'capitalize text-n-slate-12'
-        : 'capitalize text-n-slate-11',
-    },
-    cellProps.getValue() ? cellProps.getValue() : '---'
-  );
-
 // Abertas e nao atendidas de cada linha abrem as conversas (ReportDrilldownPanel ao vivo).
 const drilldown = ref(null);
 const liveCell = (metric, headerKey) => cellProps => {
@@ -124,12 +112,18 @@ const columns = [
   }),
   columnHelper.accessor('open', {
     header: t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.OPEN'),
-    cell: liveCell('open', 'OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.OPEN'),
+    cell: liveCell(
+      'open',
+      'OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.OPEN'
+    ),
     size: 100,
   }),
   columnHelper.accessor('unattended', {
     header: t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
-    cell: liveCell('unattended', 'OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
+    cell: liveCell(
+      'unattended',
+      'OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.UNATTENDED'
+    ),
     size: 100,
   }),
 ];

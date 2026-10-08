@@ -118,12 +118,18 @@ const columns = [
   }),
   columnHelper.accessor('open', {
     header: t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.OPEN'),
-    cell: liveCell('open', 'OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.OPEN'),
+    cell: liveCell(
+      'open',
+      'OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.OPEN'
+    ),
     size: 100,
   }),
   columnHelper.accessor('unattended', {
     header: t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
-    cell: liveCell('unattended', 'OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
+    cell: liveCell(
+      'unattended',
+      'OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.UNATTENDED'
+    ),
     size: 100,
   }),
 ];
