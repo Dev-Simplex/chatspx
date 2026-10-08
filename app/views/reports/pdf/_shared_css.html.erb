@@ -20,7 +20,10 @@ html, body {
 
 <%# Margens (topo p/ a faixa de marca, base p/ o rodape) vem do pdf_options no
     Reports::PdfExportService. Aqui so a dimensao da pagina; laterais 0 = full-bleed. %>
-@page { size: A4; }
+/* Pagina 1: o conteudo (faixa verde grande) encosta na faixa do cabecalho. Demais paginas: 6 mm de respiro
+   entre a faixa e o conteudo, senao a tabela parece cortada pela faixa. A faixa tem altura fixa (pdf_export_service). */
+@page { size: A4; margin: 22mm 0 11mm; }
+@page :first { margin-top: 16mm; }
 
 .page {
   width: 210mm;
