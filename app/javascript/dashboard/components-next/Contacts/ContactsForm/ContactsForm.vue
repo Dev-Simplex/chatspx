@@ -233,6 +233,12 @@ const getMessageType = key => {
     : 'info';
 };
 
+// Campo vermelho sem motivo não ajuda: o e-mail inválido diz o que esperar.
+const fieldErrorMessage = key =>
+  key === 'EMAIL_ADDRESS' && getMessageType(key) === 'error'
+    ? t('CONTACTS_LAYOUT.FORM.EMAIL_INVALID')
+    : '';
+
 const handleCountrySelection = value => {
   const selectedCountry = countries.find(option => option.id === value);
   state.additionalAttributes.country = selectedCountry?.name || '';
@@ -313,6 +319,7 @@ defineExpose({
             v-model="getFormBinding(item.key).value"
             :placeholder="item.placeholder"
             :message-type="getMessageType(item.key)"
+            :message="fieldErrorMessage(item.key)"
             :custom-input-class="`h-8 !pt-1 !pb-1 ${
               !isDetailsView
                 ? '[&:not(.error,.focus)]:!outline-transparent'
@@ -361,6 +368,7 @@ defineExpose({
             v-model="getFormBinding(item.key).value"
             :placeholder="item.placeholder"
             :message-type="getMessageType(item.key)"
+            :message="fieldErrorMessage(item.key)"
             :custom-input-class="`h-8 !pt-1 !pb-1 ${
               !isDetailsView
                 ? '[&:not(.error,.focus)]:!outline-transparent'
