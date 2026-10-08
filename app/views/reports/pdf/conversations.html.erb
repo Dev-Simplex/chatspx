@@ -62,13 +62,15 @@
   ] %>
 </div>
 
-<%# Meta x resultado (princ. 5, textual) %>
-<div class="section">
-  <%= render 'reports/pdf/callout',
-        variant: frt_status[:level] == :good ? 'success' : (frt_status[:level] == :warn ? 'warning' : 'error'),
-        title: "Sua meta é responder em até #{frt_goal_h}",
-        body: "Hoje você responde em #{k[:avg_first_response]} #{frt_status[:emoji]} (#{frt_status[:word]}) e resolve em #{k[:avg_resolution]} (meta #{res_goal_h})." %>
-</div>
+<%# Meta x resultado (princ. 5, textual) — sem conversa não há tempo para comparar com a meta %>
+<% if k[:frt_seconds].to_i.positive? %>
+  <div class="section">
+    <%= render 'reports/pdf/callout',
+          variant: frt_status[:level] == :good ? 'success' : (frt_status[:level] == :warn ? 'warning' : 'error'),
+          title: "Sua meta é responder em até #{frt_goal_h}",
+          body: "Hoje você responde em #{k[:avg_first_response]} #{frt_status[:emoji]} (#{frt_status[:word]}) e resolve em #{k[:avg_resolution]} (meta #{res_goal_h})." %>
+  </div>
+<% end %>
 
 <%# Herói e vilão (princ. 6) — cards de veredito com hierarquia (métrica · valor · meta · status) %>
 <% if @data[:highlight] %>
@@ -127,7 +129,7 @@
 <% end %>
 
 <%# Detalhe técnico (para quem quer se aprofundar) %>
-<% if @data[:table].present? && @data[:table][:rows].present? %>
+<% if total.positive? && @data[:table].present? && @data[:table][:rows].present? %>
   <div class="section">
     <div class="section-title"><span class="dot">+</span> Detalhe dos tempos (percentis p50/p90)</div>
     <div class="card" style="padding:0;">
