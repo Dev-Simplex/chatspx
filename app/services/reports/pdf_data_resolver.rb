@@ -805,8 +805,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     {
       report_type: 'sla', title: 'Relatório de SLA', period: period_meta,
       overline: 'Nível de Serviço · Confidencial',
-      subtitle: "Hit rate de #{hit_rate} sobre #{total} SLAs aplicados · #{missed} descumprimentos no período.",
-      base_label: "#{total} SLAs aplicados",
+      subtitle: "#{hit_rate} das #{total} conversas com prazo cumpriram o combinado · #{missed} passaram do prazo.",
+      base_label: "#{total} conversas com prazo",
       kpis: { total: total, hit_rate: hit_rate, breaches: missed,
               compliance: pct(total - missed, total) },
       verdict: sla_verdict(total, missed, hit_rate),
@@ -820,7 +820,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return nil if total.zero?
 
     metric_verdict(metric: :sla_hit_rate, value: pct(total - missed, total),
-                   human: hit_rate, label: 'Cumprimento de SLA')
+                   human: hit_rate, label: 'Cumpriram o prazo')
   end
 
   def sla_unavailable
@@ -851,7 +851,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def sla_breaches_table(scope)
     rows = scope.missed.order(created_at: :desc).limit(20).map { |applied| sla_breach_row(applied) }
-    { columns: [{ label: 'Conversa' }, { label: 'Política' }, { label: 'Responsável' }, { label: 'Status' }],
+    { columns: [{ label: 'Conversa' }, { label: 'Prazo combinado' }, { label: 'Atendente' }, { label: 'Situação' }],
       rows: rows }
   end
 
@@ -866,11 +866,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def sla_hit_rate(total, missed)
     return '100%' if total.zero?
 
-    "#{pct(total - missed, total)}%"
+    "#{br_number(pct(total - missed, total))}%"
   end
 
   def sla_status_label(status)
-    { 'missed' => 'Descumprido', 'active_with_misses' => 'Ativo c/ falhas' }[status.to_s] || status.to_s
+    { 'missed' => 'Passou do prazo', 'active_with_misses' => 'Aberta, já passou do prazo' }[status.to_s] || status.to_s
   end
 
   # ======================= FUNIL (Kanban) =======================

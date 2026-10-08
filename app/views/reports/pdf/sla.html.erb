@@ -1,3 +1,5 @@
+<%# SLA (prazos de atendimento) no estilo do PDF de Conversas: manchete, "Os prazos foram cumpridos?", cada prazo
+    combinado e quais conversas passaram do prazo. %>
 <% if @data[:unavailable].present? %>
   <div class="card"><p style="color:#667781;"><%= @data[:unavailable] %></p></div>
 <% else %>
@@ -7,91 +9,101 @@
   breaches = k[:breaches].to_i
   honored = total - breaches
   compliance = k[:compliance].to_f
-  hit_rate = k[:hit_rate]
+  br = ->(value) { number_with_precision(value, precision: 1, separator: ',', delimiter: '.', strip_insignificant_zeros: true) }
 
+  # A mesma régua do cartão de veredito (PdfBenchmarks, meta de 95%): antes o número grande usava 90/70 e se contradizia.
   zone, value_class =
-    if compliance >= 90
-      ['Conforme', '']
-    elsif compliance >= 70
-      ['Atenção', 'is-passive']
-    else
-      ['Crítico', 'is-detractor']
+    case Reports::PdfBenchmarks.status(compliance, :sla_hit_rate)[:level]
+    when :good then ['Dentro do combinado', '']
+    when :warn then ['Atenção', 'is-passive']
+    else ['Precisa melhorar', 'is-detractor']
     end
 
   composition = [
-    { label: 'Cumpridos', value: honored, color: '#2dc46f' },
-    { label: 'Descumpridos', value: breaches, color: '#e54666' }
+    { label: 'Cumpriram o prazo', value: honored, color: '#2dc46f' },
+    { label: 'Passaram do prazo', value: breaches, color: '#e54666' }
   ]
 
   worst = (@data[:by_policy] || []).select { |p| p[:total].to_i.positive? }.min_by { |p| p[:hit_rate].to_f }
+  headline =
+    if total.zero?
+      { emoji: '🤔', text: 'Nenhuma conversa tinha prazo combinado (SLA) no período.' }
+    elsif breaches.zero?
+      { emoji: '✅', text: "As #{total} conversas com prazo foram todas atendidas dentro do combinado." }
+    else
+      { emoji: '⏰', text: "#{total} conversas tinham prazo combinado: #{honored} cumpriram e #{breaches} passaram do prazo." }
+    end
 %>
 
-<%# ---------- Veredito (card com hierarquia) ---------- %>
-<% if @data[:verdict] %>
+<div class="clarity-legend">
+  <span><span class="status-dot status-dot--good"></span> bom</span>
+  <span><span class="status-dot status-dot--warn"></span> atenção</span>
+  <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
+</div>
+
+<%= render 'reports/pdf/headline', headline: headline %>
+
+<% if total.positive? %>
+  <%# ============ 1. OS PRAZOS FORAM CUMPRIDOS? ============ %>
   <div class="section">
-    <div class="verdict-grid">
-      <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
+    <div class="narrative-title"><span class="q">1.</span> Os prazos foram cumpridos?</div>
+    <div class="hero-row">
+      <%= render 'reports/pdf/hero_stat',
+            value: "#{br.call(compliance)}%", value_class: value_class,
+            label: 'Cumpriram o prazo', pill: zone, pill_class: value_class,
+            caption: "#{honored} de #{total} conversas com prazo" %>
+      <%= render 'reports/pdf/composition_bar', title: 'Das conversas com prazo', segments: composition %>
     </div>
   </div>
-<% end %>
 
-<%# ---------- Hero hit rate + composicao ---------- %>
-<div class="section">
-  <div class="hero-row">
-    <%= render 'reports/pdf/hero_stat',
-          value: hit_rate, value_class: value_class,
-          label: 'Hit Rate', pill: zone, pill_class: value_class,
-          caption: "#{honored} de #{total} SLAs cumpridos" %>
-    <%= render 'reports/pdf/composition_bar',
-          title: 'Cumprimento dos acordos',
-          segments: composition %>
-  </div>
-</div>
-
-<%# ---------- KPIs de apoio ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'SLAs aplicados', value: number_with_delimiter(total) },
-    { label: 'Descumprimentos', value: number_with_delimiter(breaches), modifier: 'is-detractor', hint: 'acordos não cumpridos' },
-    { label: 'Compliance', value: "#{compliance}%", modifier: 'is-promoter', hint: 'cumpridos / aplicados' },
-  ] %>
-</div>
-
-<%# ---------- Desempenho por politica ---------- %>
-<% if @data[:by_policy].present? %>
   <div class="section">
-    <div class="section-title"><span class="dot">1</span> Desempenho por política de SLA</div>
-    <%= render 'reports/pdf/perf_table',
-          columns: { entity: 'Política', count: 'SLAs', perf: 'Desempenho', index: 'Hit rate' },
-          rows: @data[:by_policy].first(18).map { |row|
-            hr = row[:hit_rate].to_f
-            badge_class = hr >= 90 ? 'up' : (hr >= 70 ? 'mid' : 'down')
-            bar_color = hr >= 90 ? '#2dc46f' : (hr >= 70 ? '#ffc53d' : '#e54666')
-            { name: row[:name], count: row[:total], ratio: hr / 100,
-              bar_color: bar_color, badge: "#{hr}%", badge_class: badge_class }
-          } %>
+    <%= render 'reports/pdf/kpi_band', cards: [
+      { label: 'Conversas com prazo', value: number_with_delimiter(total), hero: true, meaning: 'tinham um prazo de atendimento (SLA)' },
+      { label: 'Passaram do prazo', value: number_with_delimiter(breaches), modifier: 'is-detractor', meaning: 'a equipe não respondeu ou não resolveu a tempo' },
+      { label: 'Cumpriram o prazo', value: "#{br.call(compliance)}%", modifier: 'is-promoter', meaning: 'de cada 100 conversas com prazo' },
+    ] %>
   </div>
-<% end %>
 
-<%# ---------- Descumprimentos recentes ---------- %>
-<% if @data[:breaches_table][:rows].present? %>
-  <div class="section">
-    <div class="section-title"><span class="dot">2</span> Descumprimentos recentes</div>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table',
-            table: @data[:breaches_table].merge(rows: @data[:breaches_table][:rows].first(18)) %>
+  <% if @data[:verdict] %>
+    <div class="section">
+      <div class="verdict-grid">
+        <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
+      </div>
     </div>
+  <% end %>
+
+  <%# ============ 2. CADA PRAZO COMBINADO ============ %>
+  <% if @data[:by_policy].present? %>
+    <div class="section">
+      <div class="narrative-title"><span class="q">2.</span> Como foi cada prazo combinado?</div>
+      <%= render 'reports/pdf/perf_table',
+            columns: { entity: 'Prazo (política de SLA)', count: 'Conversas', perf: 'Cumpriram (de cada 100)', index: 'Cumpriram' },
+            rows: @data[:by_policy].first(18).map { |row|
+              hr = row[:hit_rate].to_f
+              badge_class = hr >= 90 ? 'up' : (hr >= 70 ? 'mid' : 'down')
+              bar_color = hr >= 90 ? '#2dc46f' : (hr >= 70 ? '#ffc53d' : '#e54666')
+              { name: row[:name], count: row[:total], ratio: hr / 100,
+                bar_color: bar_color, badge: "#{br.call(hr)}%", badge_class: badge_class }
+            } %>
+      <% if worst && worst[:hit_rate].to_f < 90 %>
+        <%= render 'reports/pdf/chart_caption', emoji: '🎯',
+              text: "O prazo que mais falhou foi “#{worst[:name]}”: só #{br.call(worst[:hit_rate])}% das conversas cumpriram. Comece por ele." %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%# ============ 3. QUAIS PASSARAM DO PRAZO? ============ %>
+  <div class="section">
+    <div class="narrative-title"><span class="q">3.</span> Quais conversas passaram do prazo?</div>
+    <% if @data[:breaches_table][:rows].present? %>
+      <div class="card" style="padding:0;">
+        <%= render 'reports/pdf/data_table',
+              table: @data[:breaches_table].merge(rows: @data[:breaches_table][:rows].first(18)) %>
+      </div>
+      <p style="margin: 2mm 0 0; font-size: 10px; color: #667781;">As mais recentes. A lista completa está no sistema e no CSV.</p>
+    <% else %>
+      <%= render 'reports/pdf/callout', variant: 'success', title: 'Nenhuma conversa passou do prazo', body: 'Todos os prazos combinados foram cumpridos no período. 👍' %>
+    <% end %>
   </div>
 <% end %>
-
-<%# ---------- Conclusao (data-driven) ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/conclusion',
-        title: 'Leitura executiva',
-        body: raw(
-          "O hit rate de <span class=\"hl\">#{hit_rate}</span> coloca o nível de serviço em <span class=\"hl\">#{zone.downcase}</span>, " \
-          "com #{honored} de #{total} SLAs cumpridos e #{breaches} descumprimentos no período." +
-          (worst ? " A política <span class=\"hl\">#{worst[:name]}</span> concentra o maior risco, com hit rate de #{worst[:hit_rate]}% — priorize-a na recuperação dos acordos." : "")
-        ) %>
-</div>
 <% end %>
