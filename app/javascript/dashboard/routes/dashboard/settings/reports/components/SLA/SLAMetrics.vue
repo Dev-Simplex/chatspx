@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { I18nT } from 'vue-i18n';
 import SLAMetricCard from './SLAMetricCard.vue';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
+import { formatPercent } from 'dashboard/helper/reportFormat';
 
 const props = defineProps({
   hitRate: {
@@ -28,6 +29,11 @@ const props = defineProps({
 });
 
 const { signalByMetric } = useReportNarrative();
+// A API manda "76.47%"; aqui vira "76,5%".
+const hitRateLabel = computed(() => {
+  const value = parseFloat(props.hitRate);
+  return Number.isNaN(value) ? props.hitRate : formatPercent(value);
+});
 const hitRateSignal = computed(() =>
   signalByMetric(props.signals, 'sla_hit_rate')
 );
@@ -49,7 +55,7 @@ const hitRateSignal = computed(() =>
             <strong>{{ noOfConversations.toLocaleString() }}</strong>
           </template>
           <template #rate>
-            <strong>{{ hitRate }}</strong>
+            <strong>{{ hitRateLabel }}</strong>
           </template>
           <template #misses>
             <strong>{{ noOfBreaches.toLocaleString() }}</strong>
@@ -66,7 +72,7 @@ const hitRateSignal = computed(() =>
   >
     <SLAMetricCard
       :label="$t('SLA_REPORTS.METRICS.HIT_RATE.LABEL')"
-      :value="hitRate"
+      :value="hitRateLabel"
       :tool-tip="$t('SLA_REPORTS.METRICS.HIT_RATE.TOOLTIP')"
       :is-loading="isLoading"
       :signal="hitRateSignal"

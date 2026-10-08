@@ -421,8 +421,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       headline: conversations_headline(summary, comparison),
       kpis: conversations_kpis(summary),
       comparison: comparison,
-      highlight: conversations_highlight(signals),
-      attention: conversations_attention(signals),
+      highlight: signals.any? ? conversations_highlight(signals) : nil,
+      attention: signals.any? ? conversations_attention(signals) : nil,
       trends: account_trends,
       heatmap: heatmap, heatmap_insight: heatmap_peak_insight(heatmap),
       table: conversations_table(summary),
@@ -581,7 +581,13 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       { label: 'tempo de resolução', value: summary[:avg_resolution_time].to_f,
         human: format_seconds(summary[:avg_resolution_time]), metric: :resolution, kind: :time },
       { label: 'taxa de resolução', value: rate, human: "#{rate}%", metric: :resolution_rate, kind: :rate }
-    ].map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
+    ].select { |signal| signal_has_data?(signal, summary) }
+     .map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
+  end
+
+  # Sem conversa ou sem tempo medido não há o que julgar: "--" não está "dentro da meta".
+  def signal_has_data?(signal, summary)
+    signal[:kind] == :rate ? summary[:conversations_count].to_i.positive? : signal[:value].positive?
   end
 
   # Razão vs meta, normalizada para "menor = melhor" nas duas direções.

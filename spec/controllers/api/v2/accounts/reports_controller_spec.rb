@@ -208,6 +208,10 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
 
     context 'when authenticated and authorized' do
       before do
+        allow_any_instance_of(V2::Reports::Conversations::MetricBuilder).to receive(:summary).and_return( # rubocop:disable RSpec/AnyInstance
+          conversations_count: 10, resolutions_count: 7, avg_first_response_time: 400,
+          avg_resolution_time: 9000, reply_time: 300, incoming_messages_count: 20, outgoing_messages_count: 20
+        )
         get "/api/v2/accounts/#{account.id}/reports/summary",
             params: summary_params,
             headers: admin.create_new_auth_token, as: :json

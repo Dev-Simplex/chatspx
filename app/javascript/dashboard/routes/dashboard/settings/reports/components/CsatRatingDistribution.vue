@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { formatPercent } from 'dashboard/helper/reportFormat';
 import { CSAT_RATINGS } from 'shared/constants/messages';
 
 const props = defineProps({
@@ -28,12 +29,10 @@ const sortedRatings = computed(() =>
   [...CSAT_RATINGS].sort((a, b) => b.value - a.value)
 );
 
-const formatPercent = value => (value ? `${value}%` : '0%');
-
 const getRatingLabel = value => {
   const rating = CSAT_RATINGS.find(r => r.value === value);
-  // Carinha + nota + nome: "😍 5 · Excelente" (so o nome nao dizia que nota era).
-  return rating ? `${rating.emoji} ${value} · ${t(rating.translationKey)}` : '';
+  // Nota + carinha e nome: "5 · 😍 Excelente" (so o nome nao dizia que nota era; a carinha ja vem na traducao).
+  return rating ? `${value} · ${t(rating.translationKey)}` : '';
 };
 
 const getRatingCount = value => {
