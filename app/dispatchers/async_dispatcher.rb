@@ -16,6 +16,7 @@ class AsyncDispatcher < BaseDispatcher
       Spx::CampaignRecipientListener.instance,
       Spx::CtwaVisibilityListener.instance,
       Spx::TrocaDeCanalFalhaListener.instance,
+      Spx::LeadAberturaFalhaListener.instance,
       Spx::Distribuicao::DesignacaoListener.instance,
       Spx::CaptadorListener.instance,
       MessageSequences::ExitListener.instance,

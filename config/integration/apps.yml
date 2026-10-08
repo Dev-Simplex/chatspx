@@ -230,6 +230,7 @@ meta_lead_ads:
           'whatsapp_template_locale': { 'type': 'string' },
           'whatsapp_template_body_fields': { 'type': 'string' },
           'skip_initial_message': { 'type': 'boolean' },
+          'initial_message_cooldown_hours': { 'type': ['number', 'string'] },
           'enabled': { 'type': 'boolean' },
         },
       'required':
@@ -309,6 +310,12 @@ meta_lead_ads:
         'name': 'skip_initial_message',
         'help': 'Marque enquanto está testando. SPX cria a conversa, mas NÃO envia a 1ª mensagem outgoing pro lead. Útil pra validar fluxo sem incomodar leads reais.',
       },
+      {
+        'label': 'Intervalo entre aberturas (horas)',
+        'type': 'number',
+        'name': 'initial_message_cooldown_hours',
+        'help': 'Se o mesmo contato preencher o formulário de novo dentro deste intervalo, a abertura não é reenviada (a conversa ganha uma linha de atividade). Vazio ou inválido: 24.',
+      },
     ]
   visible_properties: ['page_name', 'page_id', 'target_inbox_id', 'skip_initial_message']
 site_leads:
@@ -332,6 +339,7 @@ site_leads:
           'whatsapp_template_body_fields': { 'type': 'string' },
           'default_ddd': { 'type': 'string' },
           'skip_initial_message': { 'type': 'boolean' },
+          'initial_message_cooldown_hours': { 'type': ['number', 'string'] },
           'enabled': { 'type': 'boolean' },
         },
       'required': ['shared_secret', 'target_inbox_id'],
@@ -400,6 +408,12 @@ site_leads:
         'type': 'checkbox',
         'name': 'skip_initial_message',
         'help': 'Cria a conversa mas NÃO envia a abertura. Útil pra validar o fluxo sem incomodar leads reais.',
+      },
+      {
+        'label': 'Intervalo entre aberturas (horas)',
+        'type': 'number',
+        'name': 'initial_message_cooldown_hours',
+        'help': 'Se o mesmo contato preencher o formulário de novo dentro deste intervalo, a abertura não é reenviada (a conversa ganha uma linha de atividade). Vazio ou inválido: 24.',
       },
     ]
   visible_properties: ['site_name', 'target_inbox_id', 'skip_initial_message']
