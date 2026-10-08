@@ -407,14 +407,16 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     seconds ? Reports::PdfBenchmarks.status(seconds, :first_response)[:level] : :none
   end
 
-  # "51 min", "1 h 20 min", "4 min 35 s": no maximo duas unidades (o mesmo jeito da tela).
+  # "51 min", "1 h 20 min", "4 min 35 s", "3 dias e 2 h": no maximo duas unidades (o mesmo jeito da tela).
   def short_duration(seconds)
     total = seconds.to_f.round
     return "#{total} s" if total < 60
     return total < 600 && (total % 60).positive? ? "#{total / 60} min #{total % 60} s" : "#{total / 60} min" if total < 3600
     return (total % 3600) >= 60 ? "#{total / 3600} h #{(total % 3600) / 60} min" : "#{total / 3600} h" if total < 86_400
 
-    "#{total / 86_400} d #{(total % 86_400) / 3600} h"
+    days = total / 86_400
+    hours = (total % 86_400) / 3600
+    "#{days} #{days == 1 ? 'dia' : 'dias'}#{" e #{hours} h" if hours.positive?}"
   end
 
   def conversations_subtitle(summary)
@@ -652,36 +654,66 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= VISÃO GERAL =======================
   def overview_data
-    open = @account.conversations.open
+    open = overview_scope.open
+    kpis = { open: open.count, unattended: open.unattended.count,
+             unassigned: open.unassigned.count, pending: overview_scope.pending.count }
     {
       report_type: 'overview', title: 'Relatório de Visão Geral', period: snapshot_period,
       overline: 'Situação Operacional · Confidencial',
-      subtitle: "#{open.count} conversas abertas neste instante · #{open.unattended.count} ainda não atendidas.",
-      base_label: "#{open.count} conversas abertas",
-      kpis: {
-        open: open.count, unattended: open.unattended.count,
-        unassigned: open.unassigned.count, pending: @account.conversations.pending.count
-      },
+      subtitle: "#{kpis[:open]} conversas abertas neste instante · #{kpis[:unattended]} ainda não atendidas.",
+      base_label: "#{kpis[:open]} conversas abertas",
+      headline: overview_headline(kpis), kpis: kpis,
+      waiting: overview_waiting,
       traffic_heatmap: weekday_hour_heatmap('conversations_count', **trailing_window),
       resolutions_heatmap: weekday_hour_heatmap('resolutions_count', **trailing_window),
-      agents_table: overview_group_table(:assignee_id, agent_names_all, 'Atendente'),
-      teams_table: overview_group_table(:team_id, team_names_all, 'Time')
+      agents: overview_group_rows(:assignee_id, agent_names_all),
+      teams: overview_group_rows(:team_id, team_names_all)
     }
   end
 
-  def overview_group_table(group_key, names, label)
-    open = @account.conversations.open
-    counts = open.group(group_key).count
-    unattended = open.unattended.group(group_key).count
-    unassigned = open.unassigned.group(group_key).count
-    rows = counts.sort_by { |_, count| -count }.filter_map do |id, count|
-      next if id.nil?
+  # O mesmo recorte da tela (Api::V2::Accounts::LiveReportsController#load_conversations): o PDF ignorava a caixa.
+  def overview_scope
+    scope = @account.conversations
+    @filters[:inbox_id].present? ? scope.where(inbox_id: @filters[:inbox_id]) : scope
+  end
 
-      [names[id] || "##{id}", count.to_s, unattended[id].to_i.to_s, unassigned[id].to_i.to_s]
-    end
-    { columns: [{ label: label }, { label: 'Abertas', align: 'right' },
-                { label: 'Não atendidas', align: 'right' }, { label: 'Não atribuídas', align: 'right' }],
-      rows: rows }
+  def overview_headline(kpis)
+    return { emoji: '✅', text: 'Nenhuma conversa aberta agora. Está tudo em dia.' } if kpis[:open].zero?
+    return { emoji: '✅', text: "Há #{kpis[:open]} conversas abertas e nenhuma esperando resposta. A fila está em dia." } if kpis[:unattended].zero?
+
+    { emoji: '⏳', text: "Há #{kpis[:open]} conversas abertas: #{kpis[:unattended]} esperam resposta e #{kpis[:unassigned]} estão sem atendente." }
+  end
+
+  OVERVIEW_WAITING = 10
+
+  # Quem espera resposta ha mais tempo (a mesma lista do numero "nao atendidas" da tela).
+  def overview_waiting
+    rows = V2::Reports::LiveDrilldownBuilder.new(overview_scope, metric: 'unattended').page(1)[:payload].first(OVERVIEW_WAITING)
+    longest = rows.filter_map { |row| row[:value] }.max.to_f
+    rows.map { |row| overview_waiting_row(row, longest) }
+  end
+
+  def overview_waiting_row(row, longest)
+    { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
+      agent: row[:agent_name].presence || 'sem atendente', team: row[:team_name], waiting: short_duration(row[:value]),
+      level: first_level(row[:value]), bar_pct: bar_pct(row[:value], longest) }
+  end
+
+  def overview_group_rows(group_key, names)
+    open = overview_scope.open
+    extra = { unattended: open.unattended.group(group_key).count, unassigned: open.unassigned.group(group_key).count }
+    counts = open.group(group_key).count.reject { |id, _| id.nil? }.sort_by { |_, count| -count }
+    most = counts.first&.last
+    counts.map { |id, count| overview_group_row(id, count, names, extra).merge(bar_pct: bar_pct(count, most)) }
+  end
+
+  def overview_group_row(id, count, names, extra)
+    { name: names[id] || "##{id}", open: count, unattended: extra[:unattended][id].to_i, unassigned: extra[:unassigned][id].to_i }
+  end
+
+  # Largura da barra (0-100) de um valor frente ao maior da lista.
+  def bar_pct(value, most)
+    most.to_f.positive? ? ((value.to_f / most) * 100).round : 0
   end
 
   # ======================= SLA (enterprise) =======================
