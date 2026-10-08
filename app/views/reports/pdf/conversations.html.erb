@@ -18,7 +18,7 @@
   recos << { title: 'Responda mais rápido', body: "A 1ª resposta está em #{k[:avg_first_response]} (meta #{frt_goal_h}). Priorize a triagem inicial e use respostas rápidas para o primeiro contato." } if frt_status[:level] != :good
   recos << { title: 'Resolva mais rápido', body: "O tempo de resolução está em #{k[:avg_resolution]} (meta #{res_goal_h}). Escale casos parados e padronize os fluxos mais comuns." } if res_status[:level] != :good
   recos << { title: 'Reforce os horários de pico', body: @data[:heatmap_insight] } if @data[:heatmap_insight].present?
-  recos << { title: 'Mantenha o ritmo', body: 'Os indicadores estão saudáveis. Documente o que está funcionando para sustentar o padrão.' } if recos.empty?
+  recos << { title: 'Mantenha o ritmo', body: 'Os indicadores estão saudáveis. Documente o que está funcionando para sustentar o padrão.' } if recos.empty? && total.positive?
   recos = recos.first(4)
 %>
 
@@ -119,10 +119,12 @@
 <% end %>
 
 <%# ============ 3. O QUE FAZER AGORA? ============ %>
-<div class="section">
-  <div class="narrative-title"><span class="q">3.</span> O que fazer agora?</div>
-  <%= render 'reports/pdf/recommendations', items: recos %>
-</div>
+<% if recos.any? %>
+  <div class="section">
+    <div class="narrative-title"><span class="q">3.</span> O que fazer agora?</div>
+    <%= render 'reports/pdf/recommendations', items: recos %>
+  </div>
+<% end %>
 
 <%# Detalhe técnico (para quem quer se aprofundar) %>
 <% if @data[:table].present? && @data[:table][:rows].present? %>

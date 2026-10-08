@@ -1205,11 +1205,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def account_trends
     return {} if range.blank?
 
+    # Serie toda zerada (periodo sem conversa) nao vira grafico: so mostraria uma linha no chao.
     {
       conversations: count_series('conversations_count'),
       first_response: count_series('avg_first_response_time'),
       resolution: count_series('avg_resolution_time')
-    }
+    }.select { |_, points| points.any? { |point| point[:value].positive? } }
   end
 
   def count_series(metric)
