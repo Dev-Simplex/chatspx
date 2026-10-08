@@ -73,11 +73,32 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       overline: 'Experiência do Cliente · Confidencial',
       subtitle: nps_subtitle(kpis),
       base_label: "#{kpis[:total]} avaliações válidas",
-      kpis: kpis,
+      kpis: kpis, headline: nps_headline(kpis),
       verdict: nps_verdict(calc),
       distribution: nps_distribution(responded),
-      agents: nps_by_agent(responded)
+      agents: nps_by_agent(responded), detractors: nps_detractor_rows(responded)
     }
+  end
+
+  def nps_headline(kpis)
+    return { emoji: '🤔', text: 'Nenhum cliente respondeu a pesquisa de recomendação no período.' } if kpis[:total].to_i.zero?
+
+    { emoji: kpis[:nps_score].to_i >= 50 ? '💚' : '🧡',
+      text: "A nota NPS é #{kpis[:nps_score]}: #{kpis[:promoters]} clientes recomendariam a empresa e #{kpis[:detractors]} não recomendariam." }
+  end
+
+  NPS_DETRACTOR_LIMIT = 10
+
+  # Quem nao recomendaria (0 a 6), os mais recentes primeiro: e quem o gestor precisa procurar.
+  def nps_detractor_rows(responded)
+    responded.detractors.includes(:conversation, :contact, :assigned_agent).order(answered_at: :desc, id: :desc)
+             .limit(NPS_DETRACTOR_LIMIT).map { |row| nps_detractor_row(row) }
+  end
+
+  def nps_detractor_row(row)
+    { id: conversation_label(row.conversation), contact: row.contact&.name.presence || 'Sem nome',
+      agent: row.assigned_agent&.name || 'sem atendente', score: row.score,
+      comment: row.comment.presence&.truncate(160), date: format_date(row.answered_at || row.created_at) }
   end
 
   def nps_kpis(calc, cohort)
@@ -95,11 +116,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # Subtítulo com tendência em pontos (quando há período anterior comparável).
   def nps_subtitle(kpis)
-    base = "Net Promoter Score de #{kpis[:nps_score]} apurado sobre #{kpis[:total]} avaliações válidas no período."
+    base = "Nota NPS #{kpis[:nps_score]}, com #{kpis[:total]} clientes respondendo no período."
     return base if kpis[:delta].nil? || kpis[:delta].zero?
 
     arrow = kpis[:delta].positive? ? '▲' : '▼'
-    "#{base} #{arrow} #{kpis[:delta].abs} pts vs período anterior."
+    "#{base} #{arrow} #{kpis[:delta].abs} pontos #{kpis[:delta].positive? ? 'a mais' : 'a menos'} que no período anterior."
   end
 
   # Veredito neutro quando a amostra é baixa (não pinta vermelho um N=1).
@@ -152,6 +173,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     @nps_filtered_base ||= @account.nps_responses
                                    .filter_by_assigned_agent_id(@filters[:user_ids])
                                    .filter_by_inbox_id(@filters[:inbox_id])
+                                   .filter_by_team_id(@filters[:team_id])
   end
 
   # Coorte por created_at — mesma base do numerador e do denominador da taxa.
@@ -297,9 +319,13 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def csat_low_row(row)
-    { id: row.conversation ? "##{row.conversation.display_id}" : '—', contact: row.contact&.name.presence || 'Sem nome',
+    { id: conversation_label(row.conversation), contact: row.contact&.name.presence || 'Sem nome',
       agent: row.assigned_agent&.name || 'sem atendente', rating: row.rating,
       feedback: row.feedback_message.presence&.truncate(160), date: format_date(row.created_at) }
+  end
+
+  def conversation_label(conversation)
+    conversation ? "##{conversation.display_id}" : '—'
   end
 
   # 80.9 -> "80,9" (o PDF mostrava ponto decimal).
