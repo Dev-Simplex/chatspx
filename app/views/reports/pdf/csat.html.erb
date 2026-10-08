@@ -46,7 +46,7 @@
 
 <%# ============ 2. MELHOROU OU PIOROU? ============ %>
 <div class="section">
-  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?</div>
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?<% if cmp.values.any? { |c| c[:delta_pct] } && @data.dig(:period, :previous) %><span class="vs">comparado com o período de <%= @data.dig(:period, :previous) %></span><% end %></div>
   <%= render 'reports/pdf/kpi_band', cards: [
     { label: 'Satisfeitos', value: "#{br.call(k[:satisfaction])}%", hero: true,
       meaning: 'de cada 100 notas, quantas foram 4 ou 5', delta: pdf_delta(cmp[:satisfaction]) },

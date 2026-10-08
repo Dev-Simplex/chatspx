@@ -66,7 +66,7 @@
 
 <%# ============ 2. MELHOROU OU PIOROU? ============ %>
 <div class="section">
-  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?</div>
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?<% if !delta.nil? && @data.dig(:period, :previous) %><span class="vs">comparado com o período de <%= @data.dig(:period, :previous) %></span><% end %></div>
   <%= render 'reports/pdf/kpi_band', cards: [
     { label: 'Nota NPS', value: score, hero: true, meaning: 'acima de 50 é muito bom; abaixo de 0, mais gente não recomenda', delta: delta_html },
     { label: 'Notas recebidas', value: number_with_delimiter(k[:total]), meaning: 'clientes que responderam' },

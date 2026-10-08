@@ -120,7 +120,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return base if kpis[:delta].nil? || kpis[:delta].zero?
 
     arrow = kpis[:delta].positive? ? '▲' : '▼'
-    "#{base} #{arrow} #{kpis[:delta].abs} pontos #{kpis[:delta].positive? ? 'a mais' : 'a menos'} que no período anterior."
+    "#{base} #{arrow} #{kpis[:delta].abs} pontos #{kpis[:delta].positive? ? 'a mais' : 'a menos'} que no período de #{previous_period_label}."
   end
 
   # Veredito neutro quando a amostra é baixa (não pinta vermelho um N=1).
@@ -692,7 +692,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def headline_vol_clause(cmp)
     return '' if cmp.nil? || cmp[:delta_pct].nil? || cmp[:delta_pct].zero?
 
-    " — #{cmp[:delta_pct]}% #{cmp[:better] ? 'a mais' : 'a menos'} que o período anterior"
+    " — #{cmp[:delta_pct]}% #{cmp[:better] ? 'a mais' : 'a menos'} que no período de #{previous_period_label}"
   end
 
   def headline_frt_clause(cmp)
@@ -1301,7 +1301,16 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def period_meta
-    { since: format_date(range&.first), until: format_date(range&.last), label: period_label }
+    { since: format_date(range&.first), until: format_date(range&.last), label: period_label, previous: previous_period_label }
+  end
+
+  # Janela anterior de mesma duração (a mesma de previous_builder_params), em dd/mm: "23/09 a 30/09".
+  def previous_period_label
+    return nil if range.blank?
+
+    first = range.first - (range.last - range.first)
+    last = range.first - 1.second
+    "#{first.in_time_zone(TZ).strftime('%d/%m')} a #{last.in_time_zone(TZ).strftime('%d/%m')}"
   end
 
   # Nome da caixa quando o relatorio esta recortado por numero — entra no subtitulo
