@@ -189,12 +189,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     {
       report_type: 'csat', title: 'Relatório de CSAT', period: period_meta,
       overline: 'Satisfação do Cliente · Confidencial',
-      subtitle: "Índice de satisfação de #{kpis[:satisfaction]}% (notas 4 e 5) sobre #{total} respostas no período.",
+      subtitle: "Índice de satisfação de #{br_number(kpis[:satisfaction])}% (notas 4 e 5) sobre #{total} respostas no período.",
       base_label: "#{total} respostas",
-      kpis: kpis,
-      verdict: metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{kpis[:satisfaction]}%", label: 'Satisfação'),
+      kpis: kpis, headline: csat_headline(kpis), comparison: csat_comparison(kpis),
+      verdict: metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Satisfação'),
       distribution: csat_distribution(by_rating),
-      feedbacks: csat_feedbacks(scope),
+      feedbacks: csat_feedbacks(scope), low_ratings: csat_low_ratings(scope),
       agents: csat_by_agent(scope)
     }
   end
@@ -249,14 +249,62 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def csat_scope
-    @csat_scope ||= begin
-      scope = @account.csat_survey_responses.includes(:contact, :assigned_agent)
-      scope = scope.filter_by_created_at(range) if range.present?
-      scope = scope.filter_by_assigned_agent_id(@filters[:user_ids])
-      scope = scope.filter_by_inbox_id(@filters[:inbox_id])
-      scope = scope.filter_by_team_id(@filters[:team_id])
-      scope.filter_by_rating(@filters[:rating])
-    end
+    @csat_scope ||= csat_scope_for(range)
+  end
+
+  def csat_scope_for(window)
+    scope = @account.csat_survey_responses.includes(:contact, :assigned_agent)
+    scope = scope.filter_by_created_at(window) if window.present?
+    scope = scope.filter_by_assigned_agent_id(@filters[:user_ids])
+    scope = scope.filter_by_inbox_id(@filters[:inbox_id])
+    scope = scope.filter_by_team_id(@filters[:team_id])
+    scope.filter_by_rating(@filters[:rating])
+  end
+
+  # Mesma comparacao do PDF de Conversas: a janela anterior, de mesma duracao, com os mesmos filtros.
+  def csat_comparison(kpis)
+    prev = previous_csat_kpis
+    return {} if prev.nil?
+
+    { satisfaction: metric_delta(kpis[:satisfaction], prev[:satisfaction], lower_better: false),
+      total: metric_delta(kpis[:total], prev[:total], lower_better: false),
+      avg: metric_delta(kpis[:avg_rating], prev[:avg_rating], lower_better: false) }
+  end
+
+  def previous_csat_kpis
+    return nil if range.blank?
+
+    previous = csat_scope_for((range.first - (range.last - range.first))...range.first)
+    total = previous.count
+    total.zero? ? nil : csat_kpis(total, previous.group(:rating).count)
+  end
+
+  CSAT_MOOD = [[80, '😀'], [60, '😐'], [0, '😞']].freeze
+
+  def csat_headline(kpis)
+    return { emoji: '🤔', text: 'Nenhum cliente deu nota no período.' } if kpis[:total].zero?
+
+    emoji = CSAT_MOOD.find { |limit, _| kpis[:satisfaction] >= limit }.last
+    { emoji: emoji, text: "Os clientes deram #{kpis[:total]} notas e #{br_number(kpis[:satisfaction])}% ficaram satisfeitos " \
+                          "(nota 4 ou 5). #{kpis[:unsatisfied]} ficaram insatisfeitos." }
+  end
+
+  CSAT_LOW_LIMIT = 10
+
+  # As notas baixas (1 e 2), as mais recentes primeiro: e quem o gestor precisa procurar.
+  def csat_low_ratings(scope)
+    scope.where(rating: [1, 2]).includes(:conversation).order(created_at: :desc).limit(CSAT_LOW_LIMIT).map { |row| csat_low_row(row) }
+  end
+
+  def csat_low_row(row)
+    { id: row.conversation ? "##{row.conversation.display_id}" : '—', contact: row.contact&.name.presence || 'Sem nome',
+      agent: row.assigned_agent&.name || 'sem atendente', rating: row.rating,
+      feedback: row.feedback_message.presence&.truncate(160), date: format_date(row.created_at) }
+  end
+
+  # 80.9 -> "80,9" (o PDF mostrava ponto decimal).
+  def br_number(value)
+    ActiveSupport::NumberHelper.number_to_rounded(value, precision: 1, separator: ',', delimiter: '.', strip_insignificant_zeros: true)
   end
 
   def csat_response_rate(total)
