@@ -247,6 +247,7 @@ en:
         avg_resolution_time: Resolution time (seconds)
         resolutions_count: Resolution time (seconds)
         reply_time: Customer waiting time (seconds)
+        waiting: Waiting for (seconds)
       status:
         open: Open
         resolved: Resolved

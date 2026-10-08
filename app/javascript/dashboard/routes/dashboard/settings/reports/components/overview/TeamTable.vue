@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h } from 'vue';
+import { computed, h, ref } from 'vue';
 import {
   useVueTable,
   createColumnHelper,
@@ -7,6 +7,7 @@ import {
   getPaginationRowModel,
 } from '@tanstack/vue-table';
 import { useI18n } from 'vue-i18n';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 
 import Spinner from 'shared/components/Spinner.vue';
@@ -14,7 +15,7 @@ import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 import Table from 'dashboard/components/table/Table.vue';
 import Pagination from 'dashboard/components/table/Pagination.vue';
 
-const { teams, teamMetrics } = defineProps({
+const props = defineProps({
   teams: {
     type: Array,
     default: () => [],
@@ -26,6 +27,10 @@ const { teams, teamMetrics } = defineProps({
   isLoading: {
     type: Boolean,
     default: false,
+  },
+  inboxId: {
+    type: [Number, String],
+    default: null,
   },
 });
 
@@ -45,13 +50,14 @@ const handlePageSizeChange = pageSize => {
 };
 
 const getTeamMetrics = id =>
-  teamMetrics.find(metrics => metrics.team_id === Number(id)) || {};
+  props.teamMetrics.find(metrics => metrics.team_id === Number(id)) || {};
 
 const tableData = computed(() =>
-  teams
+  props.teams
     .map(team => {
       const metric = getTeamMetrics(team.id);
       return {
+        id: team.id,
         agent: team.name,
         open: metric.open || 0,
         unattended: metric.unattended || 0,
@@ -79,6 +85,30 @@ const defaulSpanRender = cellProps =>
     cellProps.getValue() ? cellProps.getValue() : '---'
   );
 
+// Abertas e nao atendidas de cada linha abrem as conversas (ReportDrilldownPanel ao vivo).
+const drilldown = ref(null);
+const liveCell = (metric, headerKey) => cellProps => {
+  const value = cellProps.getValue();
+  if (!value) return h('span', { class: 'text-n-slate-11' }, '---');
+  const row = cellProps.row.original;
+  return h(
+    'button',
+    {
+      type: 'button',
+      class:
+        'p-0 m-0 text-[length:inherit] tabular-nums text-n-slate-12 underline decoration-dotted underline-offset-4 hover:text-n-brand',
+      title: t('REPORT.DRILLDOWN.OPEN'),
+      onClick: () => {
+        drilldown.value = {
+          metric: { key: metric, name: `${row.agent} · ${t(headerKey)}` },
+          filters: { teamId: row.id, inboxId: props.inboxId },
+        };
+      },
+    },
+    value
+  );
+};
+
 const columnHelper = createColumnHelper();
 const columns = [
   columnHelper.accessor('agent', {
@@ -88,12 +118,12 @@ const columns = [
   }),
   columnHelper.accessor('open', {
     header: t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.OPEN'),
-    cell: defaulSpanRender,
+    cell: liveCell('open', 'OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.OPEN'),
     size: 100,
   }),
   columnHelper.accessor('unattended', {
     header: t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
-    cell: defaulSpanRender,
+    cell: liveCell('unattended', 'OVERVIEW_REPORTS.TEAM_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
     size: 100,
   }),
 ];
@@ -142,6 +172,13 @@ const table = useVueTable({
     <EmptyState
       v-else-if="!isLoading && !teams.length"
       :title="$t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.NO_TEAMS')"
+    />
+    <ReportDrilldownPanel
+      v-if="drilldown"
+      :metric="drilldown.metric"
+      :filters="drilldown.filters"
+      source="live"
+      @close="drilldown = null"
     />
   </div>
 </template>

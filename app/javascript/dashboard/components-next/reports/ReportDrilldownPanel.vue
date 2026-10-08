@@ -6,6 +6,7 @@ import { formatDuration } from 'dashboard/helper/reportFormat';
 import format from 'date-fns/format';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import ReportsAPI from 'dashboard/api/reports';
+import LiveReportsAPI from 'dashboard/api/liveReports';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { useAlert } from 'dashboard/composables';
@@ -17,8 +18,21 @@ const props = defineProps({
   // { key, name }: a metrica do cartao clicado
   metric: { type: Object, required: true },
   // { from, to, type, id, businessHours, inboxId }: os mesmos filtros da tela
+  // (na Visao geral: { teamId, inboxId, assigneeId })
   filters: { type: Object, required: true },
+  // 'reports' (numero de um periodo) | 'live' (numero da Visao geral, situacao de agora)
+  source: { type: String, default: 'reports' },
 });
+
+const isLive = computed(() => props.source === 'live');
+const fetchList = params =>
+  isLive.value
+    ? LiveReportsAPI.getConversationList(params)
+    : ReportsAPI.getDrilldown(params);
+const fetchCsv = params =>
+  isLive.value
+    ? LiveReportsAPI.getConversationListCsv(params)
+    : ReportsAPI.getDrilldownCsv(params);
 
 const emit = defineEmits(['close']);
 
@@ -51,7 +65,12 @@ const isMessageMetric = computed(() =>
 const subtitle = computed(() => {
   if (!meta.value) return '';
   const { total_count: total, conversations_count: conversations } = meta.value;
-  if (['conversations_count', 'resolved_conversations_count'].includes(props.metric.key)) {
+  if (
+    isLive.value ||
+    ['conversations_count', 'resolved_conversations_count'].includes(
+      props.metric.key
+    )
+  ) {
     return t('REPORT.DRILLDOWN.TOTAL_CONVERSATIONS', { count: total });
   }
   if (isMessageMetric.value) {
@@ -61,6 +80,7 @@ const subtitle = computed(() => {
 });
 
 const orderHint = computed(() => {
+  if (isLive.value) return t('REPORT.DRILLDOWN.ORDER.LONGEST_WAITING');
   if (props.metric.key === 'resolutions_count')
     return t('REPORT.DRILLDOWN.ORDER.RECENT');
   if (TIME_METRICS.includes(props.metric.key))
@@ -71,6 +91,11 @@ const orderHint = computed(() => {
 
 const formatValue = row => {
   if (row.value === null || row.value === undefined) return '';
+  if (isLive.value) {
+    return t('REPORT.DRILLDOWN.WAITING_FOR', {
+      time: formatDuration(row.value, t),
+    });
+  }
   if (isMessageMetric.value) {
     return t('REPORT.DRILLDOWN.MESSAGES_COUNT', { count: row.value });
   }
@@ -94,7 +119,7 @@ const fetchPage = async number => {
   isLoading.value = true;
   hasError.value = false;
   try {
-    const { data } = await ReportsAPI.getDrilldown({
+    const { data } = await fetchList({
       ...props.filters,
       metric: props.metric.key,
       page: number,
@@ -111,7 +136,7 @@ const fetchPage = async number => {
 
 const downloadCsv = async () => {
   try {
-    const { data } = await ReportsAPI.getDrilldownCsv({
+    const { data } = await fetchCsv({
       ...props.filters,
       metric: props.metric.key,
     });

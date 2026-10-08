@@ -29,6 +29,11 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  // Como ler o mapa, em uma frase (para quem nunca viu um).
+  caption: {
+    type: String,
+    default: '',
+  },
   title: {
     type: String,
     required: true,
@@ -321,12 +326,17 @@ onMounted(() => {
           @click="downloadHeatmapData"
         />
       </template>
-      <BaseHeatmap
-        :heatmap-data="heatmapData"
-        :number-of-rows="numberOfRows"
-        :is-loading="isLoading"
-        :color-scheme="colorScheme"
-      />
+      <div class="flex flex-col w-full gap-3">
+        <BaseHeatmap
+          :heatmap-data="heatmapData"
+          :number-of-rows="numberOfRows"
+          :is-loading="isLoading"
+          :color-scheme="colorScheme"
+        />
+        <p v-if="caption" class="text-sm text-n-slate-11 leading-relaxed">
+          {{ caption }}
+        </p>
+      </div>
     </MetricCard>
   </div>
 </template>

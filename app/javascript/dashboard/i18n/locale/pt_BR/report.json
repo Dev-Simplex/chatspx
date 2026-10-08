@@ -26,14 +26,16 @@
       "ORDER": {
         "RECENT": "Mais recentes primeiro",
         "SLOWEST": "Mais demoradas primeiro",
-        "MOST_MESSAGES": "Com mais mensagens primeiro"
+        "MOST_MESSAGES": "Com mais mensagens primeiro",
+        "LONGEST_WAITING": "Quem espera há mais tempo primeiro"
       },
       "STATUS": {
         "open": "Aberta",
         "resolved": "Resolvida",
         "pending": "Pendente",
         "snoozed": "Adiada"
-      }
+      },
+      "WAITING_FOR": "esperando há {time}"
     },
     "METRICS": {
       "CONVERSATIONS": {
@@ -797,29 +799,37 @@
     "HEADER": "Visão geral",
     "LIVE": "Em tempo real",
     "ACCOUNT_CONVERSATIONS": {
-      "HEADER": "Conversas Abertas",
+      "HEADER": "Conversas abertas agora",
       "LOADING_MESSAGE": "Carregando métricas de conversa...",
       "OPEN": "Abertas",
       "UNATTENDED": "Não atendidas",
       "UNASSIGNED": "Não atribuídas",
-      "PENDING": "Pendentes"
+      "PENDING": "Pendentes",
+      "HINT": {
+        "OPEN": "conversas em andamento",
+        "UNATTENDED": "ainda sem 1ª resposta ou esperando resposta",
+        "UNASSIGNED": "sem atendente responsável",
+        "PENDING": "esperando o cliente ou adiadas"
+      }
     },
     "CONVERSATION_HEATMAP": {
-      "HEADER": "Tráfego de conversa",
+      "HEADER": "Quando as conversas chegam",
       "NO_CONVERSATIONS": "Não há conversas",
       "CONVERSATION": "{count} conversa",
       "CONVERSATIONS": "{count} conversas",
-      "DOWNLOAD_REPORT": "Baixar relatório"
+      "DOWNLOAD_REPORT": "Baixar relatório",
+      "CAPTION": "Cada quadradinho é uma hora de um dia da semana. Quanto mais escuro, mais conversas chegaram naquela hora. Passe o mouse em cima para ver o número."
     },
     "RESOLUTION_HEATMAP": {
-      "HEADER": "Resoluções",
+      "HEADER": "Quando as conversas são resolvidas",
       "NO_CONVERSATIONS": "Não há conversas",
       "CONVERSATION": "{count} conversa",
       "CONVERSATIONS": "{count} conversas",
-      "DOWNLOAD_REPORT": "Baixar relatório"
+      "DOWNLOAD_REPORT": "Baixar relatório",
+      "CAPTION": "Cada quadradinho é uma hora de um dia da semana. Quanto mais escuro, mais conversas foram resolvidas naquela hora. Passe o mouse em cima para ver o número."
     },
     "AGENT_CONVERSATIONS": {
-      "HEADER": "Conversas por agentes",
+      "HEADER": "Conversas abertas de cada atendente",
       "LOADING_MESSAGE": "Carregando métricas de agente...",
       "NO_AGENTS": "Não há conversas por agentes",
       "TABLE_HEADER": {
@@ -831,21 +841,27 @@
     },
     "TEAM_CONVERSATIONS": {
       "ALL_TEAMS": "Todos os Times",
-      "HEADER": "Conversas por times",
+      "HEADER": "Conversas abertas de cada time",
       "LOADING_MESSAGE": "Carregando métricas de times...",
       "NO_TEAMS": "Não há dados disponíveis",
       "TABLE_HEADER": {
         "TEAM": "Time",
-        "OPEN": "Abrir",
+        "OPEN": "Abertas",
         "UNATTENDED": "Não atendidas",
         "STATUS": "Status"
       }
     },
     "AGENT_STATUS": {
-      "HEADER": "Status do agente",
+      "HEADER": "Atendentes agora",
       "ONLINE": "Disponível",
       "BUSY": "Ocupado",
       "OFFLINE": "Desconectado"
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "Agora, em poucas palavras",
+      "OPEN": "Há {open} conversas abertas: {unattended} ainda esperam resposta e {unassigned} estão sem atendente. Outras {pending} estão pendentes.",
+      "AGENTS": "Dos atendentes, {online} estão disponíveis, {busy} ocupados e {offline} desconectados.",
+      "HOW_TO_READ": "Estes números são de agora e se atualizam sozinhos. Clique em um número sublinhado para ver as conversas, começando por quem espera há mais tempo."
     }
   },
   "DAYS_OF_WEEK": {

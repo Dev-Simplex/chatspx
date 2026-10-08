@@ -26,14 +26,16 @@
       "ORDER": {
         "RECENT": "Most recent first",
         "SLOWEST": "Slowest first",
-        "MOST_MESSAGES": "Most messages first"
+        "MOST_MESSAGES": "Most messages first",
+        "LONGEST_WAITING": "Longest waiting first"
       },
       "STATUS": {
         "open": "Open",
         "resolved": "Resolved",
         "pending": "Pending",
         "snoozed": "Snoozed"
-      }
+      },
+      "WAITING_FOR": "waiting for {time}"
     },
     "METRICS": {
       "CONVERSATIONS": {
@@ -797,29 +799,37 @@
     "HEADER": "Overview",
     "LIVE": "Live",
     "ACCOUNT_CONVERSATIONS": {
-      "HEADER": "Open Conversations",
+      "HEADER": "Open conversations now",
       "LOADING_MESSAGE": "Loading conversation metrics...",
       "OPEN": "Open",
       "UNATTENDED": "Unattended",
       "UNASSIGNED": "Unassigned",
-      "PENDING": "Pending"
+      "PENDING": "Pending",
+      "HINT": {
+        "OPEN": "conversations in progress",
+        "UNATTENDED": "still without a first reply or waiting for a reply",
+        "UNASSIGNED": "without an agent in charge",
+        "PENDING": "waiting for the customer or snoozed"
+      }
     },
     "CONVERSATION_HEATMAP": {
-      "HEADER": "Conversation Traffic",
+      "HEADER": "When conversations come in",
       "NO_CONVERSATIONS": "No conversations",
       "CONVERSATION": "{count} conversation",
       "CONVERSATIONS": "{count} conversations",
-      "DOWNLOAD_REPORT": "Download report"
+      "DOWNLOAD_REPORT": "Download report",
+      "CAPTION": "Each little square is one hour of a weekday. The darker it is, the more conversations came in at that hour. Hover to see the number."
     },
     "RESOLUTION_HEATMAP": {
-      "HEADER": "Resolutions",
+      "HEADER": "When conversations are resolved",
       "NO_CONVERSATIONS": "No conversations",
       "CONVERSATION": "{count} conversation",
       "CONVERSATIONS": "{count} conversations",
-      "DOWNLOAD_REPORT": "Download report"
+      "DOWNLOAD_REPORT": "Download report",
+      "CAPTION": "Each little square is one hour of a weekday. The darker it is, the more conversations were resolved at that hour. Hover to see the number."
     },
     "AGENT_CONVERSATIONS": {
-      "HEADER": "Conversations by agents",
+      "HEADER": "Open conversations per agent",
       "LOADING_MESSAGE": "Loading agent metrics...",
       "NO_AGENTS": "There are no conversations by agents",
       "TABLE_HEADER": {
@@ -831,7 +841,7 @@
     },
     "TEAM_CONVERSATIONS": {
       "ALL_TEAMS": "All Teams",
-      "HEADER": "Conversations by teams",
+      "HEADER": "Open conversations per team",
       "LOADING_MESSAGE": "Loading team metrics...",
       "NO_TEAMS": "There is no data available",
       "TABLE_HEADER": {
@@ -842,10 +852,16 @@
       }
     },
     "AGENT_STATUS": {
-      "HEADER": "Agent status",
+      "HEADER": "Agents now",
       "ONLINE": "Online",
       "BUSY": "Busy",
       "OFFLINE": "Offline"
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "Right now, in a few words",
+      "OPEN": "There are {open} open conversations: {unattended} are still waiting for a reply and {unassigned} have no agent. Another {pending} are pending.",
+      "AGENTS": "Of the agents, {online} are available, {busy} busy and {offline} offline.",
+      "HOW_TO_READ": "These numbers are live and update by themselves. Click an underlined number to see the conversations, starting with who has been waiting the longest."
     }
   },
   "DAYS_OF_WEEK": {
