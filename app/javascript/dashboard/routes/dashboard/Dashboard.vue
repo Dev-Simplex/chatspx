@@ -124,8 +124,12 @@ export default {
             conversation_display_type: LAYOUT_TYPES.EXPANDED,
           });
         } else {
+          // Tela larga volta ao modo escolhido pela pessoa. Sem escolha gravada (a tela
+          // estreita liga o expandido sozinha e nunca grava o anterior), volta ao padrão
+          // lado a lado: antes ficava presa no expandido, com a lista ocupando tudo.
           this.updateUISettings({
-            conversation_display_type: this.previouslyUsedDisplayType,
+            conversation_display_type:
+              this.previouslyUsedDisplayType || LAYOUT_TYPES.CONDENSED,
           });
         }
       },
