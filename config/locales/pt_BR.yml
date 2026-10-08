@@ -436,6 +436,23 @@ pt_BR:
         finalized_invalid: 'Pesquisa NPS encerrada após %{count} respostas inválidas.'
       auto_resolve:
         not_sent_due_to_messaging_window: 'Auto-resolver mensagem não enviada devido a restrições de envio de mensagens'
+      lead:
+        arrived: 'Novo lead %{origin} %{time} · %{result}'
+        at_time: 'às %{time}'
+        at_date_time: 'em %{date} às %{time}'
+        origin:
+          site: 'pelo site'
+          ad: 'por anúncio'
+          form: 'por formulário'
+        result:
+          sent: 'abertura enviada'
+          no_phone: 'sem telefone: abertura não enviada'
+          skipped: 'formulário configurado sem abertura'
+          read_only: 'caixa somente leitura: abertura não enviada'
+          no_template: 'abertura não enviada: template de abertura não configurado'
+          cooldown: 'abertura não enviada: já enviada %{sent_at}'
+          assistant_resumed: 'abertura não enviada (já enviada %{sent_at}): o cliente conversou nas últimas 24 h e a IA retomou com o novo interesse'
+        opening_failed: 'A abertura do lead não foi entregue: %{reason}'
       muted: '%{user_name} silenciou a conversa'
       unmuted: '%{user_name} reativou a conversa'
       auto_resolution_message: 'Resolvendo a conversa dado que está inativa por um tempo. Por favor, inicie uma nova conversa se precisar de mais ajuda.'

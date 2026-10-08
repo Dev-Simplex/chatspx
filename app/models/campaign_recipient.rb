@@ -59,21 +59,17 @@ class CampaignRecipient < ApplicationRecord
   # Codigo do motivo de nao-envio. Falha da Meta grava "131026: Message undeliverable" -> '131026';
   # falha sem codigo (excecao interna, erro sincrono da API) -> 'erro_envio'.
   def reason_code
+    return Whatsapp::UndeliveredReason.code(external_error) if failed?
+
     error = external_error.to_s
-    return error[/\A\d+/] || 'erro_envio' if failed?
     return error if SKIP_REASONS.include?(error)
 
     LEGACY_SKIP_REASONS[error] || (cancelled? ? 'cancelado' : 'desconhecido')
   end
 
-  # Motivo em linguagem de operador. Codigo da Meta fora do catalogo cai no grupo (132xxx =
-  # template) ou, por ultimo, no texto cru que a Meta mandou.
+  # Motivo em linguagem de operador (mapa compartilhado em Whatsapp::UndeliveredReason).
   def reason_label
-    code = reason_code
-    key = code.match?(/\A\d+\z/) ? "meta_#{code}" : code
-    I18n.t("campaigns.undelivered.reasons.#{key}", default: nil) ||
-      (code.start_with?('132') && I18n.t('campaigns.undelivered.reasons.template')) ||
-      external_error.presence || I18n.t('campaigns.undelivered.reasons.desconhecido')
+    Whatsapp::UndeliveredReason.label(reason_code, external_error)
   end
 
   # Reivindica o destinatario de forma atomica (pending -> processing) para que a

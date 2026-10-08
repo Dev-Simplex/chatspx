@@ -125,7 +125,7 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
     end
   end
 
-  describe '#initial_message_already_sent?' do
+  describe '#last_initial_message' do
     let(:hook) { hook_with({}) }
     let(:conversation) { create(:conversation, account: account, inbox: inbox) }
     let(:svc) { service(hook: hook, lead: lead_with({})) }
@@ -137,7 +137,7 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
     end
 
     it 'is false on a conversation without the opener' do
-      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+      expect(svc.send(:last_initial_message, conversation)).to be_nil
     end
 
     # A regressao: content_attributes e jsonb NA TABELA mas o modelo grava uma STRING JSON
@@ -145,7 +145,7 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
     it 'is true after the opener, despite the double serialization' do
       initial_message_on(conversation)
 
-      expect(svc.send(:initial_message_already_sent?, conversation)).to be true
+      expect(svc.send(:last_initial_message, conversation)).to be_present
     end
 
     it 'ignores messages carrying other content_attributes' do
@@ -153,25 +153,25 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
                        message_type: :outgoing, content: 'Olá!',
                        content_attributes: { nps_survey: true })
 
-      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+      expect(svc.send(:last_initial_message, conversation)).to be_nil
     end
 
     it 'does not see the opener of another conversation' do
       initial_message_on(create(:conversation, account: account, inbox: inbox))
 
-      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+      expect(svc.send(:last_initial_message, conversation)).to be_nil
     end
 
     it 'ignores an opener older than the dedup window' do
       travel_to(25.hours.ago) { initial_message_on(conversation) }
 
-      expect(svc.send(:initial_message_already_sent?, conversation)).to be false
+      expect(svc.send(:last_initial_message, conversation)).to be_nil
     end
 
     it 'still sees an opener inside the dedup window' do
       travel_to(23.hours.ago) { initial_message_on(conversation) }
 
-      expect(svc.send(:initial_message_already_sent?, conversation)).to be true
+      expect(svc.send(:last_initial_message, conversation)).to be_present
     end
   end
 
@@ -231,6 +231,210 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
       contexto = service(hook: hook_with({}), lead: lead_with({})).send(:template_render_context)
 
       expect(described_class::BODY_FIELDS).to match_array(contexto.keys)
+    end
+  end
+
+  # Cada lead que chega deixa uma linha de atividade na conversa (o cliente não recebe) com a
+  # origem e o que aconteceu com a abertura — antes, o único rastro era o log do servidor.
+  describe 'lead activity line' do
+    let(:account) { create(:account, locale: 'pt_BR') }
+    let(:lead) { lead_with(full_name: 'Maria Silva') }
+
+    before { travel_to Time.zone.local(2026, 10, 7, 14, 5) }
+
+    def activities(conversation)
+      conversation.reload.messages.where(message_type: :activity).pluck(:content)
+    end
+
+    def openers(conversation)
+      conversation.messages.select { |m| m.content_attributes['meta_lead_ads_initial'] }
+    end
+
+    it 'records the opener as sent' do
+      conversation = service(hook: hook_with('initial_message_template' => 'Olá {{first_name}}!'), lead: lead).perform
+
+      expect(activities(conversation)).to eq(['Novo lead por anúncio às 14:05 · abertura enviada'])
+    end
+
+    it 'records the cooldown skip with the time of the previous opener' do
+      hook = hook_with('initial_message_template' => 'Olá {{first_name}}!')
+      conversation = service(hook: hook, lead: lead).perform
+
+      travel 30.minutes
+      service(hook: hook, lead: lead).perform
+
+      expect(activities(conversation).last).to eq('Novo lead por anúncio às 14:35 · abertura não enviada: já enviada às 14:05')
+    end
+
+    it 'shows the date when the previous opener was on another day' do
+      hook = hook_with('initial_message_template' => 'Olá {{first_name}}!', 'initial_message_cooldown_hours' => 48)
+      conversation = service(hook: hook, lead: lead).perform
+
+      travel 1.day
+      service(hook: hook, lead: lead).perform
+
+      expect(activities(conversation).last).to eq('Novo lead por anúncio às 14:05 · abertura não enviada: já enviada em 07/10 às 14:05')
+    end
+
+    it 'records a lead without phone' do
+      conversation = service(hook: hook_with({}), lead: lead_with(phone_number: nil, leadgen_id: '9')).perform
+
+      expect(activities(conversation)).to eq(['Novo lead por anúncio às 14:05 · sem telefone: abertura não enviada'])
+    end
+
+    it 'records a read-only inbox' do
+      inbox.update!(read_only: true)
+      conversation = service(hook: hook_with({}), lead: lead).perform
+
+      expect(openers(conversation)).to be_empty
+      expect(activities(conversation)).to eq(['Novo lead por anúncio às 14:05 · caixa somente leitura: abertura não enviada'])
+    end
+
+    it 'records a form set up without opener' do
+      conversation = service(hook: hook_with('skip_initial_message' => true), lead: lead).perform
+
+      expect(activities(conversation)).to eq(['Novo lead por anúncio às 14:05 · formulário configurado sem abertura'])
+    end
+
+    it 'names the website as the origin of a site lead' do
+      hook = create(:integrations_hook, account: account, app_id: 'site_leads',
+                                        settings: { 'shared_secret' => 's3cr3t', 'target_inbox_id' => inbox.id })
+      conversation = service(hook: hook, lead: lead).perform
+
+      expect(activities(conversation)).to eq(['Novo lead pelo site às 14:05 · abertura enviada'])
+    end
+  end
+
+  # A conversa é reaproveitada: os atributos do lead descrevem o lead ATUAL. O que o lead novo
+  # não trouxe não pode sobrar do anterior — a IA leria o imóvel errado.
+  describe 'lead attributes on a reused conversation' do
+    let(:hook) { hook_with('initial_message_template' => 'Olá!') }
+
+    def perform_with(lead, imovel)
+      svc = service(hook: hook, lead: lead)
+      allow(svc).to receive(:fetch_imovel).and_return(imovel)
+      svc.perform
+    end
+
+    it 'drops the property code and other lead keys the new lead did not bring' do
+      first = perform_with(lead_with(retailer_item_id: '9817', ad_name: 'IMÓVEL 9817', jornada: 'Viu a casa 9817'),
+                           { codigo: '9817', descricao: 'Casa — Centro' })
+      first.update!(custom_attributes: first.custom_attributes.merge('outro_campo' => 'fica'))
+      expect(first.reload.custom_attributes).to include('meta_imovel_codigo' => '9817', 'meta_anuncio' => 'IMÓVEL 9817')
+
+      again = perform_with(lead_with(leadgen_id: '2', campaign_name: 'Institucional'), nil)
+
+      attrs = again.reload.custom_attributes
+      expect(again.id).to eq(first.id)
+      expect(attrs).not_to include('meta_imovel_codigo', 'meta_imovel', 'meta_anuncio', 'jornada')
+      expect(attrs).to include('meta_campanha' => 'Institucional', 'outro_campo' => 'fica')
+    end
+  end
+
+  # A janela de 24 h entre aberturas é o padrão; cada formulário pode pedir outra.
+  describe 'opener cooldown per hook' do
+    let(:lead) { lead_with(full_name: 'Maria Silva') }
+
+    def openers_after(hook, gap)
+      conversation = service(hook: hook, lead: lead).perform
+      travel gap do
+        service(hook: hook, lead: lead).perform
+      end
+      conversation.reload.messages.count { |m| m.content_attributes['meta_lead_ads_initial'] }
+    end
+
+    def hook_cooldown(value)
+      hook_with('initial_message_template' => 'Olá!', 'initial_message_cooldown_hours' => value)
+    end
+
+    it 'defaults to 24 hours' do
+      expect(openers_after(hook_with('initial_message_template' => 'Olá!'), 23.hours)).to eq(1)
+    end
+
+    it 'sends again after the default 24 hours' do
+      expect(openers_after(hook_with('initial_message_template' => 'Olá!'), 25.hours)).to eq(2)
+    end
+
+    it 'honors a shorter cooldown' do
+      expect(openers_after(hook_cooldown(1), 2.hours)).to eq(2)
+    end
+
+    it 'honors a longer cooldown' do
+      expect(openers_after(hook_cooldown('48'), 30.hours)).to eq(1)
+    end
+
+    it 'falls back to 24 hours on a value that is not a number' do
+      expect(openers_after(hook_cooldown('abc'), 23.hours)).to eq(1)
+    end
+
+    it 'falls back to 24 hours on zero' do
+      expect(openers_after(hook_cooldown(0), 23.hours)).to eq(1)
+    end
+  end
+
+  # Lead novo dentro do cooldown com o cliente conversando com a IA: em vez de template, a IA
+  # retoma pelo mesmo caminho da cutucada (ResponseBuilderJob com diretiva).
+  describe 'waking the assistant on a new lead inside the cooldown' do
+    let(:account) { create(:account, locale: 'pt_BR') }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:hook) { hook_with('initial_message_template' => 'Olá!', 'initial_message_cooldown_hours' => 48) }
+    let(:lead) { lead_with(full_name: 'Maria Silva') }
+    let!(:conversation) { travel_to(2.hours.ago) { service(hook: hook, lead: lead).perform } }
+
+    def converse(customer_wrote_at)
+      conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+      create(:message, conversation: conversation, account: account, inbox: inbox,
+                       message_type: :incoming, content: 'Oi, quero saber mais', created_at: customer_wrote_at)
+      create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :outgoing,
+                       sender: assistant, content: 'Claro!', created_at: customer_wrote_at + 1.minute)
+    end
+
+    def openers
+      conversation.reload.messages.count { |m| m.content_attributes['meta_lead_ads_initial'] }
+    end
+
+    def new_lead
+      service(hook: hook, lead: lead_with(leadgen_id: '2', full_name: 'Maria Silva')).perform
+    end
+
+    it 'enqueues the assistant response instead of the template when the window is open' do
+      converse(1.hour.ago)
+
+      expect { new_lead }.to have_enqueued_job(Captain::Conversation::ResponseBuilderJob)
+        .with(conversation, assistant, directive: a_string_including('novo formulário'))
+      expect(openers).to eq(1)
+      expect(conversation.messages.where(message_type: :activity).last.content).to include('a IA retomou com o novo interesse')
+    end
+
+    it 'does not wake the assistant when the customer window is closed' do
+      conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+      travel 30.hours
+
+      expect { new_lead }.not_to have_enqueued_job(Captain::Conversation::ResponseBuilderJob)
+      expect(openers).to eq(1)
+      expect(conversation.messages.where(message_type: :activity).last.content).to include('já enviada')
+    end
+
+    it 'does not wake the assistant when the customer last wrote more than 24 hours ago' do
+      converse(1.hour.ago)
+      travel 25.hours
+
+      expect { new_lead }.not_to have_enqueued_job(Captain::Conversation::ResponseBuilderJob)
+    end
+
+    it 'does not wake the assistant when a human is assigned' do
+      converse(1.hour.ago)
+      conversation.update!(assignee: create(:user, account: account, role: :agent))
+
+      expect { new_lead }.not_to have_enqueued_job(Captain::Conversation::ResponseBuilderJob)
+    end
+
+    it 'does not wake the assistant while its reply to the customer is still pending' do
+      converse(1.hour.ago)
+      create(:message, conversation: conversation, account: account, inbox: inbox,
+                       message_type: :incoming, content: 'e o preço?', created_at: 1.minute.ago)
+
+      expect { new_lead }.not_to have_enqueued_job(Captain::Conversation::ResponseBuilderJob)
     end
   end
 end
