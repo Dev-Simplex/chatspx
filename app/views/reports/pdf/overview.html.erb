@@ -47,28 +47,51 @@
 </div>
 
 <%# ============ 2. QUEM ESPERA HÁ MAIS TEMPO? ============ %>
+<%# Tabela com colunas nomeadas (antes eram barras todas iguais e uma linha cinza sem dizer o que era cada coisa). %>
 <div class="section" style="break-inside: auto;">
-  <div class="narrative-title" style="break-after: avoid;"><span class="q">2.</span> Quem está esperando há mais tempo?</div>
+  <div class="narrative-title" style="break-after: avoid;"><span class="q">2.</span> Quem está esperando resposta há mais tempo?</div>
   <% if waiting.any? %>
-    <div class="cl-legend">
-      <span><i class="cl-dot good"></i> esperando menos que a meta (<%= frt_goal_h %>)</span>
-      <span><i class="cl-dot warn"></i> perto da meta</span>
+    <p class="section-lead" style="break-after: avoid;">
+      São conversas abertas em que <strong>o cliente mandou mensagem e ainda ninguém respondeu</strong>.
+      Quem espera há mais tempo está no topo. A meta é responder em até <strong><%= frt_goal_h %></strong>.
+    </p>
+    <div class="cl-legend" style="break-after: avoid;">
+      <span><i class="cl-dot good"></i> dentro da meta</span>
+      <span><i class="cl-dot warn"></i> passou um pouco da meta</span>
       <span><i class="cl-dot bad"></i> passou muito da meta</span>
     </div>
-    <div class="card cl-bars" style="break-inside: auto;">
-      <% waiting.each do |row| %>
-        <div class="cl-bar-row">
-          <div>
-            <div class="cl-who"><%= row[:id] %> · <%= row[:contact] %></div>
-            <div class="cl-where"><%= [row[:inbox], row[:agent], row[:team]].compact.join(' · ') %></div>
-          </div>
-          <div class="cl-track">
-            <div class="cl-fill <%= row[:level] %>" style="width: <%= [row[:bar_pct], 2].max %>%;"></div>
-            <span class="cl-value">há <%= row[:waiting] %></span>
-          </div>
-        </div>
-      <% end %>
+    <div class="card" style="padding: 2mm 4mm; break-inside: auto;">
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 9%;"><col style="width: 19%;"><col style="width: 17%;"><col style="width: 15%;">
+          <col style="width: 12%;"><col style="width: 14%;"><col style="width: 14%;">
+        </colgroup>
+        <thead>
+          <tr><th>Conversa</th><th>Cliente</th><th>Caixa de entrada</th><th>Atendente</th><th>Time</th><th>Esperando desde</th><th>Já esperou</th></tr>
+        </thead>
+        <tbody>
+          <% waiting.each do |row| %>
+            <tr>
+              <td><%= row[:id] %></td>
+              <td class="cl-wrap"><strong><%= row[:contact] %></strong></td>
+              <td class="cl-wrap"><%= row[:inbox] %></td>
+              <td class="cl-wrap <%= 'muted' if row[:agent] == 'ninguém' %>"><%= row[:agent] %></td>
+              <td class="cl-wrap <%= 'muted' if row[:team] == '—' %>"><%= row[:team] %></td>
+              <td class="muted"><%= row[:since] %></td>
+              <td><i class="cl-dot <%= row[:level] %>"></i> <strong><%= row[:waiting] %></strong></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
+    <p style="margin: 2mm 0 0; font-size: 10px; color: #667781;">
+      <% if unattended > waiting.size %>
+        Mostrando as <%= waiting.size %> que esperam há mais tempo, de <%= unattended %> sem resposta.
+      <% else %>
+        Estas são todas as <%= waiting.size %> conversas sem resposta.
+      <% end %>
+      Para ver a lista completa no sistema: Relatórios → Visão geral → clique no número de “Não atendidas”.
+    </p>
   <% else %>
     <%= render 'reports/pdf/callout', variant: 'success', title: 'Ninguém está esperando resposta agora',
           body: 'Todas as conversas abertas já foram respondidas. 👍' %>

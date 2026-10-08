@@ -788,14 +788,14 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   # Quem espera resposta ha mais tempo (a mesma lista do numero "nao atendidas" da tela).
   def overview_waiting
     rows = V2::Reports::LiveDrilldownBuilder.new(overview_scope, metric: 'unattended').page(1)[:payload].first(OVERVIEW_WAITING)
-    longest = rows.filter_map { |row| row[:value] }.max.to_f
-    rows.map { |row| overview_waiting_row(row, longest) }
+    rows.map { |row| overview_waiting_row(row) }
   end
 
-  def overview_waiting_row(row, longest)
+  def overview_waiting_row(row)
     { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
-      agent: row[:agent_name].presence || 'sem atendente', team: row[:team_name], waiting: short_duration(row[:value]),
-      level: first_level(row[:value]), bar_pct: bar_pct(row[:value], longest) }
+      agent: row[:agent_name].presence || 'ninguém', team: row[:team_name].presence || '—', waiting: short_duration(row[:value]),
+      since: Time.zone.at(row[:value_at]).in_time_zone(TZ).strftime('%d/%m às %H:%M'),
+      level: first_level(row[:value]) }
   end
 
   def overview_group_rows(group_key, names)
