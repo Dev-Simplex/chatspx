@@ -490,6 +490,7 @@ onMounted(() => {
       <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED_MANUAL') }}</li>
       <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED_AUTO') }}</li>
       <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.SELF_ASSIGNED') }}</li>
+      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED_OTHER') }}</li>
       <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.ASSIGNED_TO_OTHERS') }}</li>
     </ul>
   </div>
