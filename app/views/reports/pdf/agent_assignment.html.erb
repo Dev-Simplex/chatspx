@@ -1,82 +1,98 @@
+<%# Atribuições no estilo do PDF de Conversas: manchete, de onde vieram, como chegou para cada atendente (a conta
+    fecha: total = alguém passou + rodízio + pegou para si + outras), quem passou para quem e o que cada coluna quer dizer. %>
 <%
   k = @data[:kpis]
   total = k[:received_total].to_i
   empty = total.zero?
+  people = @data[:people] || []
+  pairs = @data[:pairs] || []
 %>
 
-<%# ---------- Resumo (data-driven) ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/callout', variant: empty ? 'neutral' : 'info',
-        title: "#{number_with_delimiter(total)} atribuições · #{number_with_delimiter(k[:agents].to_i)} atendentes",
-        body: empty ?
-          'Nenhuma atribuição foi registrada no período selecionado. O histórico é contado a partir do momento em que o recurso foi ativado — não há dados retroativos.' :
-          "No período, #{number_with_delimiter(total)} atribuições de conversa foram distribuídas entre #{number_with_delimiter(k[:agents].to_i)} atendentes: " \
-          "#{number_with_delimiter(k[:received_manual].to_i)} manuais, #{number_with_delimiter(k[:received_auto].to_i)} automáticas (rodízio) e " \
-          "#{number_with_delimiter(k[:self_assigned].to_i)} auto-assumidas." %>
-</div>
+<%= render 'reports/pdf/headline', headline: @data[:headline] %>
 
-<%# ---------- KPIs ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'Atribuições', value: number_with_delimiter(total), hero: true, hint: 'no período' },
-    { label: 'Manuais', value: number_with_delimiter(k[:received_manual].to_i), hint: 'feitas por alguém' },
-    { label: 'Automáticas', value: number_with_delimiter(k[:received_auto].to_i), hint: 'rodízio' },
-    { label: 'Auto-assumidas', value: number_with_delimiter(k[:self_assigned].to_i), hint: 'pegou pra si' },
-    { label: 'Atendentes', value: number_with_delimiter(k[:agents].to_i), hint: 'com atividade' },
-  ] %>
-</div>
-
-<%# ---------- De onde vieram (composição por origem) ---------- %>
-<% unless empty %>
+<% if empty %>
   <div class="section">
-    <div class="section-title"><span class="dot">1</span> De onde vieram as atribuições</div>
-    <div class="card">
-      <%= render 'reports/pdf/composition_bar', segments: @data[:source_segments] %>
+    <%= render 'reports/pdf/callout', variant: 'neutral', title: 'Nenhuma atribuição no período',
+          body: 'Nenhuma conversa foi entregue a um atendente no período escolhido. O histórico é contado a partir do momento em que o recurso foi ativado; não há dados de antes disso.' %>
+  </div>
+<% else %>
+  <%# ============ 1. O QUE ACONTECEU? ============ %>
+  <div class="section">
+    <div class="narrative-title"><span class="q">1.</span> O que aconteceu?</div>
+    <div class="hero-row">
+      <%= render 'reports/pdf/hero_stat',
+            value: number_with_delimiter(total), value_class: 'is-neutral',
+            label: 'Conversas entregues',
+            caption: "para #{number_with_delimiter(k[:agents].to_i)} atendentes · #{number_with_delimiter(k[:assigned_to_others].to_i)} passadas entre colegas" %>
+      <%= render 'reports/pdf/composition_bar', title: 'Como chegaram', segments: @data[:source_segments] %>
     </div>
   </div>
-<% end %>
 
-<%# ---------- Recebidas por atendente ---------- %>
-<% if @data[:received_chart].present? %>
-  <div class="section">
-    <div class="section-title"><span class="dot">2</span> Recebidas por atendente</div>
-    <div class="card">
-      <%= pdf_bar_chart(@data[:received_chart]) %>
-      <%= render 'reports/pdf/chart_caption', emoji: '🟩',
-            text: 'Total de atribuições recebidas por cada atendente no período (top 10).' %>
+  <%# ============ 2. COMO CHEGOU PARA CADA ATENDENTE? ============ %>
+  <div class="section" style="<%= 'break-inside: auto;' if people.size > 15 %>">
+    <div class="narrative-title"><span class="q">2.</span> Como chegou para cada atendente?</div>
+    <div class="card" style="padding: 2mm 4mm;<%= ' break-inside: auto;' if people.size > 15 %>">
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 22%;"><col style="width: 26%;"><col style="width: 10%;"><col style="width: 10%;">
+          <col style="width: 10%;"><col style="width: 10%;"><col style="width: 12%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Atendente</th><th>Recebeu (total)</th><th>Alguém passou</th><th>Rodízio</th>
+            <th>Pegou para si</th><th>Outras</th><th>Passou para colegas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% people.each do |person| %>
+            <tr>
+              <td class="cl-wrap"><strong><%= person[:name] %></strong></td>
+              <td>
+                <div class="cl-track">
+                  <div class="cl-fill" style="width: <%= [person[:bar_pct], 3].max %>%;"></div>
+                  <span class="cl-value"><%= number_with_delimiter(person[:total]) %></span>
+                </div>
+              </td>
+              <% %i[manual auto self other to_others].each do |key| %>
+                <td class="<%= 'muted' if person[key].zero? %>"><%= number_with_delimiter(person[key]) %></td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
-<% end %>
 
-<%# ---------- Detalhamento por atendente ---------- %>
-<% if @data[:table].present? && @data[:table][:rows].present? %>
-  <div class="section">
-    <div class="section-title"><span class="dot">3</span> Detalhamento por atendente</div>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table',
-            table: { columns: @data[:table][:columns], rows: @data[:table][:rows].first(18) } %>
+  <%# ============ 3. QUEM PASSOU PARA QUEM? ============ %>
+  <% if pairs.any? %>
+    <div class="section">
+      <div class="narrative-title"><span class="q">3.</span> Quem passou conversas para quem?</div>
+      <div class="card cl-bars">
+        <% pairs.each do |pair| %>
+          <div class="cl-bar-row">
+            <div class="cl-who"><%= pair[:from] %> → <%= pair[:to] %></div>
+            <div class="cl-track">
+              <div class="cl-fill" style="width: <%= [pair[:bar_pct], 3].max %>%;"></div>
+              <span class="cl-value"><%= number_with_delimiter(pair[:count]) %> <%= pair[:count] == 1 ? 'conversa' : 'conversas' %></span>
+            </div>
+          </div>
+        <% end %>
+      </div>
     </div>
-  </div>
-<% end %>
+  <% end %>
 
-<%# ---------- O que significa cada dado (glossário) ---------- %>
-<% unless empty %>
+  <%# ============ O QUE CADA COLUNA QUER DIZER ============ %>
   <div class="section">
-    <div class="section-title"><span class="dot">4</span> O que significa cada dado</div>
+    <div class="narrative-title"><span class="q"><%= pairs.any? ? '4.' : '3.' %></span> O que cada coluna quer dizer</div>
     <div class="card">
-      <div style="font-size:12px; line-height:1.7; color:#333;">
-        <p style="margin:0 0 6px;"><strong>Recebidas (total)</strong> — conversas atribuídas a este atendente (ele foi o destino). O total é a soma das três abaixo.</p>
-        <p style="margin:0 0 6px;">↳ <strong>Manuais</strong>: outra pessoa atribuiu a conversa para este atendente.</p>
-        <p style="margin:0 0 6px;">↳ <strong>Automáticas</strong>: o sistema distribuiu por rodízio (round-robin).</p>
-        <p style="margin:0 0 6px;">↳ <strong>Auto-assumidas</strong>: o próprio atendente pegou a conversa pra si.</p>
-        <p style="margin:0;"><strong>Atribuiu a outros</strong>: conversas que este atendente atribuiu manualmente para outra pessoa.</p>
+      <div style="font-size: 11px; line-height: 1.7; color: #333;">
+        <p style="margin: 0 0 5px;"><strong>Recebeu (total)</strong>: quantas conversas chegaram para o atendente. É a soma das quatro colunas ao lado.</p>
+        <p style="margin: 0 0 5px;"><strong>Alguém passou</strong>: um colega ou o gestor entregou a conversa para ele.</p>
+        <p style="margin: 0 0 5px;"><strong>Rodízio</strong>: o sistema distribuiu a conversa sozinho.</p>
+        <p style="margin: 0 0 5px;"><strong>Pegou para si</strong>: o próprio atendente assumiu a conversa.</p>
+        <p style="margin: 0 0 5px;"><strong>Outras</strong>: chegou pela IA, por uma regra de automação, pela API ou de um jeito que o sistema não registrou.</p>
+        <p style="margin: 0;"><strong>Passou para colegas</strong>: conversas que o atendente entregou para outra pessoa.</p>
       </div>
     </div>
   </div>
-<% end %>
-
-<%# ---------- Leitura executiva (TL;DR) ---------- %>
-<% if @data[:conclusion].present? %>
-  <%= render 'reports/pdf/conclusion',
-        title: @data[:conclusion][:title], body: @data[:conclusion][:body].html_safe %>
 <% end %>
