@@ -369,3 +369,7 @@ svg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cl-table td.muted { color: #8696a0; }
 .cl-chip { display: inline-block; padding: 0.4mm 2mm; border-radius: 999px; font-size: 8.5px; font-weight: 600; background: #eef1f3; color: #4b5a63; }
 .cl-chip.open { background: #d9fdd3; color: #006c55; } .cl-chip.pending { background: #fff3c4; color: #8a6100; }
+
+/* A faixa verde do cabecalho termina exatamente onde o conteudo comeca (sem linha branca na 1a pagina).
+   O respiro de quem abre uma pagina seguinte vem daqui: titulo de secao com um pouco de ar em cima. */
+.section > .section-title:first-child, .section > .narrative-title:first-child { padding-top: 2mm; }
