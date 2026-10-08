@@ -268,6 +268,24 @@ pt_BR:
   reports:
     period: Reportando o período %{since} a %{until}
     utc_warning: O relatório gerado está em fuso horário UTC
+    assignment_csv:
+      headers:
+        display_id: Conversa
+        contact: Contato
+        inbox: Caixa de entrada
+        assignee: Quem recebeu
+        assigned_by: Quem passou
+        source: Como
+        team: Time
+        assigned_at: Quando
+      source:
+        manual: Alguém passou
+        self_assigned: Pegou para si
+        auto_round_robin: Automática (rodízio)
+        automation: Regra de automação
+        bot: IA / robô
+        api: API
+        unknown: Origem desconhecida
     drilldown_csv:
       headers:
         display_id: Conversa

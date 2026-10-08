@@ -12,6 +12,7 @@ import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import OverviewReportFilters from './OverviewReportFilters.vue';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
 const emit = defineEmits(['filterChange']);
 
@@ -42,8 +43,61 @@ const columnHelper = createColumnHelper();
 const renderCount = value =>
   value === null || value === undefined ? '--' : Number(value).toLocaleString();
 
-const countCell = cellProps =>
-  h('span', { class: 'tabular-nums' }, renderCount(cellProps.getValue()));
+// Cada numero abre as atribuicoes por tras dele (ReportDrilldownPanel, fonte "assignments"); o tipo da
+// coluna e o mesmo do V2::Reports::AgentAssignmentBuilder#history_scope.
+const drilldown = ref(null);
+const openDrilldown = ({ kind, name, userId, toId }) => {
+  drilldown.value = {
+    metric: { key: kind, name },
+    filters: {
+      from: from.value,
+      to: to.value,
+      teamId: teamId.value,
+      inboxId: inboxId.value,
+      userId,
+      toId,
+    },
+  };
+};
+
+const countCell = (kind, headerKey) => cellProps => {
+  const value = cellProps.getValue();
+  if (!value) {
+    return h(
+      'span',
+      { class: 'tabular-nums text-n-slate-10' },
+      renderCount(value)
+    );
+  }
+  const row = cellProps.row.original;
+  return h(
+    'button',
+    {
+      type: 'button',
+      class:
+        'p-0 m-0 text-[length:inherit] tabular-nums underline decoration-dotted underline-offset-4 hover:text-n-brand',
+      title: t('REPORT.DRILLDOWN.OPEN'),
+      onClick: () =>
+        openDrilldown({
+          kind,
+          name: `${row.name} · ${t(`ASSIGNMENT_REPORTS.TABLE.${headerKey}`)}`,
+          userId: row.id,
+        }),
+    },
+    renderCount(value)
+  );
+};
+
+const openPair = (author, dest) =>
+  openDrilldown({
+    kind: 'pair',
+    name: t('ASSIGNMENT_REPORTS.MATRIX.PAIR', {
+      from: author.name,
+      to: dest.name,
+    }),
+    userId: author.id,
+    toId: dest.id,
+  });
 
 // Resumo curto exibido no tooltip de cada cabeçalho (reusa a legenda).
 const tip = key => t(`ASSIGNMENT_REPORTS.LEGEND.${key}`);
@@ -69,25 +123,31 @@ const columns = computed(() => [
         header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_TOTAL'),
         width: 110,
         meta: { tooltip: tip('RECEIVED') },
-        cell: countCell,
+        cell: countCell('received_total', 'RECEIVED_TOTAL'),
       }),
       columnHelper.accessor('receivedManual', {
         header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_MANUAL'),
         width: 130,
         meta: { tooltip: tip('RECEIVED_MANUAL') },
-        cell: countCell,
+        cell: countCell('received_manual', 'RECEIVED_MANUAL'),
       }),
       columnHelper.accessor('receivedAuto', {
         header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_AUTO'),
         width: 140,
         meta: { tooltip: tip('RECEIVED_AUTO') },
-        cell: countCell,
+        cell: countCell('received_auto', 'RECEIVED_AUTO'),
       }),
       columnHelper.accessor('selfAssigned', {
         header: t('ASSIGNMENT_REPORTS.TABLE.SELF_ASSIGNED'),
         width: 150,
         meta: { tooltip: tip('SELF_ASSIGNED') },
-        cell: countCell,
+        cell: countCell('self_assigned', 'SELF_ASSIGNED'),
+      }),
+      columnHelper.accessor('receivedOther', {
+        header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_OTHER'),
+        width: 150,
+        meta: { tooltip: tip('RECEIVED_OTHER') },
+        cell: countCell('received_other', 'RECEIVED_OTHER'),
       }),
     ],
   }),
@@ -100,7 +160,7 @@ const columns = computed(() => [
         header: t('ASSIGNMENT_REPORTS.TABLE.ASSIGNED_TO_OTHERS'),
         width: 130,
         meta: { tooltip: tip('ASSIGNED_TO_OTHERS') },
-        cell: countCell,
+        cell: countCell('assigned_to_others', 'ASSIGNED_TO_OTHERS'),
       }),
     ],
   }),
@@ -114,6 +174,14 @@ const tableData = computed(() =>
     receivedManual: row.receivedManual ?? 0,
     receivedAuto: row.receivedAuto ?? 0,
     selfAssigned: row.selfAssigned ?? 0,
+    // O total tambem conta IA, automacao, API e origem desconhecida: sem esta coluna a conta nao fechava.
+    receivedOther: Math.max(
+      (row.receivedTotal ?? 0) -
+        (row.receivedManual ?? 0) -
+        (row.receivedAuto ?? 0) -
+        (row.selfAssigned ?? 0),
+      0
+    ),
     assignedToOthers: row.assignedToOthers ?? 0,
   }))
 );
@@ -150,6 +218,7 @@ const summary = computed(() => {
     pctManual: pct(acc.manual),
     pctAuto: pct(acc.auto),
     pctSelf: pct(acc.self),
+    pctOther: pct(Math.max(acc.total - acc.manual - acc.auto - acc.self, 0)),
   };
 });
 
@@ -277,10 +346,10 @@ onMounted(() => {
     v-if="hasData"
     class="p-4 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >
-    <p class="text-xs font-medium tracking-wider uppercase text-n-slate-10">
+    <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.SUMMARY.TITLE') }}
     </p>
-    <p class="mt-1 text-sm font-medium text-n-slate-12">
+    <p class="mt-2 text-base text-n-slate-12">
       {{
         $t('ASSIGNMENT_REPORTS.SUMMARY.TOTAL', {
           total: summary.total.toLocaleString(),
@@ -288,12 +357,13 @@ onMounted(() => {
         })
       }}
     </p>
-    <p class="mt-0.5 text-sm text-n-slate-11">
+    <p class="mt-1 text-base text-n-slate-12">
       {{
         $t('ASSIGNMENT_REPORTS.SUMMARY.COMPOSITION', {
           manual: summary.pctManual,
           auto: summary.pctAuto,
           self: summary.pctSelf,
+          other: summary.pctOther,
         })
       }}
     </p>
@@ -349,7 +419,7 @@ onMounted(() => {
     v-if="hasMatrix"
     class="p-4 mt-4 outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >
-    <p class="text-xs font-medium tracking-wider uppercase text-n-slate-10">
+    <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.MATRIX.TITLE') }}
     </p>
     <p class="mt-1 mb-3 text-xs text-n-slate-10">
@@ -390,7 +460,16 @@ onMounted(() => {
                   : 'text-n-slate-9'
               "
             >
-              {{ cellCount(a.id, d.id) || '·' }}
+              <button
+                v-if="cellCount(a.id, d.id)"
+                type="button"
+                class="p-0 m-0 text-[length:inherit] tabular-nums underline decoration-dotted underline-offset-4 hover:text-n-brand"
+                :title="$t('REPORT.DRILLDOWN.OPEN')"
+                @click="openPair(a, d)"
+              >
+                {{ cellCount(a.id, d.id) }}
+              </button>
+              <span v-else>·</span>
             </td>
           </tr>
         </tbody>
@@ -403,7 +482,7 @@ onMounted(() => {
     v-if="hasData"
     class="p-4 mt-4 outline-1 outline outline-n-container rounded-xl bg-n-solid-1"
   >
-    <p class="text-xs font-medium tracking-wider uppercase text-n-slate-10">
+    <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.LEGEND.TITLE') }}
     </p>
     <ul class="mt-2 space-y-1 text-xs leading-relaxed text-n-slate-11">
@@ -414,4 +493,11 @@ onMounted(() => {
       <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.ASSIGNED_TO_OTHERS') }}</li>
     </ul>
   </div>
+  <ReportDrilldownPanel
+    v-if="drilldown"
+    :metric="drilldown.metric"
+    :filters="drilldown.filters"
+    source="assignments"
+    @close="drilldown = null"
+  />
 </template>

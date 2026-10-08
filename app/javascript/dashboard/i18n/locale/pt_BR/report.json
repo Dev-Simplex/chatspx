@@ -35,7 +35,17 @@
         "pending": "Pendente",
         "snoozed": "Adiada"
       },
-      "WAITING_FOR": "esperando há {time}"
+      "WAITING_FOR": "esperando há {time}",
+      "TOTAL_ASSIGNMENTS": "{total} entregas em {conversations} conversas",
+      "ASSIGNMENT_SOURCE": {
+        "manual": "passada por {by}",
+        "self_assigned": "pegou para si",
+        "auto_round_robin": "pelo rodízio",
+        "automation": "por automação",
+        "bot": "pela IA",
+        "api": "pela API",
+        "unknown": "origem desconhecida"
+      }
     },
     "METRICS": {
       "CONVERSATIONS": {
@@ -354,7 +364,7 @@
   },
   "ASSIGNMENT_REPORTS": {
     "HEADER": "Atribuições",
-    "DESCRIPTION": "Veja como as atribuições de conversas se distribuem por agente — quantas cada pessoa recebeu (manualmente, por rodízio ou auto-atribuídas) e quantas ela atribuiu para outros.",
+    "DESCRIPTION": "Como as conversas chegaram a cada atendente: alguém passou, o rodízio mandou, a pessoa pegou para si ou veio de outro jeito (IA, automação). Mostra também quem passou conversas para os colegas. Clique em um número para ver as conversas.",
     "DOWNLOAD": "Baixar relatório de atribuições",
     "FILTER": {
       "TEAM": "Time:",
@@ -363,25 +373,27 @@
       "ALL_INBOXES": "Todas as caixas"
     },
     "MATRIX": {
-      "TITLE": "Quem atribuiu pra quem",
-      "HINT": "Linhas = quem atribuiu · Colunas = quem recebeu · valores = atribuições manuais no período.",
-      "FROM_TO": "De \\ Para"
+      "TITLE": "Quem passou conversas para quem",
+      "HINT": "Cada linha é quem passou e cada coluna é quem recebeu. O número é quantas conversas foram passadas no período. Clique para ver quais.",
+      "FROM_TO": "De \\ Para",
+      "PAIR": "{from} passou para {to}"
     },
     "TABLE": {
-      "AGENT": "Agente",
-      "GROUP_RECEIVED": "Recebidas",
-      "GROUP_ASSIGNED": "Atribuiu",
+      "AGENT": "Atendente",
+      "GROUP_RECEIVED": "Recebeu",
+      "GROUP_ASSIGNED": "Passou",
       "RECEIVED_TOTAL": "Total",
-      "RECEIVED_MANUAL": "↳ Manuais",
-      "RECEIVED_AUTO": "↳ Automáticas",
-      "SELF_ASSIGNED": "↳ Auto-assumidas",
-      "ASSIGNED_TO_OTHERS": "Para outros"
+      "RECEIVED_MANUAL": "Alguém passou para ela",
+      "RECEIVED_AUTO": "Rodízio",
+      "SELF_ASSIGNED": "Pegou para si",
+      "ASSIGNED_TO_OTHERS": "Para colegas",
+      "RECEIVED_OTHER": "Outras (IA, automação...)"
     },
     "SUMMARY": {
-      "TITLE": "Resumo do período",
-      "TOTAL": "{total} atribuições distribuídas entre {agents} atendentes.",
-      "COMPOSITION": "Origem das recebidas: {manual}% manuais · {auto}% automáticas (rodízio) · {self}% auto-assumidas.",
-      "TOP": "Quem mais recebeu: {name} ({count}).",
+      "TITLE": "O período em poucas palavras",
+      "TOTAL": "{total} conversas foram entregues a {agents} atendentes.",
+      "COMPOSITION": "Como chegaram: {manual}% alguém passou, {auto}% pelo rodízio, {self}% a pessoa pegou para si e {other}% de outro jeito (IA, automação, API).",
+      "TOP": "Quem mais recebeu foi {name}, com {count}.",
       "FORWARD_ONLY": "As contagens começam a partir da ativação do recurso — períodos antigos podem aparecer zerados."
     },
     "EMPTY": {
@@ -391,11 +403,12 @@
     "LEGEND": {
       "TITLE": "Entenda cada coluna",
       "AGENT": "O atendente (nome).",
-      "RECEIVED": "Recebidas — conversas atribuídas a este agente (ele foi o destino). O Total é a soma de Manuais + Automáticas + Auto-assumidas.",
-      "RECEIVED_MANUAL": "↳ Manuais: outra pessoa atribuiu a conversa para este agente.",
-      "RECEIVED_AUTO": "↳ Automáticas: o sistema distribuiu por rodízio (round-robin).",
-      "SELF_ASSIGNED": "↳ Auto-assumidas: o próprio agente pegou a conversa pra si.",
-      "ASSIGNED_TO_OTHERS": "Atribuiu → Para outros: conversas que este agente atribuiu manualmente para outra pessoa."
+      "RECEIVED": "Recebeu: quantas conversas chegaram para esta pessoa. O Total é a soma das colunas ao lado (alguém passou + rodízio + pegou para si + outras).",
+      "RECEIVED_MANUAL": "Alguém passou para ela: um colega ou o gestor entregou a conversa para esta pessoa.",
+      "RECEIVED_AUTO": "Rodízio: o sistema distribuiu a conversa sozinho.",
+      "SELF_ASSIGNED": "Pegou para si: a própria pessoa assumiu a conversa.",
+      "ASSIGNED_TO_OTHERS": "Para colegas: conversas que esta pessoa passou para outra.",
+      "RECEIVED_OTHER": "Outras: chegou pela IA, por uma regra de automação, pela API ou de um jeito que o sistema não registrou."
     }
   },
   "LABEL_REPORTS": {

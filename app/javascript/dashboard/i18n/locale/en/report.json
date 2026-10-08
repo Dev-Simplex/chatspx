@@ -35,7 +35,17 @@
         "pending": "Pending",
         "snoozed": "Snoozed"
       },
-      "WAITING_FOR": "waiting for {time}"
+      "WAITING_FOR": "waiting for {time}",
+      "TOTAL_ASSIGNMENTS": "{total} hand-offs in {conversations} conversations",
+      "ASSIGNMENT_SOURCE": {
+        "manual": "handed by {by}",
+        "self_assigned": "took it",
+        "auto_round_robin": "round robin",
+        "automation": "automation",
+        "bot": "by the AI",
+        "api": "via API",
+        "unknown": "unknown origin"
+      }
     },
     "METRICS": {
       "CONVERSATIONS": {
@@ -354,7 +364,7 @@
   },
   "ASSIGNMENT_REPORTS": {
     "HEADER": "Assignments",
-    "DESCRIPTION": "See how conversation assignments are distributed per agent — how many each person received (manually, via round-robin, or self-assigned) and how many they assigned to others.",
+    "DESCRIPTION": "How conversations reached each agent: someone handed it over, the round robin sent it, the person took it, or it came another way (AI, automation). It also shows who handed conversations to colleagues. Click a number to see the conversations.",
     "DOWNLOAD": "Download assignment report",
     "FILTER": {
       "TEAM": "Team:",
@@ -363,25 +373,27 @@
       "ALL_INBOXES": "All inboxes"
     },
     "MATRIX": {
-      "TITLE": "Who assigned to whom",
-      "HINT": "Rows = who assigned · Columns = who received · values = manual assignments in the period.",
-      "FROM_TO": "From \\ To"
+      "TITLE": "Who handed conversations to whom",
+      "HINT": "Each row is who handed over and each column is who received. The number is how many conversations were handed over in the period. Click to see which.",
+      "FROM_TO": "From \\ To",
+      "PAIR": "{from} handed to {to}"
     },
     "TABLE": {
       "AGENT": "Agent",
       "GROUP_RECEIVED": "Received",
-      "GROUP_ASSIGNED": "Assigned",
+      "GROUP_ASSIGNED": "Handed over",
       "RECEIVED_TOTAL": "Total",
-      "RECEIVED_MANUAL": "↳ Manual",
-      "RECEIVED_AUTO": "↳ Automatic",
-      "SELF_ASSIGNED": "↳ Self-assigned",
-      "ASSIGNED_TO_OTHERS": "To others"
+      "RECEIVED_MANUAL": "Someone handed it",
+      "RECEIVED_AUTO": "Round robin",
+      "SELF_ASSIGNED": "Took it",
+      "ASSIGNED_TO_OTHERS": "To colleagues",
+      "RECEIVED_OTHER": "Other (AI, automation...)"
     },
     "SUMMARY": {
-      "TITLE": "Period summary",
-      "TOTAL": "{total} assignments distributed across {agents} agents.",
-      "COMPOSITION": "Source of received: {manual}% manual · {auto}% automatic (round-robin) · {self}% self-assigned.",
-      "TOP": "Received the most: {name} ({count}).",
+      "TITLE": "The period in a few words",
+      "TOTAL": "{total} conversations were given to {agents} agents.",
+      "COMPOSITION": "How they arrived: {manual}% someone handed it, {auto}% round robin, {self}% the person took it and {other}% another way (AI, automation, API).",
+      "TOP": "The one who got the most was {name}, with {count}.",
       "FORWARD_ONLY": "Counts start from when the feature was enabled — older periods may show as zero."
     },
     "EMPTY": {
@@ -391,11 +403,12 @@
     "LEGEND": {
       "TITLE": "Understand each column",
       "AGENT": "The agent (name).",
-      "RECEIVED": "Received — conversations assigned to this agent (they were the destination). Total is the sum of Manual + Automatic + Self-assigned.",
-      "RECEIVED_MANUAL": "↳ Manual: someone else assigned the conversation to this agent.",
-      "RECEIVED_AUTO": "↳ Automatic: the system distributed it via round-robin.",
-      "SELF_ASSIGNED": "↳ Self-assigned: the agent picked up the conversation themselves.",
-      "ASSIGNED_TO_OTHERS": "Assigned → To others: conversations this agent manually assigned to someone else."
+      "RECEIVED": "Received: how many conversations reached this person. The Total is the sum of the next columns (someone handed + round robin + took it + other).",
+      "RECEIVED_MANUAL": "Someone handed it: a colleague or manager gave the conversation to this person.",
+      "RECEIVED_AUTO": "Round robin: the system distributed it by itself.",
+      "SELF_ASSIGNED": "Took it: the person took the conversation.",
+      "ASSIGNED_TO_OTHERS": "To colleagues: conversations this person handed to someone else.",
+      "RECEIVED_OTHER": "Other: it came from the AI, an automation rule, the API, or in a way the system did not record."
     }
   },
   "LABEL_REPORTS": {

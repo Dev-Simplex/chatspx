@@ -716,6 +716,7 @@ Rails.application.routes.draw do
             collection do
               get :agent
               get :agent_assignment
+              get :agent_assignment_list
               get :team
               get :inbox
               get :label
