@@ -754,6 +754,23 @@ RSpec.describe 'Contacts API', type: :request do
         expect(json_response['payload']['contact']['custom_attributes']).to eq({ 'test' => 'test', 'test1' => 'test1' })
       end
 
+      # SUP-1415: duas gravacoes simultaneas passam juntas pela validacao do Rails; o indice unico barra a segunda.
+      it 'returns 422 instead of 500 when the database already has the phone number' do
+        create(:contact, account: account, phone_number: '+5565988661415')
+        allow_any_instance_of(Contact).to receive(:save!).and_wrap_original do |original, *| # rubocop:disable RSpec/AnyInstance
+          original.receiver.save(validate: false)
+        end
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: valid_params.merge(phone_number: '+5565988661415')
+        end.not_to change(Contact, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['attributes']).to eq(['phone_number'])
+        expect(response.parsed_body['message']).to eq(I18n.t('errors.contacts.phone_number.taken'))
+      end
+
       it 'does not create the contact' do
         valid_params[:name] = 'test' * 999
 
