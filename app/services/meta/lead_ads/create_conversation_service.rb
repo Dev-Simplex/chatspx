@@ -278,6 +278,18 @@ module Meta
       # conversa + uma label da campanha. O time NÃO vê additional_attributes na UI (o Chatwoot
       # só renderiza custom_attributes definidos); isto torna a origem visível e filtrável.
       # Idempotente. Genérico — serve qualquer conta que use Meta Lead Ads (no-op se sem dados).
+      #
+      # Os atributos descrevem o lead ATUAL, não um histórico: a conversa é reaproveitada e eles
+      # chegam ao modelo a cada turno. Chave que o lead novo não trouxe sai da conversa — senão um
+      # lead sem imóvel herdava o código do lead anterior e a IA falava do imóvel errado. A
+      # `jornada` entra na mesma regra: o site a manda inteira a cada formulário (o caminho até
+      # ESTE pedido), não acumula. O histórico do que já passou fica nas labels de campanha e nas
+      # linhas de atividade, que não são apagadas.
+      LEAD_ATTRIBUTE_KEYS = %w[
+        meta_campanha meta_anuncio meta_anuncio_id meta_publico meta_origem meta_tipo
+        meta_imovel_codigo meta_imovel jornada
+      ].freeze
+
       def stamp_campaign_visibility(conversation)
         im = imovel_info
         attrs = {
@@ -290,9 +302,9 @@ module Meta
           'meta_imovel' => im && im[:descricao],
           'jornada' => jornada
         }.compact
-        return if attrs.empty?
 
-        conversation.update!(custom_attributes: (conversation.custom_attributes || {}).merge(attrs))
+        current = (conversation.custom_attributes || {}).except(*LEAD_ATTRIBUTE_KEYS)
+        conversation.update!(custom_attributes: current.merge(attrs))
 
         slug = campaign_slug(@lead[:campaign_name])
         return if slug.blank?

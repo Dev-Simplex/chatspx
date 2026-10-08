@@ -305,6 +305,32 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
     end
   end
 
+  # A conversa é reaproveitada: os atributos do lead descrevem o lead ATUAL. O que o lead novo
+  # não trouxe não pode sobrar do anterior — a IA leria o imóvel errado.
+  describe 'lead attributes on a reused conversation' do
+    let(:hook) { hook_with('initial_message_template' => 'Olá!') }
+
+    def perform_with(lead, imovel)
+      svc = service(hook: hook, lead: lead)
+      allow(svc).to receive(:fetch_imovel).and_return(imovel)
+      svc.perform
+    end
+
+    it 'drops the property code and other lead keys the new lead did not bring' do
+      first = perform_with(lead_with(retailer_item_id: '9817', ad_name: 'IMÓVEL 9817', jornada: 'Viu a casa 9817'),
+                           { codigo: '9817', descricao: 'Casa — Centro' })
+      first.update!(custom_attributes: first.custom_attributes.merge('outro_campo' => 'fica'))
+      expect(first.reload.custom_attributes).to include('meta_imovel_codigo' => '9817', 'meta_anuncio' => 'IMÓVEL 9817')
+
+      again = perform_with(lead_with(leadgen_id: '2', campaign_name: 'Institucional'), nil)
+
+      attrs = again.reload.custom_attributes
+      expect(again.id).to eq(first.id)
+      expect(attrs).not_to include('meta_imovel_codigo', 'meta_imovel', 'meta_anuncio', 'jornada')
+      expect(attrs).to include('meta_campanha' => 'Institucional', 'outro_campo' => 'fica')
+    end
+  end
+
   # A janela de 24 h entre aberturas é o padrão; cada formulário pode pedir outra.
   describe 'opener cooldown per hook' do
     let(:lead) { lead_with(full_name: 'Maria Silva') }
