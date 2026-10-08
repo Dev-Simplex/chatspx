@@ -719,7 +719,7 @@
     }
   },
   "NPS_REPORTS": {
-    "HEADER": "NPS Reports",
+    "HEADER": "Would customers recommend you? (NPS)",
     "NO_RECORDS": "No records found",
     "DOWNLOAD": "Export CSV",
     "DOWNLOAD_FAILED": "Failed to download NPS report",
@@ -729,15 +729,15 @@
       "Y_AXIS": "Count",
       "TOOLTIP": "Score {score}: {count} ({share}%)",
       "LEGEND": {
-        "DETRACTORS": "Detractors (0-6)",
-        "PASSIVES": "Passives (7-8)",
-        "PROMOTERS": "Promoters (9-10)"
+        "DETRACTORS": "Would not recommend (0 to 6)",
+        "PASSIVES": "Neutral (7 and 8)",
+        "PROMOTERS": "Would recommend (9 and 10)"
       }
     },
     "CLASSIFICATION": {
-      "PROMOTER": "Promoter",
-      "PASSIVE": "Passive",
-      "DETRACTOR": "Detractor"
+      "PROMOTER": "Would recommend",
+      "PASSIVE": "Neutral",
+      "DETRACTOR": "Would not recommend"
     },
     "FILTER": {
       "RESPONDED": "Responded",
@@ -748,48 +748,53 @@
       "HEADER": {
         "CONTACT_NAME": "Contact",
         "AGENT_NAME": "Agent",
-        "SCORE": "Score",
-        "CLASSIFICATION": "Classification"
+        "SCORE": "Rating",
+        "CLASSIFICATION": "What the rating means"
       }
     },
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total Responses",
-        "TOOLTIP": "Total NPS responses received"
+        "LABEL": "How many ratings?",
+        "TOOLTIP": "Customers who answered “from 0 to 10, how likely are you to recommend us?”."
       },
       "NPS_SCORE": {
-        "LABEL": "NPS Score",
-        "TOOLTIP": "Net Promoter Score calculated",
+        "LABEL": "NPS score",
+        "TOOLTIP": "The percentage of who would recommend minus who would not. It goes from −100 to 100.",
         "TREND": "{value} pts vs previous period"
       },
       "RESPONSE_RATE": {
-        "LABEL": "Response Rate",
-        "TOOLTIP": "Percentage of responses vs sent"
+        "LABEL": "How many answered?",
+        "TOOLTIP": "Out of every 100 surveys sent, how many were answered."
       },
       "PROMOTERS": {
-        "LABEL": "Promoters",
-        "TOOLTIP": "Percentage of promoters (9-10)"
+        "LABEL": "Would recommend",
+        "TOOLTIP": "Rated 9 or 10."
       },
       "PASSIVES": {
-        "LABEL": "Passives",
-        "TOOLTIP": "Percentage of passives (7-8)"
+        "LABEL": "Neutral",
+        "TOOLTIP": "Rated 7 or 8."
       },
       "DETRACTORS": {
-        "LABEL": "Detractors",
-        "TOOLTIP": "Percentage of detractors (0-6)"
+        "LABEL": "Would not recommend",
+        "TOOLTIP": "Rated 0 to 6."
       },
       "BLOCKED": {
-        "LABEL": "Blocked",
-        "TOOLTIP": "Total NPS blocked by labels"
+        "LABEL": "Not sent",
+        "TOOLTIP": "Surveys that were not sent because the conversation had a label that blocks NPS."
       },
       "DETRACTOR_FOLLOWUP": {
-        "LABEL": "Detractor follow-up",
-        "TOOLTIP": "Average time until an agent replies to a detractor (0-6) after the score. 'Awaiting' = detractors still without a human reply.",
+        "LABEL": "Follow-up with unhappy customers",
+        "TOOLTIP": "How long, on average, an agent took to talk to a customer who rated 0 to 6. “Waiting” are the ones with no follow-up yet.",
         "SUMMARY": "{followedUp} replied / {awaiting} awaiting"
       },
       "SCORE_DISTRIBUTION": {
-        "LABEL": "Score Distribution"
+        "LABEL": "How many customers gave each rating"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "BANDS": "Customers gave {total} ratings from 0 to 10. {promoters} would recommend the company (9 or 10), {passives} were neutral (7 or 8) and {detractors} would not recommend (0 to 6).",
+      "SCORE": "The NPS score is {score}. It is the percentage of who would recommend minus who would not, and goes from −100 to 100: above 50 is very good, and below 0 means more people would not recommend than would.",
+      "HOW_TO_READ": "Below, the chart shows how many customers gave each rating, and the list shows each answer: click the conversation number to open it."
     }
   },
   "BOT_REPORTS": {

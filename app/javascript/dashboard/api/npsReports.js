@@ -12,6 +12,7 @@ class NpsReportsAPI extends ApiClient {
     to,
     user_ids,
     inbox_id,
+    team_id,
     status,
     response_state,
     contact_id,
@@ -24,6 +25,7 @@ class NpsReportsAPI extends ApiClient {
         sort: '-created_at',
         user_ids,
         inbox_id,
+        team_id,
         status,
         response_state,
         contact_id,
@@ -63,7 +65,7 @@ class NpsReportsAPI extends ApiClient {
     );
   }
 
-  download({ from, to, user_ids, inbox_id, status } = {}) {
+  download({ from, to, user_ids, inbox_id, team_id, status } = {}) {
     return axios.get(`${this.url}/download`, {
       params: {
         since: from,
@@ -71,14 +73,15 @@ class NpsReportsAPI extends ApiClient {
         sort: '-created_at',
         user_ids,
         inbox_id,
+        team_id,
         status,
       },
     });
   }
 
-  getMetrics({ from, to, user_ids, inbox_id, status } = {}) {
+  getMetrics({ from, to, user_ids, inbox_id, team_id, status } = {}) {
     return axios.get(`${this.url}/metrics`, {
-      params: { since: from, until: to, user_ids, inbox_id, status },
+      params: { since: from, until: to, user_ids, inbox_id, team_id, status },
     });
   }
 }
