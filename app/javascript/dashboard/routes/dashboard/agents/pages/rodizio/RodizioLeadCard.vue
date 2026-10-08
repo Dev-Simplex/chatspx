@@ -1,4 +1,5 @@
 <script setup>
+import { useRoute } from 'vue-router';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useElementSize } from '@vueuse/core';
@@ -14,6 +15,12 @@ const props = defineProps({
   // entre uma recarga e outra: o lead que espera há 38 min não pode ficar parado em 38 min.
   decorrido: { type: Number, default: 0 },
 });
+const route = useRoute();
+// O lead abre a conversa dele (antes o #id era so texto).
+const conversaUrl = computed(
+  () =>
+    `/app/accounts/${route.params.accountId}/conversations/${props.lead.display_id}`
+);
 
 const { t } = useI18n();
 
@@ -252,6 +259,14 @@ const marcos = computed(() =>
       <span v-else class="text-xs font-medium" :class="corDesfecho">
         {{ desfecho }}
       </span>
+      <a
+        :href="conversaUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs font-medium text-n-brand hover:underline"
+      >
+        {{ t('AGENTS_RODIZIO.OPEN_CONVERSATION') }}
+      </a>
     </div>
 
     <!-- flex-wrap: em tela estreita o total desce uma linha em vez de espremer a barra. -->

@@ -13,7 +13,7 @@
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rotation",
-    "SUBTITLE": "How leads are being distributed, and under which rule",
+    "SUBTITLE": "Who each lead went to, by which path, and who has not been served yet.",
     "ALL_TEAMS": "All teams",
     "RELOAD": "Reload",
     "LOADING": "Loading...",
@@ -33,8 +33,8 @@
       "PRODUCTS": "Products"
     },
     "STALLED": {
-      "TITLE": "No movement",
-      "LIST_TITLE": "Designated with no movement",
+      "TITLE": "Stalled now",
+      "LIST_TITLE": "Stalled leads (nobody took them yet)",
       "SUBTITLE": "Nobody picked these up yet. The AI is still covering the client.",
       "THRESHOLD": "over {min} min",
       "WAITING": "waiting for {tempo}",
@@ -204,6 +204,24 @@
         "CAP": "A cap must be above zero. Leave it empty for no limit.",
         "POOL_VAZIO": "The rotation is on but nobody is in the pool — no lead would be distributed."
       }
+    },
+    "OPEN_CONVERSATION": "Open conversation",
+    "PLAIN_SUMMARY": {
+      "TITLE": "The period in a few words",
+      "VOLUME": "{recebidos} leads were given to {consultores} consultants.",
+      "TOP": "The one who got the most was {nome}, with {recebidos}.",
+      "HOW": "How they arrived: {rodizio} by each one's turn (round robin), {continuidade} went back to whoever already served the customer, {preferencia} because the customer asked, {repasse} were handed over because nobody took them in time and {gestor} were chosen by the manager.",
+      "STALLED": "{total} leads are stalled: they were given out and nobody took them in more than {min} minutes. They are in the list next to it.",
+      "NONE_STALLED": "No lead is stalled right now. 👍"
+    },
+    "LEGEND": {
+      "RECEIVED": "Received: how many leads reached the consultant in the period.",
+      "ROTATION": "Round robin: it was their turn.",
+      "CONTINUITY": "Continuity: the customer had talked to them before, so it went back to them.",
+      "PREFERENCE": "Customer request: the customer asked to talk to them.",
+      "HANDOFF": "Hand-over: another consultant did not take it in time and the lead went to them.",
+      "MANUAL": "Manager: the manager chose them.",
+      "OPEN": "Open: leads given to them that they have not taken yet."
     }
   },
   "AGENTS_EVALUATION": {
