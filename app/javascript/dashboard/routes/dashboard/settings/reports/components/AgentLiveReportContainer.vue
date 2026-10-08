@@ -37,6 +37,7 @@ onMounted(() => {
   <div class="flex flex-row flex-wrap max-w-full">
     <MetricCard :header="$t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.HEADER')">
       <AgentTable
+        :inbox-id="inboxId"
         :agents="agents"
         :agent-metrics="agentConversationMetric"
         :is-loading="uiFlags.isFetchingAgentConversationMetric"

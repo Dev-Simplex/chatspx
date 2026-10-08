@@ -1,109 +1,116 @@
+<%# NPS no estilo do PDF de Conversas: manchete, "Os clientes recomendariam?", "Melhorou ou piorou?", onde ficou na
+    escala, quantos deram cada nota, cada atendente, quem não recomendaria (para agir) e o que fazer agora. %>
 <%
   k = @data[:kpis]
   score = k[:nps_score]
+  br = ->(value) { number_with_precision(value, precision: 1, separator: ',', delimiter: '.', strip_insignificant_zeros: true) }
   # Zonas derivadas da fonte única (PdfBenchmarks) — sem rehardcodar 75/50/0.
   zone, zone_class =
     case Reports::PdfBenchmarks.nps_zone(score)
-    when :excellent then ['Excelência', '']
-    when :good      then ['Zona de Qualidade', '']
-    when :warn      then ['Aperfeiçoar', 'is-passive']
-    else                 ['Zona Crítica', 'is-detractor']
+    when :excellent then ['Excelente', '']
+    when :good      then ['Bom', '']
+    when :warn      then ['Dá para melhorar', 'is-passive']
+    else                 ['Precisa melhorar', 'is-detractor']
     end
   nps_bench = Reports::PdfBenchmarks::BENCHMARKS[:nps]
   delta = k[:delta]
-  trend_html =
-    if delta && !delta.zero?
-      arrow = delta.positive? ? '▲' : '▼'
-      cls = delta.positive? ? 'good' : 'bad'
-      %(<span class="delta delta--#{cls}">#{arrow} #{delta.abs} pts vs período anterior</span>)
-    else
-      ''
-    end
   low_sample = k[:reliable] == false
+  detractors = @data[:detractors] || []
 
   composition = [
-    { label: 'Promotores', value: k[:promoters], color: '#2dc46f' },
-    { label: 'Passivos', value: k[:passives], color: '#ffc53d' },
-    { label: 'Detratores', value: k[:detractors], color: '#e54666' }
+    { label: 'Recomendariam (9 e 10)', value: k[:promoters], color: '#2dc46f' },
+    { label: 'Neutros (7 e 8)', value: k[:passives], color: '#ffc53d' },
+    { label: 'Não recomendariam (0 a 6)', value: k[:detractors], color: '#e54666' }
   ]
+  # A variação do NPS é em pontos (não em %), no mesmo formato visual do pdf_delta.
+  delta_html =
+    if delta && !delta.zero?
+      raw(%(<span class="delta delta--#{delta.positive? ? 'good' : 'bad'}">#{delta.positive? ? '▲' : '▼'} #{delta.abs} pontos #{delta.positive? ? 'a mais' : 'a menos'}</span>))
+    end
 
   recos = []
-  recos << { title: 'Recupere detratores', body: "Acione individualmente as #{k[:detractors]} avaliações de 0 a 6 com follow-up dedicado para reverter a percepção." } if k[:detractors].positive?
-  recos << { title: 'Amplie a taxa de resposta', body: "A taxa de resposta está em #{k[:response_rate]}%. Ajuste o gatilho da pesquisa e o canal de envio para ampliar a base." } if k[:response_rate].to_f < 40
-  recos << { title: 'Converta passivos', body: "#{k[:passives]} clientes passivos (7-8) estão a um passo de virar promotores — investigue o atrito final do atendimento." } if k[:passives].positive?
+  recos << { title: 'Fale com quem não recomendaria', body: "Procure um a um os #{k[:detractors]} clientes que deram nota de 0 a 6 (lista abaixo). Entender o que deu errado ajuda a resolver." } if k[:detractors].positive?
+  recos << { title: 'Faça mais clientes responderem', body: "Só #{br.call(k[:response_rate])}% responderam a pesquisa. Ajuste quando e por onde ela é enviada." } if k[:response_rate].to_f < 40
+  recos << { title: 'Transforme neutros em fãs', body: "#{k[:passives]} clientes deram 7 ou 8: falta pouco para recomendarem. Descubra o que faltou no atendimento." } if k[:passives].positive?
   low_agent = (@data[:agents] || []).select { |a| a[:total].to_i.positive? }.min_by { |a| a[:nps_score] }
-  recos << { title: 'Apoie quem está abaixo da meta', body: "#{low_agent[:name]} está com NPS #{low_agent[:nps_score]}. Sessões de coaching e revisão de scripts tendem a recuperar o índice." } if low_agent && low_agent[:nps_score] < nps_bench[:green]
-  recos << { title: 'Reconheça promotores', body: "#{k[:promoters]} clientes recomendam ativamente a operação. Mantenha o padrão e capture depoimentos para prova social." } if recos.size < 4 && k[:promoters].positive?
+  recos << { title: 'Ajude quem está abaixo da meta', body: "#{low_agent[:name]} está com nota NPS #{low_agent[:nps_score]}. Conversar sobre os casos e revisar as respostas costuma ajudar." } if low_agent && low_agent[:nps_score] < nps_bench[:green]
+  recos << { title: 'Agradeça quem recomenda', body: "#{k[:promoters]} clientes recomendariam a empresa. Mantenha o padrão e peça um depoimento." } if recos.size < 4 && k[:promoters].positive?
   recos = recos.first(4)
 %>
 
-<%# ---------- Veredito (card com hierarquia: métrica · valor · meta · status) ---------- %>
+<div class="clarity-legend">
+  <span><span class="status-dot status-dot--good"></span> bom</span>
+  <span><span class="status-dot status-dot--warn"></span> atenção</span>
+  <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
+</div>
+
+<%= render 'reports/pdf/headline', headline: @data[:headline] %>
+
+<%# ============ 1. OS CLIENTES RECOMENDARIAM? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">1.</span> Os clientes recomendariam a empresa?</div>
+  <div class="hero-row">
+    <%= render 'reports/pdf/hero_stat',
+          value: score, value_class: zone_class,
+          label: 'Nota NPS', pill: zone, pill_class: zone_class,
+          caption: 'quem recomendaria menos quem não recomendaria; vai de −100 a 100' %>
+    <%= render 'reports/pdf/composition_bar', title: 'Como os clientes responderam', segments: composition %>
+  </div>
+  <% if low_sample %>
+    <div style="margin-top: 10px;">
+      <%= render 'reports/pdf/callout', variant: 'warning', title: 'Poucas respostas',
+            body: raw("Só <strong>#{k[:total]}</strong> clientes responderam (o mínimo para confiar no número é #{k[:min_sample]}). Use a nota NPS de #{score} com cuidado.") %>
+    </div>
+  <% end %>
+</div>
+
+<%# ============ 2. MELHOROU OU PIOROU? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?</div>
+  <%= render 'reports/pdf/kpi_band', cards: [
+    { label: 'Nota NPS', value: score, hero: true, meaning: 'acima de 50 é muito bom; abaixo de 0, mais gente não recomenda', delta: delta_html },
+    { label: 'Notas recebidas', value: number_with_delimiter(k[:total]), meaning: 'clientes que responderam' },
+    { label: 'Responderam', value: "#{br.call(k[:response_rate])}%", meaning: 'de cada 100 pesquisas enviadas' },
+    { label: 'Recomendariam', value: "#{br.call(k[:promoters_pct])}%", modifier: 'is-promoter', meaning: "#{k[:promoters]} deram 9 ou 10" },
+    { label: 'Não recomendariam', value: "#{br.call(k[:detractors_pct])}%", modifier: 'is-detractor', meaning: "#{k[:detractors]} deram de 0 a 6" },
+  ] %>
+</div>
+
 <div class="section">
   <div class="verdict-grid">
     <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
   </div>
 </div>
 
-<%# ---------- Hero score + composicao ---------- %>
+<%# ============ 3. ONDE FICOU NA ESCALA ============ %>
 <div class="section">
-  <div class="hero-row">
-    <%= render 'reports/pdf/hero_stat',
-          value: score, value_class: zone_class,
-          label: 'NPS Score', pill: zone, pill_class: zone_class,
-          caption: 'Escala de -100 a +100' %>
-    <%= render 'reports/pdf/composition_bar',
-          title: 'Composição das avaliações',
-          segments: composition %>
-  </div>
-  <% if trend_html.present? %>
-    <div style="margin-top:8px;"><%= raw trend_html %></div>
-  <% end %>
-  <% if low_sample %>
-    <div style="margin-top:10px;">
-      <%= render 'reports/pdf/callout', variant: 'warning', title: 'Amostra baixa',
-            body: raw("Apenas <strong>#{k[:total]}</strong> avaliações válidas (mínimo #{k[:min_sample]} para leitura confiável). Interprete o NPS de #{score} com cautela.") %>
-    </div>
-  <% end %>
-</div>
-
-<%# ---------- KPIs de apoio ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'Avaliações válidas', value: number_with_delimiter(k[:total]) },
-    { label: 'Taxa de resposta', value: "#{k[:response_rate]}%", hint: 'respondidas / enviadas' },
-    { label: 'Promotores', value: "#{k[:promoters_pct]}%", modifier: 'is-promoter', hint: "#{k[:promoters]} (notas 9-10)" },
-    { label: 'Detratores', value: "#{k[:detractors_pct]}%", modifier: 'is-detractor', hint: "#{k[:detractors]} (notas 0-6)" },
-    { label: 'Suspeitas bloqueadas', value: number_with_delimiter(k[:blocked]), hint: 'anti-fraude' },
-  ] %>
-</div>
-
-<%# ---------- Gauge -100..+100 ---------- %>
-<div class="section">
-  <div class="section-title"><span class="dot">1</span> Posição na escala NPS</div>
+  <div class="narrative-title"><span class="q">3.</span> Onde a nota ficou na escala?</div>
   <div class="card">
     <%= pdf_gauge(value: score) %>
+    <%= render 'reports/pdf/chart_caption', emoji: '🎯',
+          text: 'O ponteiro mostra a nota NPS. Quanto mais para a direita (verde), mais clientes recomendariam a empresa.' %>
   </div>
 </div>
 
-<%# ---------- Distribuicao das notas 0-10 ---------- %>
+<%# ============ 4. QUANTOS DERAM CADA NOTA ============ %>
 <div class="section">
-  <div class="section-title"><span class="dot">2</span> Distribuição das notas</div>
+  <div class="narrative-title"><span class="q">4.</span> Quantos clientes deram cada nota?</div>
   <div class="card">
     <%= pdf_nps_distribution(@data[:distribution]) %>
     <%= render 'reports/pdf/chart_legend', items: [
-      { color: '#2dc46f', label: '😀 Promotores (notas 9-10)' },
-      { color: '#ffc53d', label: '😐 Passivos (notas 7-8)' },
-      { color: '#e54666', label: '😞 Detratores (notas 0-6)' },
+      { color: '#2dc46f', label: '😀 Recomendariam (9 e 10)' },
+      { color: '#ffc53d', label: '😐 Neutros (7 e 8)' },
+      { color: '#e54666', label: '😞 Não recomendariam (0 a 6)' },
     ] %>
   </div>
 </div>
 
-<%# ---------- NPS por atendente ---------- %>
+<%# ============ 5. CADA ATENDENTE ============ %>
 <% if @data[:agents].present? %>
   <div class="section">
-    <div class="section-title"><span class="dot">3</span> NPS por atendente</div>
+    <div class="narrative-title"><span class="q">5.</span> Como foi cada atendente?</div>
     <%= render 'reports/pdf/perf_table',
-          columns: { entity: 'Atendente', count: 'Avaliações', perf: 'Desempenho (% promotores)', index: 'NPS' },
+          columns: { entity: 'Atendente', count: 'Notas', perf: 'Recomendariam (de cada 100)', index: 'Nota NPS' },
           rows: @data[:agents].map { |agent|
             nps = agent[:nps_score]
             badge_class = nps >= nps_bench[:excellent] ? 'up' : (nps >= nps_bench[:green] ? 'mid' : 'down')
@@ -114,26 +121,41 @@
   </div>
 <% end %>
 
-<%# ---------- Recomendacoes (data-driven) ---------- %>
+<%# ============ 6. QUEM NÃO RECOMENDARIA? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">6.</span> Quem não recomendaria (nota de 0 a 6)?</div>
+  <% if detractors.any? %>
+    <div class="card" style="padding: 2mm 4mm;">
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 8%;"><col style="width: 10%;"><col style="width: 18%;"><col style="width: 18%;">
+          <col style="width: 34%;"><col style="width: 12%;">
+        </colgroup>
+        <thead><tr><th>Nota</th><th>Conversa</th><th>Cliente</th><th>Atendente</th><th>O que escreveu</th><th>Quando</th></tr></thead>
+        <tbody>
+          <% detractors.each do |row| %>
+            <tr>
+              <td><i class="cl-dot bad"></i> <%= row[:score] %></td>
+              <td><%= row[:id] %></td>
+              <td class="cl-wrap"><%= row[:contact] %></td>
+              <td class="cl-wrap"><%= row[:agent] %></td>
+              <td class="cl-wrap <%= 'muted' unless row[:comment] %>"><%= row[:comment] || 'não escreveu nada' %></td>
+              <td class="muted"><%= row[:date] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin: 2mm 0 0; font-size: 10px; color: #667781;">Os <%= detractors.size %> mais recentes. A lista completa está no sistema e no CSV.</p>
+  <% else %>
+    <%= render 'reports/pdf/callout', variant: 'success', title: 'Ninguém deu nota de 0 a 6', body: 'Nenhum cliente disse que não recomendaria a empresa no período. 👍' %>
+  <% end %>
+</div>
+
+<%# ============ 7. O QUE FAZER AGORA ============ %>
 <% if recos.present? %>
   <div class="section">
-    <div class="section-title"><span class="dot">4</span> Recomendações</div>
+    <div class="narrative-title"><span class="q">7.</span> O que fazer agora?</div>
     <%= render 'reports/pdf/recommendations', items: recos %>
   </div>
 <% end %>
-
-<%# ---------- Conclusao ---------- %>
-<div class="section">
-  <%
-    trend_clause =
-      if delta && !delta.zero?
-        " O índice #{delta.positive? ? 'subiu' : 'caiu'} <span class=\"hl\">#{delta.abs} pontos</span> vs o período anterior."
-      else
-        ''
-      end
-    sample_clause = low_sample ? " <strong>Atenção:</strong> a base tem apenas #{k[:total]} avaliações (mínimo #{k[:min_sample]}), então o número é volátil." : ''
-  %>
-  <%= render 'reports/pdf/conclusion',
-        title: 'Leitura executiva',
-        body: raw("O NPS de <span class=\"hl\">#{score}</span> posiciona a operação em <span class=\"hl\">#{zone.downcase}</span>, sustentado por #{k[:promoters]} promotores sobre #{k[:total]} avaliações válidas.#{trend_clause} A apuração aplica filtro anti-fraude (#{k[:blocked]} respostas suspeitas descartadas) e considera apenas avaliações confiáveis.#{sample_clause}") %>
-</div>

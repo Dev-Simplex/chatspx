@@ -7,8 +7,13 @@ class V2::Reports::Conversations::DrilldownBuilder < V2::Reports::Conversations:
   PER_PAGE = 25
   CSV_LIMIT = 5_000
   MESSAGE_METRICS = %w[incoming_messages_count outgoing_messages_count].freeze
-  EVENT_METRICS = (AVG_METRICS + %w[resolutions_count]).freeze
-  SUPPORTED_METRICS = (%w[conversations_count] + MESSAGE_METRICS + EVENT_METRICS).freeze
+  EVENT_METRICS = (AVG_METRICS + %w[resolutions_count bot_resolutions_count]).freeze
+  # Passagens do robo para uma pessoa: o numero conta CONVERSAS (distinct), entao a lista tambem.
+  HANDOFF_METRIC = 'bot_handoffs_count'.freeze
+  # Conversas criadas no periodo que estao resolvidas hoje: e assim que a tabela de Agentes conta "Resolvidas"
+  # (V2::Reports::AgentSummaryBuilder#load_data), diferente das resolucoes feitas no periodo (resolutions_count).
+  CONVERSATION_METRICS = %w[conversations_count resolved_conversations_count].freeze
+  SUPPORTED_METRICS = (CONVERSATION_METRICS + MESSAGE_METRICS + EVENT_METRICS + [HANDOFF_METRIC]).freeze
 
   def supported?
     SUPPORTED_METRICS.include?(metric)
@@ -45,7 +50,7 @@ class V2::Reports::Conversations::DrilldownBuilder < V2::Reports::Conversations:
   end
 
   def conversations_count
-    @conversations_count ||= metric == 'conversations_count' ? total_count : scope.distinct.count(:conversation_id)
+    @conversations_count ||= list_of_conversations? ? total_count : scope.distinct.count(:conversation_id)
   end
 
   private
@@ -54,12 +59,26 @@ class V2::Reports::Conversations::DrilldownBuilder < V2::Reports::Conversations:
     params[:metric].to_s
   end
 
+  def list_of_conversations?
+    CONVERSATION_METRICS.include?(metric) || metric == HANDOFF_METRIC
+  end
+
   def scope
-    @scope ||= builder_class(metric).new(account, params).drilldown_scope.unscope(:order)
+    @scope ||= if metric == 'resolved_conversations_count'
+                 conversations_scope.where(status: :resolved)
+               elsif metric == HANDOFF_METRIC
+                 Conversation.where(id: builder_class(metric).new(account, params).drilldown_scope.unscope(:order))
+               else
+                 builder_class(metric).new(account, params).drilldown_scope.unscope(:order)
+               end
+  end
+
+  def conversations_scope
+    V2::Reports::Timeseries::CountReportBuilder.new(account, params.merge(metric: 'conversations_count')).drilldown_scope.unscope(:order)
   end
 
   def rows(offset:, limit:)
-    if metric == 'conversations_count'
+    if list_of_conversations?
       conversation_rows(offset, limit)
     elsif MESSAGE_METRICS.include?(metric)
       message_rows(offset, limit)

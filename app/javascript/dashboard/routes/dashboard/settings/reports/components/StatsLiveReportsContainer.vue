@@ -8,7 +8,8 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
-import { useI18n } from 'vue-i18n';
+import { useI18n, I18nT } from 'vue-i18n';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
 const props = defineProps({
   inboxId: {
@@ -44,14 +45,17 @@ const agentStatusMetrics = computed(() => {
   });
   return metric;
 });
-const conversationMetrics = computed(() => {
-  let metric = {};
-  Object.keys(accountConversationMetric.value).forEach(key => {
-    const metricName = t(`${accounti18nKey}.${OVERVIEW_METRICS[key]}`);
-    metric[metricName] = accountConversationMetric.value[key];
-  });
-  return metric;
-});
+// Cada numero com o que ele quer dizer embaixo; o numero abre as conversas (ReportDrilldownPanel ao vivo).
+const conversationMetrics = computed(() =>
+  Object.keys(accountConversationMetric.value).map(key => ({
+    key,
+    name: t(`${accounti18nKey}.${OVERVIEW_METRICS[key]}`),
+    hint: t(`${accounti18nKey}.HINT.${OVERVIEW_METRICS[key]}`),
+    value: accountConversationMetric.value[key],
+  }))
+);
+const metricValue = key => Number(accountConversationMetric.value?.[key] || 0);
+const agentValue = key => Number(agentStatus.value?.[key] || 0);
 
 const selectedTeam = ref(null);
 const selectedTeamLabel = computed(() => {
@@ -61,6 +65,15 @@ const selectedTeamLabel = computed(() => {
     ) || {};
   return team.label;
 });
+const drilldown = ref(null);
+const openDrilldown = metric => {
+  if (!metric.value) return;
+  drilldown.value = {
+    metric: { key: metric.key, name: metric.name },
+    filters: { teamId: selectedTeam.value, inboxId: props.inboxId },
+  };
+};
+
 const fetchData = () => {
   const params = {};
   if (selectedTeam.value) {
@@ -90,6 +103,58 @@ onMounted(() => {
 </script>
 
 <template>
+  <section
+    v-if="!uiFlags.isFetchingAccountConversationMetric"
+    class="rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+  >
+    <h3 class="text-base font-semibold text-n-slate-12">
+      {{ t('OVERVIEW_REPORTS.PLAIN_SUMMARY.TITLE') }}
+    </h3>
+    <ul
+      class="mt-3 flex flex-col gap-3 text-base leading-relaxed text-n-slate-12"
+    >
+      <li class="flex gap-3">
+        <span
+          class="i-lucide-message-circle size-5 mt-1 shrink-0 text-n-brand"
+        />
+        <span class="min-w-0">
+          <I18nT keypath="OVERVIEW_REPORTS.PLAIN_SUMMARY.OPEN" tag="span">
+            <template #open>
+              <strong>{{ metricValue('open') }}</strong>
+            </template>
+            <template #unattended>
+              <strong>{{ metricValue('unattended') }}</strong>
+            </template>
+            <template #unassigned>
+              <strong>{{ metricValue('unassigned') }}</strong>
+            </template>
+            <template #pending>
+              <strong>{{ metricValue('pending') }}</strong>
+            </template>
+          </I18nT>
+        </span>
+      </li>
+      <li class="flex gap-3">
+        <span class="i-lucide-users size-5 mt-1 shrink-0 text-n-brand" />
+        <span class="min-w-0">
+          <I18nT keypath="OVERVIEW_REPORTS.PLAIN_SUMMARY.AGENTS" tag="span">
+            <template #online>
+              <strong>{{ agentValue('online') }}</strong>
+            </template>
+            <template #busy>
+              <strong>{{ agentValue('busy') }}</strong>
+            </template>
+            <template #offline>
+              <strong>{{ agentValue('offline') }}</strong>
+            </template>
+          </I18nT>
+        </span>
+      </li>
+    </ul>
+    <p class="mt-4 text-sm text-n-slate-11">
+      {{ t('OVERVIEW_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
+    </p>
+  </section>
   <div class="flex flex-col items-center md:flex-row gap-4">
     <div
       class="flex-1 w-full max-w-full md:w-[65%] md:max-w-[65%] conversation-metric"
@@ -124,16 +189,26 @@ onMounted(() => {
           </div>
         </template>
         <div
-          v-for="(metric, name, index) in conversationMetrics"
-          :key="index"
-          class="flex-1 min-w-0 pb-2"
+          v-for="metric in conversationMetrics"
+          :key="metric.key"
+          class="flex-1 min-w-0 pb-2 pr-3"
         >
           <h3 class="text-base text-n-slate-11">
-            {{ name }}
+            {{ metric.name }}
           </h3>
-          <p class="text-n-slate-12 text-3xl mb-0 mt-1">
-            {{ metric }}
+          <button
+            v-if="metric.value"
+            type="button"
+            class="p-0 m-0 text-left text-n-slate-12 text-3xl mt-1 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand"
+            :title="t('REPORT.DRILLDOWN.OPEN')"
+            @click="openDrilldown(metric)"
+          >
+            {{ metric.value }}
+          </button>
+          <p v-else class="text-n-slate-12 text-3xl mb-0 mt-1">
+            {{ metric.value }}
           </p>
+          <p class="mt-1 text-xs text-n-slate-10">{{ metric.hint }}</p>
         </div>
       </MetricCard>
     </div>
@@ -154,4 +229,11 @@ onMounted(() => {
       </MetricCard>
     </div>
   </div>
+  <ReportDrilldownPanel
+    v-if="drilldown"
+    :metric="drilldown.metric"
+    :filters="drilldown.filters"
+    source="live"
+    @close="drilldown = null"
+  />
 </template>

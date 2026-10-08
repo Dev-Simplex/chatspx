@@ -282,7 +282,36 @@ const abrirDetalhe = async lead => {
 
 // Montado aqui, e não no template, porque texto solto em template é erro de lint no projeto —
 // nada de string crua fora do i18n. O "#" saiu a pedido: o número do lead se lê sozinho.
-const conversa = displayId => `${displayId}`;
+// O que cada coluna da tabela quer dizer, embaixo dela.
+const LEGENDA = [
+  'RECEIVED',
+  'ROTATION',
+  'CONTINUITY',
+  'PREFERENCE',
+  'HANDOFF',
+  'MANUAL',
+  'OPEN',
+];
+const conversa = displayId => `#${displayId}`;
+const conversaUrl = displayId =>
+  `/app/accounts/${accountId.value}/conversations/${displayId}`;
+
+// O periodo em frases: quantos leads, entre quantos consultores, quem recebeu mais, por que caminho e se ha parados.
+const resumo = computed(() => {
+  const ativos = linhas.value.filter(linha => linha.recebidos > 0);
+  const top = [...ativos].sort((a, b) => b.recebidos - a.recebidos)[0];
+  const contar = chave => totais.value.por_motivo?.[chave] || 0;
+  return {
+    recebidos: totais.value.recebidos || 0,
+    consultores: ativos.length,
+    top,
+    rodizio: contar('rodizio'),
+    continuidade: contar('continuidade'),
+    preferencia: contar('preferencia_cliente'),
+    repasse: contar('repasse_sla'),
+    gestor: contar('manual_gestor') + contar('escalado_gestor'),
+  };
+});
 
 // ---------------------------------------------------------------- linha do tempo
 
@@ -569,11 +598,63 @@ const irParaPolitica = () =>
     </p>
 
     <template v-else>
+      <section
+        v-if="resumo.recebidos"
+        class="rounded-2xl border border-n-weak bg-white dark:bg-n-solid-2 px-6 py-5"
+      >
+        <h2 class="text-base font-semibold text-n-slate-12">
+          {{ t('AGENTS_RODIZIO.PLAIN_SUMMARY.TITLE') }}
+        </h2>
+        <ul
+          class="mt-3 flex flex-col gap-3 text-base leading-relaxed text-n-slate-12"
+        >
+          <li class="flex gap-3">
+            <span class="i-lucide-users size-5 mt-1 shrink-0 text-n-brand" />
+            <span class="min-w-0">
+              {{
+                t('AGENTS_RODIZIO.PLAIN_SUMMARY.VOLUME', {
+                  recebidos: resumo.recebidos,
+                  consultores: resumo.consultores,
+                })
+              }}
+              <template v-if="resumo.top">
+                {{
+                  t('AGENTS_RODIZIO.PLAIN_SUMMARY.TOP', {
+                    nome: resumo.top.nome,
+                    recebidos: resumo.top.recebidos,
+                  })
+                }}
+              </template>
+            </span>
+          </li>
+          <li class="flex gap-3">
+            <span class="i-lucide-route size-5 mt-1 shrink-0 text-n-brand" />
+            <span class="min-w-0">
+              {{ t('AGENTS_RODIZIO.PLAIN_SUMMARY.HOW', resumo) }}
+            </span>
+          </li>
+          <li class="flex gap-3">
+            <span
+              class="i-lucide-alarm-clock size-5 mt-1 shrink-0 text-n-brand"
+            />
+            <span class="min-w-0">
+              {{
+                parados.total
+                  ? t('AGENTS_RODIZIO.PLAIN_SUMMARY.STALLED', {
+                      total: parados.total,
+                      min: parados.limiar_minutos,
+                    })
+                  : t('AGENTS_RODIZIO.PLAIN_SUMMARY.NONE_STALLED')
+              }}
+            </span>
+          </li>
+        </ul>
+      </section>
       <section class="flex flex-wrap gap-4">
         <div
           class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
         >
-          <p class="text-xs uppercase text-n-slate-10">
+          <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
           <p class="text-xl font-medium text-n-slate-12">
@@ -583,7 +664,7 @@ const irParaPolitica = () =>
         <div
           class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
         >
-          <p class="text-xs uppercase text-n-slate-10">
+          <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
           <p class="text-xl font-medium text-n-slate-12">
@@ -604,7 +685,7 @@ const irParaPolitica = () =>
           class="flex flex-col flex-1 min-w-[20rem] gap-1 px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
         >
           <div class="flex flex-wrap items-baseline gap-x-2">
-            <h2 class="text-xs uppercase text-n-slate-10">
+            <h2 class="text-sm font-medium text-n-slate-11">
               {{ t('AGENTS_RODIZIO.STALLED.LIST_TITLE') }}
             </h2>
             <p class="text-xs text-n-slate-10">
@@ -637,9 +718,14 @@ const irParaPolitica = () =>
               <span v-if="lead.produto" class="text-xs text-n-slate-10">
                 {{ lead.produto }}
               </span>
-              <span class="text-xs tabular-nums text-n-slate-10">
+              <a
+                :href="conversaUrl(lead.display_id)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs tabular-nums text-n-brand hover:underline"
+              >
                 {{ conversa(lead.display_id) }}
-              </span>
+              </a>
               <button
                 class="ml-auto text-xs underline text-n-slate-11"
                 @click="abrirDetalhe(lead)"
@@ -976,6 +1062,11 @@ const irParaPolitica = () =>
             </template>
           </tbody>
         </table>
+        <ul class="flex flex-col gap-1 px-4 py-3 text-sm text-n-slate-11">
+          <li v-for="item in LEGENDA" :key="item">
+            {{ t(`AGENTS_RODIZIO.LEGEND.${item}`) }}
+          </li>
+        </ul>
       </section>
     </template>
   </div>

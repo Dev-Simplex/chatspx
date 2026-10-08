@@ -36,6 +36,25 @@ class V2::Reports::AgentAssignmentBuilder
     entries.sort_by { |pair| -pair[:count] }
   end
 
+  # As atribuicoes por tras de um numero da tabela, com o mesmo recorte das contagens.
+  # received_other = tudo o que nao e manual, rodizio ou "pegou para si" (IA, automacao, API, origem desconhecida).
+  HISTORY_KINDS = %w[received_total received_manual received_auto self_assigned received_other assigned_to_others pair].freeze
+  KNOWN_SOURCES = %i[manual auto_round_robin self_assigned].freeze
+
+  SOURCE_BY_KIND = { 'received_manual' => :manual, 'received_auto' => :auto_round_robin, 'self_assigned' => :self_assigned }.freeze
+
+  def history_scope(kind:, user_id:, to_id: nil)
+    kind = kind.to_s
+    return base_scope.where(source: SOURCE_BY_KIND[kind], assignee_id: user_id) if SOURCE_BY_KIND.key?(kind)
+
+    case kind
+    when 'received_total' then base_scope.where(assignee_id: user_id)
+    when 'received_other' then base_scope.where(assignee_id: user_id).where.not(source: KNOWN_SOURCES)
+    when 'assigned_to_others' then made_to_others_relation(base_scope).where(assigned_by_id: user_id)
+    when 'pair' then made_to_others_relation(base_scope).where(assigned_by_id: user_id, assignee_id: to_id)
+    end
+  end
+
   private
 
   # Escopo base do histórico: período + filtros opcionais de time e inbox.

@@ -48,6 +48,8 @@ const businessHours = ref(false);
 const inboxId = ref(null);
 import { useI18n } from 'vue-i18n';
 import SummaryReportLink from './SummaryReportLink.vue';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
+import ReportEntityPlainSummary from 'dashboard/components-next/reports/ReportEntityPlainSummary.vue';
 
 const flagMap = {
   agent: 'isFetchingAgentSummaryReports',
@@ -74,23 +76,78 @@ const aggregatedSignals = computed(() =>
   aggregateSignals((reportMetrics.value || []).map(row => row.signals || []))
 );
 
-const defaulSpanRender = cellProps =>
-  h(
-    'span',
-    {
-      class: cellProps.getValue() ? '' : 'text-n-slate-12',
+// Cada numero da tabela abre as conversas por tras dele, ja filtradas pela linha (ReportDrilldownPanel).
+// "Resolvidas" de Agentes conta conversas do periodo resolvidas hoje; nas outras tabelas, resolucoes do periodo.
+const DRILLDOWN = {
+  conversationsCount: { key: 'conversations_count', name: 'CONVERSATIONS' },
+  avgFirstResponseTime: {
+    key: 'avg_first_response_time',
+    name: 'AVG_FIRST_RESPONSE_TIME',
+  },
+  avgFirstResponseTimeAfterAssignment: {
+    key: 'avg_first_response_time_after_assignment',
+    name: 'AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER',
+  },
+  avgResolutionTime: {
+    key: 'avg_resolution_time',
+    name: 'AVG_RESOLUTION_TIME',
+  },
+  avgReplyTime: { key: 'reply_time', name: 'AVG_REPLY_TIME' },
+  resolutionsCount: {
+    key:
+      props.type === 'agent'
+        ? 'resolved_conversations_count'
+        : 'resolutions_count',
+    name: 'RESOLUTION_COUNT',
+  },
+};
+
+const drilldown = ref(null);
+const openDrilldown = (column, row) => {
+  const { key, name } = DRILLDOWN[column];
+  drilldown.value = {
+    metric: {
+      key,
+      name: `${row.name} · ${t(`SUMMARY_REPORTS.${name}`)}`,
     },
-    cellProps.getValue()
+    filters: {
+      from: from.value,
+      to: to.value,
+      type: props.type,
+      id: row.id,
+      businessHours: businessHours.value,
+      inboxId: inboxId.value,
+    },
+  };
+};
+
+const valueNode = (cellProps, column) => {
+  const value = cellProps.getValue();
+  if (!value || value === '--') {
+    return h('span', { class: 'text-n-slate-10' }, value || '--');
+  }
+  return h(
+    'button',
+    {
+      type: 'button',
+      class:
+        'p-0 m-0 text-[length:inherit] leading-[inherit] text-left tabular-nums underline decoration-dotted underline-offset-4 hover:text-n-brand',
+      title: t('REPORT.DRILLDOWN.OPEN'),
+      onClick: () => openDrilldown(column, cellProps.row.original),
+    },
+    value
   );
+};
+
+const countCell = column => cellProps => valueNode(cellProps, column);
 
 // Célula de métrica com pontinho de semáforo (cor do nível) antes do valor.
-const metricCell = metricKey => cellProps => {
-  const value = cellProps.getValue();
+const metricCell = (metricKey, column) => cellProps => {
   const signal = cellProps.row.original.signalsByMetric?.[metricKey] || null;
   const dot = dotClassFor(signal);
   return h('span', { class: 'inline-flex items-center gap-1.5' }, [
     dot && h('span', { class: `inline-block w-2 h-2 rounded-full ${dot}` }),
-    h('span', { class: value ? '' : 'text-n-slate-12' }, value),
+    valueNode(cellProps, column),
   ]);
 };
 
@@ -103,36 +160,36 @@ const columns = computed(() => [
   columnHelper.accessor('conversationsCount', {
     header: t('SUMMARY_REPORTS.CONVERSATIONS'),
     width: 200,
-    cell: defaulSpanRender,
+    cell: countCell('conversationsCount'),
   }),
   columnHelper.accessor('avgFirstResponseTime', {
     header: t('SUMMARY_REPORTS.AVG_FIRST_RESPONSE_TIME'),
     width: 200,
-    cell: metricCell('first_response'),
+    cell: metricCell('first_response', 'avgFirstResponseTime'),
   }),
   ...(props.type !== 'label'
     ? [
         columnHelper.accessor('avgFirstResponseTimeAfterAssignment', {
           header: t('SUMMARY_REPORTS.AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER'),
           width: 240,
-          cell: defaulSpanRender,
+          cell: countCell('avgFirstResponseTimeAfterAssignment'),
         }),
       ]
     : []),
   columnHelper.accessor('avgResolutionTime', {
     header: t('SUMMARY_REPORTS.AVG_RESOLUTION_TIME'),
     width: 200,
-    cell: metricCell('resolution'),
+    cell: metricCell('resolution', 'avgResolutionTime'),
   }),
   columnHelper.accessor('avgReplyTime', {
     header: t('SUMMARY_REPORTS.AVG_REPLY_TIME'),
     width: 200,
-    cell: metricCell('reply'),
+    cell: metricCell('reply', 'avgReplyTime'),
   }),
   columnHelper.accessor('resolutionsCount', {
     header: t('SUMMARY_REPORTS.RESOLUTION_COUNT'),
     width: 200,
-    cell: metricCell('resolution_rate'),
+    cell: metricCell('resolution_rate', 'resolutionsCount'),
   }),
 ]);
 
@@ -171,6 +228,18 @@ const tableData = computed(() =>
         reply: signalByMetric(signals, 'reply'),
         resolution_rate: signalByMetric(signals, 'resolution_rate'),
       },
+    };
+  })
+);
+
+const plainRows = computed(() =>
+  rowItems.value.map(row => {
+    const metrics = getMetrics(row.id);
+    return {
+      name: row.name ?? row.title,
+      conversations: Number(metrics.conversationsCount || 0),
+      resolved: Number(metrics.resolvedConversationsCount || 0),
+      firstResponse: Number(metrics.avgFirstResponseTime || 0),
     };
   })
 );
@@ -260,6 +329,7 @@ defineExpose({ downloadReports });
     :show-inbox-scope="type !== 'inbox'"
     @filter-change="onFilterChange"
   />
+  <ReportEntityPlainSummary :type="type" :rows="plainRows" />
   <ReportNarrativeSummary :signals="aggregatedSignals" />
   <div
     class="relative flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
@@ -281,4 +351,10 @@ defineExpose({ downloadReports });
       </div>
     </Transition>
   </div>
+  <ReportDrilldownPanel
+    v-if="drilldown"
+    :metric="drilldown.metric"
+    :filters="drilldown.filters"
+    @close="drilldown = null"
+  />
 </template>

@@ -79,6 +79,8 @@ class NpsResponse < ApplicationRecord
   }
   scope :filter_by_assigned_agent_id, ->(user_ids) { where(assigned_agent_id: user_ids) if user_ids.present? }
   scope :filter_by_inbox_id, ->(inbox_id) { where(inbox_id: inbox_id) if inbox_id.present? }
+  # O time e o da conversa (a pesquisa nao guarda time): sem isto o filtro de time da tela nao filtrava nada.
+  scope :filter_by_team_id, ->(team_id) { joins(:conversation).where(conversations: { team_id: team_id }) if team_id.present? }
   scope :filter_by_status, ->(status) { where(status: status) if status.present? }
   scope :filter_by_response_state, lambda { |state|
     return all if state.blank?

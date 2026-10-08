@@ -8,6 +8,7 @@ import { generateFileName } from '../../../../../helper/downloadHelper';
 import ReportHeader from './ReportHeader.vue';
 import SpeedInsightsPanel from './SpeedInsightsPanel.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
+import ReportPlainSummary from 'dashboard/components-next/reports/ReportPlainSummary.vue';
 
 export default {
   components: {
@@ -17,6 +18,7 @@ export default {
     ReportFilters,
     ReportContainer,
     SpeedInsightsPanel,
+    ReportPlainSummary,
   },
   props: {
     type: {
@@ -59,6 +61,19 @@ export default {
     };
   },
   computed: {
+    // Os mesmos filtros da tela, com a entidade: cada numero abre as conversas dela (ReportDrilldownPanel).
+    drilldownFilters() {
+      if (!this.selectedFilter?.id) return null;
+      const { from, to, businessHours, inboxId } = this;
+      return {
+        from,
+        to,
+        type: this.type,
+        id: this.selectedFilter.id,
+        businessHours,
+        inboxId,
+      };
+    },
     filterType() {
       const pluralMap = {
         agent: 'agents',
@@ -216,6 +231,7 @@ export default {
     :selected-item="selectedFilter"
     @filter-change="onFilterChange"
   />
+  <ReportPlainSummary :drilldown-filters="drilldownFilters" />
   <SpeedInsightsPanel
     v-if="type !== 'label'"
     :show-transfer-metrics="showTransferMetric"
@@ -224,5 +240,6 @@ export default {
     v-if="filterItemsList.length"
     :group-by="groupBy"
     :report-keys="reportKeys"
+    :drilldown-filters="drilldownFilters"
   />
 </template>

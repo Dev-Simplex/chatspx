@@ -163,6 +163,9 @@ export default {
     <ReportPlainSummary :drilldown-filters="drilldownFilters" />
     <ReportNarrativeSummary :signals="accountSummary.signals || []" />
     <SpeedInsightsPanel />
-    <ReportContainer :group-by="groupBy" :drilldown-filters="drilldownFilters" />
+    <ReportContainer
+      :group-by="groupBy"
+      :drilldown-filters="drilldownFilters"
+    />
   </div>
 </template>

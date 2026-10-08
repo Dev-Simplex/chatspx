@@ -1,78 +1,129 @@
+<%# Visão geral (situação de agora) no estilo do PDF de Conversas: manchete, "Como está agora?", quem espera há mais
+    tempo, quando as conversas chegam e são resolvidas, e cada atendente e cada time agora. %>
 <%
   k = @data[:kpis]
   open_count = k[:open].to_i
   unattended = k[:unattended].to_i
   unassigned = k[:unassigned].to_i
   pending = k[:pending].to_i
-
-  variant = unattended.positive? ? 'warning' : 'success'
-  verdict =
-    if unattended.positive?
-      "#{number_with_delimiter(open_count)} conversas abertas neste instante, das quais #{number_with_delimiter(unattended)} ainda não foram atendidas. Há fila aguardando primeira resposta — priorize a triagem para conter o tempo de espera."
-    else
-      "#{number_with_delimiter(open_count)} conversas abertas neste instante e nenhuma aguardando primeiro atendimento. A operação está em dia com a fila de entrada."
-    end
+  waiting = @data[:waiting] || []
+  agents = @data[:agents] || []
+  teams = @data[:teams] || []
+  frt_goal_h = Reports::TimeFormatPresenter.new(Reports::PdfBenchmarks.goal(:first_response)).format
 %>
 
-<%# ---------- Veredito (data-driven) ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/callout', variant: variant,
-        title: "#{number_with_delimiter(open_count)} conversas abertas · #{number_with_delimiter(unattended)} não atendidas",
-        body: verdict %>
+<div class="clarity-legend">
+  <span><span class="status-dot status-dot--good"></span> bom</span>
+  <span><span class="status-dot status-dot--warn"></span> atenção</span>
+  <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
 </div>
 
-<%# ---------- KPIs do snapshot ---------- %>
+<%= render 'reports/pdf/headline', headline: @data[:headline] %>
+
+<%# ============ 1. COMO ESTÁ AGORA? ============ %>
 <div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'Abertas', value: number_with_delimiter(open_count), hero: true, hint: 'em andamento agora' },
-    { label: 'Não atendidas', value: number_with_delimiter(unattended), modifier: 'is-detractor', hint: 'aguardando 1ª resposta' },
-    { label: 'Não atribuídas', value: number_with_delimiter(unassigned), modifier: 'is-passive', hint: 'sem responsável' },
-    { label: 'Pendentes', value: number_with_delimiter(pending), hint: 'em espera/snooze' },
-  ] %>
+  <div class="narrative-title"><span class="q">1.</span> Como está agora?</div>
+  <div class="hero-row">
+    <%= render 'reports/pdf/hero_stat',
+          value: number_with_delimiter(open_count), value_class: 'is-neutral',
+          label: 'Conversas abertas agora',
+          caption: "#{number_with_delimiter(pending)} pendentes (esperando o cliente ou adiadas)" %>
+    <% if open_count.positive? %>
+      <%= render 'reports/pdf/composition_bar', title: 'Das conversas abertas', segments: [
+        { label: 'Esperam resposta', value: unattended, color: '#e54666' },
+        { label: 'Em andamento', value: open_count - unattended, color: '#2dc46f' },
+      ] %>
+    <% end %>
+  </div>
+  <div style="margin-top: 4mm;">
+    <%= render 'reports/pdf/kpi_band', cards: [
+      { label: 'Abertas', value: number_with_delimiter(open_count), hero: true, meaning: 'conversas em andamento' },
+      { label: 'Esperam resposta', value: number_with_delimiter(unattended), modifier: 'is-detractor',
+        meaning: 'ainda sem 1ª resposta ou esperando resposta' },
+      { label: 'Sem atendente', value: number_with_delimiter(unassigned), modifier: 'is-passive', meaning: 'ninguém é responsável' },
+      { label: 'Pendentes', value: number_with_delimiter(pending), meaning: 'esperando o cliente ou adiadas' },
+    ] %>
+  </div>
 </div>
 
-<%# ---------- Heatmap de trafego ---------- %>
+<%# ============ 2. QUEM ESPERA HÁ MAIS TEMPO? ============ %>
+<div class="section" style="break-inside: auto;">
+  <div class="narrative-title" style="break-after: avoid;"><span class="q">2.</span> Quem está esperando há mais tempo?</div>
+  <% if waiting.any? %>
+    <div class="cl-legend">
+      <span><i class="cl-dot good"></i> esperando menos que a meta (<%= frt_goal_h %>)</span>
+      <span><i class="cl-dot warn"></i> perto da meta</span>
+      <span><i class="cl-dot bad"></i> passou muito da meta</span>
+    </div>
+    <div class="card cl-bars" style="break-inside: auto;">
+      <% waiting.each do |row| %>
+        <div class="cl-bar-row">
+          <div>
+            <div class="cl-who"><%= row[:id] %> · <%= row[:contact] %></div>
+            <div class="cl-where"><%= [row[:inbox], row[:agent], row[:team]].compact.join(' · ') %></div>
+          </div>
+          <div class="cl-track">
+            <div class="cl-fill <%= row[:level] %>" style="width: <%= [row[:bar_pct], 2].max %>%;"></div>
+            <span class="cl-value">há <%= row[:waiting] %></span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <%= render 'reports/pdf/callout', variant: 'success', title: 'Ninguém está esperando resposta agora',
+          body: 'Todas as conversas abertas já foram respondidas. 👍' %>
+  <% end %>
+</div>
+
+<%# ============ 3 e 4. QUANDO? ============ %>
 <div class="section">
-  <div class="section-title"><span class="dot">1</span> Tráfego (últimos 30 dias)</div>
+  <div class="narrative-title"><span class="q">3.</span> Quando as conversas chegam? <small style="font-size: 10px; color: #8696a0;">(últimos 30 dias)</small></div>
   <div class="card">
     <%= pdf_heatmap(@data[:traffic_heatmap], palette: :traffic) %>
     <%= render 'reports/pdf/chart_caption', emoji: '🔵',
-          text: 'Cada quadradinho é 1 hora do dia. Quanto mais escuro, mais conversas chegaram naquele horário (escala à direita).' %>
+          text: 'Cada quadradinho é 1 hora de um dia da semana. Quanto mais escuro, mais conversas chegaram naquela hora (escala à direita).' %>
   </div>
 </div>
 
-<%# ---------- Heatmap de resolucoes ---------- %>
 <div class="section">
-  <div class="section-title"><span class="dot">2</span> Resoluções (últimos 30 dias)</div>
+  <div class="narrative-title"><span class="q">4.</span> Quando as conversas são resolvidas? <small style="font-size: 10px; color: #8696a0;">(últimos 30 dias)</small></div>
   <div class="card">
     <%= pdf_heatmap(@data[:resolutions_heatmap], palette: :resolutions) %>
     <%= render 'reports/pdf/chart_caption', emoji: '🟢',
-          text: 'Cada quadradinho é 1 hora do dia. Quanto mais escuro, mais conversas foram resolvidas naquele horário (escala à direita).' %>
+          text: 'Cada quadradinho é 1 hora de um dia da semana. Quanto mais escuro, mais conversas foram resolvidas naquela hora (escala à direita).' %>
   </div>
 </div>
 
-<%# ---------- Por atendente ---------- %>
-<% if @data[:agents_table].present? && @data[:agents_table][:rows].present? %>
-  <div class="section">
-    <div class="section-title"><span class="dot">3</span> Por atendente</div>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table', table: {
-            columns: @data[:agents_table][:columns],
-            rows: @data[:agents_table][:rows].first(18)
-          } %>
-    </div>
-  </div>
-<% end %>
-
-<%# ---------- Por time ---------- %>
-<% if @data[:teams_table].present? && @data[:teams_table][:rows].present? %>
-  <div class="section">
-    <div class="section-title"><span class="dot">4</span> Por time</div>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table', table: {
-            columns: @data[:teams_table][:columns],
-            rows: @data[:teams_table][:rows].first(18)
-          } %>
+<%# ============ 5 e 6. CADA ATENDENTE E CADA TIME AGORA ============ %>
+<% [[5, 'Cada atendente agora', 'Atendente', agents, false], [6, 'Cada time agora', 'Time', teams, true]].each do |n, title, col, rows, with_unassigned| %>
+  <% next if rows.empty? %>
+  <div class="section" style="<%= 'break-inside: auto;' if rows.size > 15 %>">
+    <div class="narrative-title"><span class="q"><%= n %>.</span> <%= title %></div>
+    <div class="card" style="padding: 2mm 4mm;<%= ' break-inside: auto;' if rows.size > 15 %>">
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 34%;"><col style="width: 38%;"><col style="width: 14%;">
+          <% if with_unassigned %><col style="width: 14%;"><% end %>
+        </colgroup>
+        <thead>
+          <tr><th><%= col %></th><th>Abertas</th><th>Esperam resposta</th><% if with_unassigned %><th>Sem atendente</th><% end %></tr>
+        </thead>
+        <tbody>
+          <% rows.each do |row| %>
+            <tr>
+              <td class="cl-wrap"><strong><%= row[:name] %></strong></td>
+              <td>
+                <div class="cl-track">
+                  <div class="cl-fill" style="width: <%= [row[:bar_pct], 3].max %>%;"></div>
+                  <span class="cl-value"><%= number_with_delimiter(row[:open]) %></span>
+                </div>
+              </td>
+              <td class="<%= 'muted' if row[:unattended].zero? %>"><%= number_with_delimiter(row[:unattended]) %></td>
+              <% if with_unassigned %><td class="<%= 'muted' if row[:unassigned].zero? %>"><%= number_with_delimiter(row[:unassigned]) %></td><% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
 <% end %>

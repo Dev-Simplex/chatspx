@@ -1,5 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
+import { I18nT } from 'vue-i18n';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import ReportMetricCard from './ReportMetricCard.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
@@ -17,7 +18,7 @@ const NPS_SCORES = Array.from({ length: 11 }, (_, i) => ({
 }));
 
 export default {
-  components: { BarChart, ReportMetricCard },
+  components: { BarChart, ReportMetricCard, I18nT },
   props: {
     // eslint-disable-next-line vue/no-unused-properties
     filters: {
@@ -235,15 +236,66 @@ export default {
     bandPercent(band) {
       if (!this.hasData) return '--';
       const pct = this.metrics[`${band}_pct`];
-      if (pct !== undefined && pct !== null) return `${pct.toFixed(1)}%`;
-      const count = this.metrics[`${band}_count`] || 0;
-      return `${((count / this.metrics.total_count) * 100).toFixed(1)}%`;
+      // Com virgula decimal ("62,5%"), no formato do navegador.
+      const value =
+        pct !== undefined && pct !== null
+          ? pct
+          : ((this.metrics[`${band}_count`] || 0) / this.metrics.total_count) *
+            100;
+      return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    },
+    bandCount(band) {
+      return Number(this.metrics[`${band}_count`] || 0).toLocaleString();
     },
   },
 };
 </script>
 
 <template>
+  <section
+    v-if="hasData"
+    class="mb-4 rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+  >
+    <h3 class="text-base font-semibold text-n-slate-12">
+      {{ $t('REPORT.PLAIN_SUMMARY.TITLE') }}
+    </h3>
+    <ul
+      class="mt-3 flex flex-col gap-3 text-base leading-relaxed text-n-slate-12"
+    >
+      <li class="flex gap-3">
+        <span class="i-lucide-heart size-5 mt-1 shrink-0 text-n-brand" />
+        <span class="min-w-0">
+          <I18nT keypath="NPS_REPORTS.PLAIN_SUMMARY.BANDS" tag="span">
+            <template #total>
+              <strong>{{ totalCount }}</strong>
+            </template>
+            <template #promoters>
+              <strong>{{ bandCount('promoters') }}</strong>
+            </template>
+            <template #passives>
+              <strong>{{ bandCount('passives') }}</strong>
+            </template>
+            <template #detractors>
+              <strong>{{ bandCount('detractors') }}</strong>
+            </template>
+          </I18nT>
+        </span>
+      </li>
+      <li class="flex gap-3">
+        <span class="i-lucide-gauge size-5 mt-1 shrink-0 text-n-brand" />
+        <span class="min-w-0">
+          <I18nT keypath="NPS_REPORTS.PLAIN_SUMMARY.SCORE" tag="span">
+            <template #score>
+              <strong>{{ npsScore }}</strong>
+            </template>
+          </I18nT>
+        </span>
+      </li>
+    </ul>
+    <p class="mt-4 text-sm text-n-slate-11">
+      {{ $t('NPS_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
+    </p>
+  </section>
   <div
     class="flex-col lg:flex-row flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-6 gap-4 shadow-sm"
   >

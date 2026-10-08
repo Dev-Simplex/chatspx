@@ -86,6 +86,7 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
       scope = Current.account.nps_responses
                      .filter_by_assigned_agent_id(params[:user_ids])
                      .filter_by_inbox_id(params[:inbox_id])
+                     .filter_by_team_id(params[:team_id])
       scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].present?
       scope
     end
@@ -123,6 +124,7 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
     # Apply other filters (response_state takes precedence over status for list view)
     @nps_responses = @nps_responses.filter_by_assigned_agent_id(params[:user_ids])
                                    .filter_by_inbox_id(params[:inbox_id])
+                                   .filter_by_team_id(params[:team_id])
     @nps_responses = if params[:response_state].present?
                        @nps_responses.filter_by_response_state(params[:response_state])
                      else

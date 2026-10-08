@@ -6,6 +6,8 @@ import { formatDuration } from 'dashboard/helper/reportFormat';
 import format from 'date-fns/format';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import ReportsAPI from 'dashboard/api/reports';
+import LiveReportsAPI from 'dashboard/api/liveReports';
+import SummaryReportsAPI from 'dashboard/api/summaryReports';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { useAlert } from 'dashboard/composables';
@@ -17,10 +19,32 @@ const props = defineProps({
   // { key, name }: a metrica do cartao clicado
   metric: { type: Object, required: true },
   // { from, to, type, id, businessHours, inboxId }: os mesmos filtros da tela
+  // (na Visao geral: { teamId, inboxId, assigneeId })
   filters: { type: Object, required: true },
+  // 'reports' (numero de um periodo) | 'live' (numero da Visao geral, situacao de agora)
+  // | 'assignments' (numero do relatorio de Atribuicoes; o metric.key e o tipo da coluna)
+  source: { type: String, default: 'reports' },
 });
 
 const emit = defineEmits(['close']);
+const isLive = computed(() => props.source === 'live');
+const isAssignments = computed(() => props.source === 'assignments');
+// Cada fonte tem a sua lista (mesmo formato de resposta): [API, metodo da lista, metodo do CSV].
+const SOURCES = {
+  reports: [ReportsAPI, 'getDrilldown', 'getDrilldownCsv'],
+  live: [LiveReportsAPI, 'getConversationList', 'getConversationListCsv'],
+  assignments: [
+    SummaryReportsAPI,
+    'getAgentAssignmentList',
+    'getAgentAssignmentListCsv',
+  ],
+};
+const callSource = (index, params) => {
+  const [api, ...methods] = SOURCES[props.source] || SOURCES.reports;
+  return api[methods[index]]({ ...params, kind: props.metric.key });
+};
+const fetchList = params => callSource(0, params);
+const fetchCsv = params => callSource(1, params);
 
 const { t } = useI18n();
 const route = useRoute();
@@ -51,7 +75,15 @@ const isMessageMetric = computed(() =>
 const subtitle = computed(() => {
   if (!meta.value) return '';
   const { total_count: total, conversations_count: conversations } = meta.value;
-  if (props.metric.key === 'conversations_count') {
+  if (isAssignments.value) {
+    return t('REPORT.DRILLDOWN.TOTAL_ASSIGNMENTS', { total, conversations });
+  }
+  if (
+    isLive.value ||
+    ['conversations_count', 'resolved_conversations_count'].includes(
+      props.metric.key
+    )
+  ) {
     return t('REPORT.DRILLDOWN.TOTAL_CONVERSATIONS', { count: total });
   }
   if (isMessageMetric.value) {
@@ -61,6 +93,8 @@ const subtitle = computed(() => {
 });
 
 const orderHint = computed(() => {
+  if (isLive.value) return t('REPORT.DRILLDOWN.ORDER.LONGEST_WAITING');
+  if (isAssignments.value) return t('REPORT.DRILLDOWN.ORDER.RECENT');
   if (props.metric.key === 'resolutions_count')
     return t('REPORT.DRILLDOWN.ORDER.RECENT');
   if (TIME_METRICS.includes(props.metric.key))
@@ -70,7 +104,17 @@ const orderHint = computed(() => {
 });
 
 const formatValue = row => {
+  if (isAssignments.value) {
+    return t(`REPORT.DRILLDOWN.ASSIGNMENT_SOURCE.${row.source}`, {
+      by: row.assigned_by_name || t('REPORT.DRILLDOWN.NO_AGENT'),
+    });
+  }
   if (row.value === null || row.value === undefined) return '';
+  if (isLive.value) {
+    return t('REPORT.DRILLDOWN.WAITING_FOR', {
+      time: formatDuration(row.value, t),
+    });
+  }
   if (isMessageMetric.value) {
     return t('REPORT.DRILLDOWN.MESSAGES_COUNT', { count: row.value });
   }
@@ -94,7 +138,7 @@ const fetchPage = async number => {
   isLoading.value = true;
   hasError.value = false;
   try {
-    const { data } = await ReportsAPI.getDrilldown({
+    const { data } = await fetchList({
       ...props.filters,
       metric: props.metric.key,
       page: number,
@@ -111,7 +155,7 @@ const fetchPage = async number => {
 
 const downloadCsv = async () => {
   try {
-    const { data } = await ReportsAPI.getDrilldownCsv({
+    const { data } = await fetchCsv({
       ...props.filters,
       metric: props.metric.key,
     });

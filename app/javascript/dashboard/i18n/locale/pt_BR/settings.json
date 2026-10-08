@@ -13,7 +13,7 @@
   },
   "AGENTS_RODIZIO": {
     "TITLE": "Rodízio",
-    "SUBTITLE": "Como os leads estão sendo distribuídos, e sob qual regra",
+    "SUBTITLE": "Para quem cada lead foi entregue, por que caminho e quem ainda não foi atendido.",
     "ALL_TEAMS": "Todos os times",
     "RELOAD": "Atualizar",
     "LOADING": "Carregando...",
@@ -33,8 +33,8 @@
       "PRODUCTS": "Produtos"
     },
     "STALLED": {
-      "TITLE": "Sem movimento",
-      "LIST_TITLE": "Designados sem movimento",
+      "TITLE": "Parados agora",
+      "LIST_TITLE": "Leads parados (ninguém assumiu ainda)",
       "SUBTITLE": "Ninguém pegou ainda. A IA segue cobrindo o cliente.",
       "THRESHOLD": "acima de {min} min",
       "WAITING": "esperando há {tempo}",
@@ -204,6 +204,24 @@
         "CAP": "O teto precisa ser maior que zero. Deixe vazio para não limitar.",
         "POOL_VAZIO": "O rodízio está ligado mas não há ninguém no pool — nenhum lead seria distribuído."
       }
+    },
+    "OPEN_CONVERSATION": "Abrir conversa",
+    "PLAIN_SUMMARY": {
+      "TITLE": "O período em poucas palavras",
+      "VOLUME": "{recebidos} leads foram entregues a {consultores} consultores.",
+      "TOP": "Quem mais recebeu foi {nome}, com {recebidos}.",
+      "HOW": "Como chegaram: {rodizio} pela vez de cada um (rodízio), {continuidade} voltaram para quem já atendia o cliente, {preferencia} porque o cliente pediu, {repasse} foram repassados porque ninguém assumiu a tempo e {gestor} foram escolhidos pelo gestor.",
+      "STALLED": "{total} leads estão parados: foram entregues e ninguém assumiu em mais de {min} minutos. Eles estão na lista ao lado.",
+      "NONE_STALLED": "Nenhum lead está parado agora. 👍"
+    },
+    "LEGEND": {
+      "RECEIVED": "Recebidos: quantos leads chegaram para o consultor no período.",
+      "ROTATION": "Rodízio: chegou na vez dele.",
+      "CONTINUITY": "Continuidade: o cliente já tinha falado com ele antes, então voltou para ele.",
+      "PREFERENCE": "Pedido do cliente: o cliente pediu para falar com ele.",
+      "HANDOFF": "Repasse: outro consultor não assumiu a tempo e o lead passou para ele.",
+      "MANUAL": "Gestor: o gestor escolheu ele.",
+      "OPEN": "Em aberto: leads entregues que ele ainda não assumiu."
     }
   },
   "AGENTS_EVALUATION": {

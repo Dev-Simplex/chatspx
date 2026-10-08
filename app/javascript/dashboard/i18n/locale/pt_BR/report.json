@@ -26,13 +26,25 @@
       "ORDER": {
         "RECENT": "Mais recentes primeiro",
         "SLOWEST": "Mais demoradas primeiro",
-        "MOST_MESSAGES": "Com mais mensagens primeiro"
+        "MOST_MESSAGES": "Com mais mensagens primeiro",
+        "LONGEST_WAITING": "Quem espera há mais tempo primeiro"
       },
       "STATUS": {
         "open": "Aberta",
         "resolved": "Resolvida",
         "pending": "Pendente",
         "snoozed": "Adiada"
+      },
+      "WAITING_FOR": "esperando há {time}",
+      "TOTAL_ASSIGNMENTS": "{total} entregas em {conversations} conversas",
+      "ASSIGNMENT_SOURCE": {
+        "manual": "passada por {by}",
+        "self_assigned": "pegou para si",
+        "auto_round_robin": "pelo rodízio",
+        "automation": "por automação",
+        "bot": "pela IA",
+        "api": "pela API",
+        "unknown": "origem desconhecida"
       }
     },
     "METRICS": {
@@ -71,12 +83,12 @@
         "DESC": "Conversas que a equipe marcou como resolvidas no período."
       },
       "BOT_RESOLUTION_COUNT": {
-        "NAME": "Contagem de Resolução",
-        "DESC": "( Total )"
+        "NAME": "Quantas o robô resolveu sozinho?",
+        "DESC": "Conversas resolvidas pelo robô, sem precisar de uma pessoa."
       },
       "BOT_HANDOFF_COUNT": {
-        "NAME": "Contagem de transferências",
-        "DESC": "( Total )"
+        "NAME": "Quantas o robô passou para uma pessoa?",
+        "DESC": "Conversas em que o robô chamou um atendente."
       },
       "REPLY_TIME": {
         "NAME": "Quanto o cliente esperou entre uma mensagem e outra?",
@@ -253,11 +265,33 @@
       "QUANTITY": "quantidade",
       "AVERAGE_TIME": "tempo médio",
       "CONVERSATIONS": "conversas"
+    },
+    "ENTITY_SUMMARY": {
+      "AGENT": {
+        "VOLUME": "{count} atendentes receberam {conversations} conversas no período.",
+        "BUSIEST": "Quem recebeu mais foi {name}, com {conversations}."
+      },
+      "INBOX": {
+        "VOLUME": "{count} caixas de entrada receberam {conversations} conversas no período.",
+        "BUSIEST": "A que recebeu mais foi {name}, com {conversations}."
+      },
+      "TEAM": {
+        "VOLUME": "{count} times receberam {conversations} conversas no período.",
+        "BUSIEST": "O que recebeu mais foi {name}, com {conversations}."
+      },
+      "LABEL": {
+        "VOLUME": "{count} etiquetas foram usadas em {conversations} conversas no período.",
+        "BUSIEST": "A mais usada foi {name}, com {conversations}."
+      },
+      "FASTEST": "A 1ª resposta mais rápida, em média, foi de {name}: {time}.",
+      "SLOWEST": "A mais demorada foi de {name}: {time}.",
+      "RESOLVED": "{resolved} conversas foram resolvidas.",
+      "HOW_TO_READ": "Clique em um número sublinhado para ver as conversas. A bolinha ao lado do tempo mostra a meta: verde está dentro, amarela está perto e vermelha está longe."
     }
   },
   "AGENT_REPORTS": {
-    "HEADER": "Visão Geral de Agentes",
-    "DESCRIPTION": "Acompanhe facilmente o desempenho dos agentes com métricas-chave, como conversas, tempos de resposta, tempos de resolução e casos resolvidos. Clique no nome de um agente para saber mais.",
+    "HEADER": "Agentes",
+    "DESCRIPTION": "Como cada atendente se saiu: quantas conversas recebeu, quanto o cliente esperou e quantas resolveu. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_AGENT_REPORTS": "Baixar relatórios de agentes",
@@ -330,7 +364,7 @@
   },
   "ASSIGNMENT_REPORTS": {
     "HEADER": "Atribuições",
-    "DESCRIPTION": "Veja como as atribuições de conversas se distribuem por agente — quantas cada pessoa recebeu (manualmente, por rodízio ou auto-atribuídas) e quantas ela atribuiu para outros.",
+    "DESCRIPTION": "Como as conversas chegaram a cada atendente: alguém passou, o rodízio mandou, a pessoa pegou para si ou veio de outro jeito (IA, automação). Mostra também quem passou conversas para os colegas. Clique em um número para ver as conversas.",
     "DOWNLOAD": "Baixar relatório de atribuições",
     "FILTER": {
       "TEAM": "Time:",
@@ -339,25 +373,27 @@
       "ALL_INBOXES": "Todas as caixas"
     },
     "MATRIX": {
-      "TITLE": "Quem atribuiu pra quem",
-      "HINT": "Linhas = quem atribuiu · Colunas = quem recebeu · valores = atribuições manuais no período.",
-      "FROM_TO": "De \\ Para"
+      "TITLE": "Quem passou conversas para quem",
+      "HINT": "Cada linha é quem passou e cada coluna é quem recebeu. O número é quantas conversas foram passadas no período. Clique para ver quais.",
+      "FROM_TO": "De \\ Para",
+      "PAIR": "{from} passou para {to}"
     },
     "TABLE": {
-      "AGENT": "Agente",
-      "GROUP_RECEIVED": "Recebidas",
-      "GROUP_ASSIGNED": "Atribuiu",
+      "AGENT": "Atendente",
+      "GROUP_RECEIVED": "Recebeu",
+      "GROUP_ASSIGNED": "Passou",
       "RECEIVED_TOTAL": "Total",
-      "RECEIVED_MANUAL": "↳ Manuais",
-      "RECEIVED_AUTO": "↳ Automáticas",
-      "SELF_ASSIGNED": "↳ Auto-assumidas",
-      "ASSIGNED_TO_OTHERS": "Para outros"
+      "RECEIVED_MANUAL": "Alguém passou para ela",
+      "RECEIVED_AUTO": "Rodízio",
+      "SELF_ASSIGNED": "Pegou para si",
+      "ASSIGNED_TO_OTHERS": "Para colegas",
+      "RECEIVED_OTHER": "Outras (IA, automação...)"
     },
     "SUMMARY": {
-      "TITLE": "Resumo do período",
-      "TOTAL": "{total} atribuições distribuídas entre {agents} atendentes.",
-      "COMPOSITION": "Origem das recebidas: {manual}% manuais · {auto}% automáticas (rodízio) · {self}% auto-assumidas.",
-      "TOP": "Quem mais recebeu: {name} ({count}).",
+      "TITLE": "O período em poucas palavras",
+      "TOTAL": "{total} conversas foram entregues a {agents} atendentes.",
+      "COMPOSITION": "Como chegaram: {manual}% alguém passou, {auto}% pelo rodízio, {self}% a pessoa pegou para si e {other}% de outro jeito (IA, automação, API).",
+      "TOP": "Quem mais recebeu foi {name}, com {count}.",
       "FORWARD_ONLY": "As contagens começam a partir da ativação do recurso — períodos antigos podem aparecer zerados."
     },
     "EMPTY": {
@@ -367,16 +403,17 @@
     "LEGEND": {
       "TITLE": "Entenda cada coluna",
       "AGENT": "O atendente (nome).",
-      "RECEIVED": "Recebidas — conversas atribuídas a este agente (ele foi o destino). O Total é a soma de Manuais + Automáticas + Auto-assumidas.",
-      "RECEIVED_MANUAL": "↳ Manuais: outra pessoa atribuiu a conversa para este agente.",
-      "RECEIVED_AUTO": "↳ Automáticas: o sistema distribuiu por rodízio (round-robin).",
-      "SELF_ASSIGNED": "↳ Auto-assumidas: o próprio agente pegou a conversa pra si.",
-      "ASSIGNED_TO_OTHERS": "Atribuiu → Para outros: conversas que este agente atribuiu manualmente para outra pessoa."
+      "RECEIVED": "Recebeu: quantas conversas chegaram para esta pessoa. O Total é a soma das colunas ao lado (alguém passou + rodízio + pegou para si + outras).",
+      "RECEIVED_MANUAL": "Alguém passou para ela: um colega ou o gestor entregou a conversa para esta pessoa.",
+      "RECEIVED_AUTO": "Rodízio: o sistema distribuiu a conversa sozinho.",
+      "SELF_ASSIGNED": "Pegou para si: a própria pessoa assumiu a conversa.",
+      "ASSIGNED_TO_OTHERS": "Para colegas: conversas que esta pessoa passou para outra.",
+      "RECEIVED_OTHER": "Outras: chegou pela IA, por uma regra de automação, pela API ou de um jeito que o sistema não registrou."
     }
   },
   "LABEL_REPORTS": {
-    "HEADER": "Visão Geral das Etiquetas",
-    "DESCRIPTION": "Acompanhe o desempenho da sua etiqueta com métricas-chave incluindo conversas, tempo de resposta, tempos de resolução e casos resolvidos. Clique no nome da etiqueta para obter detalhes.",
+    "HEADER": "Etiquetas",
+    "DESCRIPTION": "Como foram as conversas de cada etiqueta: quantas foram, quanto o cliente esperou e quantas foram resolvidas. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_LABEL_REPORTS": "Baixar relatórios de etiquetas",
@@ -448,8 +485,8 @@
     }
   },
   "INBOX_REPORTS": {
-    "HEADER": "Visualizar Caixa de Entrada",
-    "DESCRIPTION": "Veja rapidamente o desempenho da caixa de entrada com métricas-chave como conversas, tempos de resposta, tempos de resolução, e casos resolvidos — tudo em um só lugar. Clique na caixa de entrada para mais detalhes",
+    "HEADER": "Caixas de entrada",
+    "DESCRIPTION": "Como foi cada caixa de entrada (WhatsApp, Instagram, site...): quantas conversas chegaram, quanto o cliente esperou e quantas foram resolvidas. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_INBOX_REPORTS": "Baixar relatórios de entrada",
@@ -523,8 +560,8 @@
     }
   },
   "TEAM_REPORTS": {
-    "HEADER": "Resumo do Time",
-    "DESCRIPTION": "Tenha uma visão geral do desempenho dos seus times com métricas essenciais, incluindo conversas, tempos de resposta, tempos de resolução e casos resolvidos. Clique no nome do time para ver mais detalhes.",
+    "HEADER": "Times",
+    "DESCRIPTION": "Como foi cada time: quantas conversas recebeu, quanto o cliente esperou e quantas resolveu. Clique no nome para ver os detalhes, ou em um número para ver as conversas.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_TEAM_REPORTS": "Baixar relatórios de time",
@@ -599,7 +636,7 @@
     }
   },
   "CSAT_REPORTS": {
-    "HEADER": "Relatórios CSAT",
+    "HEADER": "Satisfação dos clientes (CSAT)",
     "NO_RECORDS": "Ainda não há respostas",
     "NO_RECORDS_DESCRIPTION": "As respostas da pesquisa de CSAT aparecerão aqui assim que os clientes começarem a fornecer comentários.",
     "DOWNLOAD": "Baixar relatórios de CSAT",
@@ -612,7 +649,7 @@
         "AGENTS": "Pesquisar agentes",
         "INBOXES": "Pesquisar caixas de entrada",
         "TEAMS": "Pesquisar times",
-        "RATINGS": "Pesquisar avaliações"
+        "RATINGS": "Pesquisar notas"
       },
       "AGENTS": {
         "LABEL": "Agente"
@@ -624,16 +661,16 @@
         "LABEL": "Time"
       },
       "RATINGS": {
-        "LABEL": "Classificação"
+        "LABEL": "Nota"
       }
     },
     "TABLE": {
       "HEADER": {
         "CONTACT_NAME": "Contato",
         "AGENT_NAME": "Agente",
-        "RATING": "Classificação",
-        "FEEDBACK_TEXT": "Comentário do feedback",
-        "CONVERSATION": "Conversas",
+        "RATING": "Nota",
+        "FEEDBACK_TEXT": "O que o cliente escreveu",
+        "CONVERSATION": "Conversa",
         "CUSTOMER": "Cliente",
         "RESPONSE": "Resposta",
         "HANDLED_BY": "Atendido por"
@@ -644,18 +681,18 @@
     "NO_FEEDBACK": "Nenhum comentário fornecido",
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total de respostas",
-        "TOOLTIP": "Número total de respostas coletadas"
+        "LABEL": "Quantas notas os clientes deram?",
+        "TOOLTIP": "Cada cliente que respondeu a pesquisa de satisfação com uma nota de 1 a 5."
       },
       "SATISFACTION_SCORE": {
-        "LABEL": "Pontuação de satisfação",
-        "TOOLTIP": "Número total de respostas positivas / Número total de respostas * 100"
+        "LABEL": "Quantos ficaram satisfeitos?",
+        "TOOLTIP": "De cada 100 notas, quantas foram 4 ou 5."
       },
       "RESPONSE_RATE": {
-        "LABEL": "Taxa de resposta",
-        "TOOLTIP": "Número total de respostas / Número total de mensagens CSAT de pesquisa enviadas * 100"
+        "LABEL": "Quantos responderam à pesquisa?",
+        "TOOLTIP": "De cada 100 pesquisas enviadas, quantas o cliente respondeu."
       },
-      "RATING_DISTRIBUTION": "Distribuição de avaliações"
+      "RATING_DISTRIBUTION": "Como foram as notas"
     },
     "REVIEW_NOTES": {
       "TITLE": "Notas da avaliação",
@@ -674,10 +711,15 @@
         "UPGRADE_NOW": "Atualizar agora",
         "CANCEL_ANYTIME": "Você pode alterar ou cancelar seu plano a qualquer momento"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "SCORE": "Os clientes deram {total} notas. {satisfied} ficaram satisfeitos (nota 4 ou 5), ou seja, {percent}. {unhappy} ficaram insatisfeitos (nota 1 ou 2).",
+      "RATE": "De cada 100 pesquisas enviadas, {rate} foram respondidas.",
+      "HOW_TO_READ": "A nota vai de 1 (muito ruim) a 5 (excelente). Embaixo estão as respostas, uma por cliente: clique no número da conversa para abrir."
     }
   },
   "NPS_REPORTS": {
-    "HEADER": "Relatórios NPS",
+    "HEADER": "Os clientes recomendariam? (NPS)",
     "NO_RECORDS": "Nenhum registro encontrado",
     "DOWNLOAD": "Exportar CSV",
     "DOWNLOAD_FAILED": "Erro ao baixar relatório NPS",
@@ -687,15 +729,15 @@
       "Y_AXIS": "Quantidade",
       "TOOLTIP": "Nota {score}: {count} ({share}%)",
       "LEGEND": {
-        "DETRACTORS": "Detratores (0-6)",
-        "PASSIVES": "Passivos (7-8)",
-        "PROMOTERS": "Promotores (9-10)"
+        "DETRACTORS": "Não recomendariam (0 a 6)",
+        "PASSIVES": "Neutros (7 e 8)",
+        "PROMOTERS": "Recomendariam (9 e 10)"
       }
     },
     "CLASSIFICATION": {
-      "PROMOTER": "Promotor",
-      "PASSIVE": "Passivo",
-      "DETRACTOR": "Detrator"
+      "PROMOTER": "Recomendaria",
+      "PASSIVE": "Neutro",
+      "DETRACTOR": "Não recomendaria"
     },
     "FILTER": {
       "RESPONDED": "Respondidos",
@@ -706,98 +748,115 @@
       "HEADER": {
         "CONTACT_NAME": "Contato",
         "AGENT_NAME": "Agente",
-        "SCORE": "Score",
-        "CLASSIFICATION": "Classificação"
+        "SCORE": "Nota",
+        "CLASSIFICATION": "O que a nota quer dizer"
       }
     },
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total de Respostas",
-        "TOOLTIP": "Total de respostas NPS recebidas"
+        "LABEL": "Quantas notas?",
+        "TOOLTIP": "Clientes que responderam “de 0 a 10, quanto você recomendaria?”."
       },
       "NPS_SCORE": {
-        "LABEL": "NPS Score",
-        "TOOLTIP": "Net Promoter Score calculado",
+        "LABEL": "Nota NPS",
+        "TOOLTIP": "A porcentagem de quem recomendaria menos a de quem não recomendaria. Vai de −100 a 100.",
         "TREND": "{value} pts vs período anterior"
       },
       "RESPONSE_RATE": {
-        "LABEL": "Taxa de Resposta",
-        "TOOLTIP": "Percentual de respostas em relação aos enviados"
+        "LABEL": "Quantos responderam?",
+        "TOOLTIP": "De cada 100 pesquisas enviadas, quantas foram respondidas."
       },
       "PROMOTERS": {
-        "LABEL": "Promotores",
-        "TOOLTIP": "Percentual de promotores (9-10)"
+        "LABEL": "Recomendariam",
+        "TOOLTIP": "Deram nota 9 ou 10."
       },
       "PASSIVES": {
-        "LABEL": "Passivos",
-        "TOOLTIP": "Percentual de passivos (7-8)"
+        "LABEL": "Neutros",
+        "TOOLTIP": "Deram nota 7 ou 8."
       },
       "DETRACTORS": {
-        "LABEL": "Detratores",
-        "TOOLTIP": "Percentual de detratores (0-6)"
+        "LABEL": "Não recomendariam",
+        "TOOLTIP": "Deram nota de 0 a 6."
       },
       "BLOCKED": {
-        "LABEL": "Bloqueados",
-        "TOOLTIP": "Total de NPS bloqueados por etiquetas"
+        "LABEL": "Não enviadas",
+        "TOOLTIP": "Pesquisas que não foram enviadas porque a conversa tinha uma etiqueta que bloqueia o NPS."
       },
       "DETRACTOR_FOLLOWUP": {
-        "LABEL": "Follow-up de detratores",
-        "TOOLTIP": "Tempo médio até um agente responder um detrator (0-6) após a nota. 'Aguardando' = detratores ainda sem retorno humano.",
+        "LABEL": "Retorno a quem não gostou",
+        "TOOLTIP": "Quanto tempo, em média, um atendente levou para falar com o cliente que deu nota de 0 a 6. “Aguardando” são os que ainda não tiveram retorno.",
         "SUMMARY": "{followedUp} respondidos / {awaiting} aguardando"
       },
       "SCORE_DISTRIBUTION": {
-        "LABEL": "Distribuição de Scores"
+        "LABEL": "Quantos clientes deram cada nota"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "BANDS": "Os clientes deram {total} notas de 0 a 10. {promoters} recomendariam a empresa (nota 9 ou 10), {passives} ficaram neutros (7 ou 8) e {detractors} não recomendariam (0 a 6).",
+      "SCORE": "A nota NPS é {score}. Ela é a porcentagem de quem recomendaria menos a de quem não recomendaria, e vai de −100 a 100: acima de 50 é muito bom, e abaixo de 0 quer dizer que mais gente não recomenda do que recomenda.",
+      "HOW_TO_READ": "Embaixo, o gráfico mostra quantos clientes deram cada nota, e a lista mostra cada resposta: clique no número da conversa para abrir."
     }
   },
   "BOT_REPORTS": {
-    "HEADER": "Relatórios do Bot",
+    "HEADER": "Robôs (atendimento automático)",
     "METRIC": {
       "TOTAL_CONVERSATIONS": {
-        "LABEL": "Nº de Conversas",
-        "TOOLTIP": "Número total de conversas tratadas pelo bot"
+        "LABEL": "Quantas conversas passaram pelo robô?",
+        "TOOLTIP": "Conversas que chegaram em uma caixa com robô ligado."
       },
       "TOTAL_RESPONSES": {
-        "LABEL": "Total de respostas",
-        "TOOLTIP": "Número total de respostas enviadas pelo bot"
+        "LABEL": "Quantas mensagens o robô mandou?",
+        "TOOLTIP": "Mensagens enviadas aos clientes nessas conversas."
       },
       "RESOLUTION_RATE": {
-        "LABEL": "Tempo de resolução",
-        "TOOLTIP": "Número total de conversas resolvidas pelo bot / número total de conversas manipuladas pelo bot * 100"
+        "LABEL": "Quantas o robô resolveu sozinho?",
+        "TOOLTIP": "De cada 100 conversas com o robô, quantas ele resolveu sem precisar de uma pessoa."
       },
       "HANDOFF_RATE": {
-        "LABEL": "Taxa de entrega",
-        "TOOLTIP": "Número total de conversas entregues a agentes / número total de conversas mantidas pelo bot * 100"
+        "LABEL": "Quantas o robô passou para uma pessoa?",
+        "TOOLTIP": "De cada 100 conversas com o robô, quantas ele passou para um atendente."
       }
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversas passaram pelo robô. Ele resolveu {resolved} delas sozinho e passou {handoff} para uma pessoa. Ao todo, foram {messages} mensagens enviadas.",
+      "HOW_TO_READ": "Embaixo, os gráficos mostram dia a dia quantas conversas o robô resolveu e quantas passou para uma pessoa. Clique no número para ver as conversas."
     }
   },
   "OVERVIEW_REPORTS": {
     "HEADER": "Visão geral",
     "LIVE": "Em tempo real",
     "ACCOUNT_CONVERSATIONS": {
-      "HEADER": "Conversas Abertas",
+      "HEADER": "Conversas abertas agora",
       "LOADING_MESSAGE": "Carregando métricas de conversa...",
       "OPEN": "Abertas",
       "UNATTENDED": "Não atendidas",
       "UNASSIGNED": "Não atribuídas",
-      "PENDING": "Pendentes"
+      "PENDING": "Pendentes",
+      "HINT": {
+        "OPEN": "conversas em andamento",
+        "UNATTENDED": "ainda sem 1ª resposta ou esperando resposta",
+        "UNASSIGNED": "sem atendente responsável",
+        "PENDING": "esperando o cliente ou adiadas"
+      }
     },
     "CONVERSATION_HEATMAP": {
-      "HEADER": "Tráfego de conversa",
+      "HEADER": "Quando as conversas chegam",
       "NO_CONVERSATIONS": "Não há conversas",
       "CONVERSATION": "{count} conversa",
       "CONVERSATIONS": "{count} conversas",
-      "DOWNLOAD_REPORT": "Baixar relatório"
+      "DOWNLOAD_REPORT": "Baixar relatório",
+      "CAPTION": "Cada quadradinho é uma hora de um dia da semana. Quanto mais escuro, mais conversas chegaram naquela hora. Passe o mouse em cima para ver o número."
     },
     "RESOLUTION_HEATMAP": {
-      "HEADER": "Resoluções",
+      "HEADER": "Quando as conversas são resolvidas",
       "NO_CONVERSATIONS": "Não há conversas",
       "CONVERSATION": "{count} conversa",
       "CONVERSATIONS": "{count} conversas",
-      "DOWNLOAD_REPORT": "Baixar relatório"
+      "DOWNLOAD_REPORT": "Baixar relatório",
+      "CAPTION": "Cada quadradinho é uma hora de um dia da semana. Quanto mais escuro, mais conversas foram resolvidas naquela hora. Passe o mouse em cima para ver o número."
     },
     "AGENT_CONVERSATIONS": {
-      "HEADER": "Conversas por agentes",
+      "HEADER": "Conversas abertas de cada atendente",
       "LOADING_MESSAGE": "Carregando métricas de agente...",
       "NO_AGENTS": "Não há conversas por agentes",
       "TABLE_HEADER": {
@@ -809,21 +868,27 @@
     },
     "TEAM_CONVERSATIONS": {
       "ALL_TEAMS": "Todos os Times",
-      "HEADER": "Conversas por times",
+      "HEADER": "Conversas abertas de cada time",
       "LOADING_MESSAGE": "Carregando métricas de times...",
       "NO_TEAMS": "Não há dados disponíveis",
       "TABLE_HEADER": {
         "TEAM": "Time",
-        "OPEN": "Abrir",
+        "OPEN": "Abertas",
         "UNATTENDED": "Não atendidas",
         "STATUS": "Status"
       }
     },
     "AGENT_STATUS": {
-      "HEADER": "Status do agente",
+      "HEADER": "Atendentes agora",
       "ONLINE": "Disponível",
       "BUSY": "Ocupado",
       "OFFLINE": "Desconectado"
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "Agora, em poucas palavras",
+      "OPEN": "Há {open} conversas abertas: {unattended} ainda esperam resposta e {unassigned} estão sem atendente. Outras {pending} estão pendentes.",
+      "AGENTS": "Dos atendentes, {online} estão disponíveis, {busy} ocupados e {offline} desconectados.",
+      "HOW_TO_READ": "Estes números são de agora e se atualizam sozinhos. Clique em um número sublinhado para ver as conversas, começando por quem espera há mais tempo."
     }
   },
   "DAYS_OF_WEEK": {
@@ -836,8 +901,8 @@
     "SATURDAY": "Sábado"
   },
   "SLA_REPORTS": {
-    "HEADER": "Relatórios SLA",
-    "NO_RECORDS": "Conversas com SLA aplicadas não estão disponíveis.",
+    "HEADER": "Prazos de atendimento (SLA)",
+    "NO_RECORDS": "Nenhuma conversa passou do prazo neste período. 🎉",
     "LOADING": "Carregando dados de SLA...",
     "DOWNLOAD_SLA_REPORTS": "Baixar relatórios de SLA",
     "DOWNLOAD_FAILED": "Falha ao baixar os relatórios de SLA",
@@ -855,47 +920,51 @@
         "LABELS": "Nome da etiqueta",
         "TEAMS": "Nome do Time"
       },
-      "SLA": "Política SLA",
+      "SLA": "Prazo (política de SLA)",
       "INBOXES": "Caixa de Entrada",
       "AGENTS": "Agente",
-      "LABELS": "Nome do campo",
+      "LABELS": "Etiqueta",
       "TEAMS": "Time"
     },
     "WITH": "com",
     "METRICS": {
       "HIT_RATE": {
-        "LABEL": "Taxa de acerto",
-        "TOOLTIP": "Porcentagem de SLAs criados foram concluídos com êxito"
+        "LABEL": "Quantas cumpriram o prazo?",
+        "TOOLTIP": "De cada 100 conversas com prazo, quantas foram atendidas dentro dele."
       },
       "NO_OF_MISSES": {
-        "LABEL": "Número de Erros",
-        "TOOLTIP": "Total de SLA perdidos em um determinado período"
+        "LABEL": "Quantas passaram do prazo?",
+        "TOOLTIP": "Conversas em que a equipe não respondeu ou não resolveu dentro do prazo combinado."
       },
       "NO_OF_CONVERSATIONS": {
-        "LABEL": "Nº de Conversas",
-        "TOOLTIP": "Número total de conversas com SLA"
+        "LABEL": "Quantas tinham prazo?",
+        "TOOLTIP": "Conversas que tinham um prazo de atendimento (SLA) no período."
       }
     },
     "TABLE": {
       "HEADER": {
-        "POLICY": "Política",
-        "CONVERSATION": "Conversas",
-        "AGENT": "Agente"
+        "POLICY": "Prazo combinado",
+        "CONVERSATION": "Conversa que passou do prazo",
+        "AGENT": "Atendente"
       },
-      "VIEW_DETAILS": "Ver detalhes"
+      "VIEW_DETAILS": "Ver o que passou do prazo"
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversas tinham um prazo combinado para ser atendidas (SLA). {rate} cumpriram o prazo e {misses} passaram dele.",
+      "HOW_TO_READ": "Embaixo estão só as conversas que passaram do prazo. Clique em “Ver o que passou do prazo” para saber qual prazo foi perdido, ou no número para abrir a conversa."
     }
   },
   "SUMMARY_REPORTS": {
     "INBOX": "Caixa de Entrada",
     "AGENT": "Agente",
     "TEAM": "Time",
-    "LABEL": "Nome do campo",
-    "AVG_RESOLUTION_TIME": "Tempo Médio de Resolução",
-    "AVG_FIRST_RESPONSE_TIME": "Tempo Médio de Primeira Resposta",
-    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "Tempo Médio Após Transferência",
-    "AVG_REPLY_TIME": "Tempo Médio de Espera do Cliente",
-    "RESOLUTION_COUNT": "Contagem de Resolução",
-    "CONVERSATIONS": "Nº de Conversas"
+    "LABEL": "Etiqueta",
+    "AVG_RESOLUTION_TIME": "Tempo para resolver",
+    "AVG_FIRST_RESPONSE_TIME": "Espera pela 1ª resposta",
+    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "1ª resposta depois de chegar ao atendente",
+    "AVG_REPLY_TIME": "Espera entre mensagens",
+    "RESOLUTION_COUNT": "Resolvidas",
+    "CONVERSATIONS": "Conversas"
   },
   "LIVE_REPORTS": {
     "IN_SERVICE": {
