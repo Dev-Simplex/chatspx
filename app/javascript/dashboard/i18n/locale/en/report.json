@@ -714,7 +714,7 @@
     },
     "PLAIN_SUMMARY": {
       "SCORE": "Customers gave {total} ratings. {satisfied} were satisfied (rating 4 or 5), that is {percent}. {unhappy} were unhappy (rating 1 or 2).",
-      "RATE": "Out of every 100 surveys sent, {rate} were answered.",
+      "RATE": "{rate} of the surveys sent were answered.",
       "HOW_TO_READ": "The rating goes from 1 (very bad) to 5 (excellent). Below are the answers, one per customer: click the conversation number to open it."
     }
   },

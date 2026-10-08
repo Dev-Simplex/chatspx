@@ -714,7 +714,7 @@
     },
     "PLAIN_SUMMARY": {
       "SCORE": "Os clientes deram {total} notas. {satisfied} ficaram satisfeitos (nota 4 ou 5), ou seja, {percent}. {unhappy} ficaram insatisfeitos (nota 1 ou 2).",
-      "RATE": "De cada 100 pesquisas enviadas, {rate} foram respondidas.",
+      "RATE": "{rate} das pesquisas enviadas foram respondidas.",
       "HOW_TO_READ": "A nota vai de 1 (muito ruim) a 5 (excelente). Embaixo estão as respostas, uma por cliente: clique no número da conversa para abrir."
     }
   },
