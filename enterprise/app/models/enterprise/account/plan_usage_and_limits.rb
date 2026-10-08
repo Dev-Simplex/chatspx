@@ -80,12 +80,21 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
                end
 
     consumed = 0 if consumed.negative?
+    # Sem teto, o disponível não desconta o consumo, que segue contado só como métrica.
+    current_available = type == :responses && captain_responses_uncapped? ? total_count : (total_count - consumed).clamp(0, total_count)
 
     {
       total_count: total_count,
-      current_available: (total_count - consumed).clamp(0, total_count),
+      current_available: current_available,
       consumed: consumed
     }
+  end
+
+  # O contador de respostas é vitalício e só o webhook do Stripe o zera. Sem limite na conta e
+  # sem CAPTAIN_CLOUD_PLAN_LIMITS (self-hosted), contar contra o teto padrão esgotava a IA de vez.
+  # Documentos ficam de fora: o uso deles é recontado do estoque atual e cai quando se apaga.
+  def captain_responses_uncapped?
+    self[:limits][CAPTAIN_RESPONSES].nil? && InstallationConfig.find_by(name: 'CAPTAIN_CLOUD_PLAN_LIMITS')&.value.blank?
   end
 
   def plan_email_limit
