@@ -70,7 +70,7 @@
   <%= render 'reports/pdf/kpi_band', cards: [
     { label: 'Nota NPS', value: score, hero: true, meaning: 'acima de 50 é muito bom; abaixo de 0, mais gente não recomenda', delta: delta_html },
     { label: 'Notas recebidas', value: number_with_delimiter(k[:total]), meaning: 'clientes que responderam' },
-    { label: 'Responderam', value: "#{br.call(k[:response_rate])}%", meaning: 'de cada 100 pesquisas enviadas' },
+    { label: 'Responderam', value: "#{br.call(k[:response_rate])}%", meaning: 'das pesquisas enviadas' },
     { label: 'Recomendariam', value: "#{br.call(k[:promoters_pct])}%", modifier: 'is-promoter', meaning: "#{k[:promoters]} deram 9 ou 10" },
     { label: 'Não recomendariam', value: "#{br.call(k[:detractors_pct])}%", modifier: 'is-detractor', meaning: "#{k[:detractors]} deram de 0 a 6" },
   ] %>

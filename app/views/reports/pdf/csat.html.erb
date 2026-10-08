@@ -53,7 +53,7 @@
     { label: 'Notas recebidas', value: number_with_delimiter(k[:total]),
       meaning: 'clientes que responderam a pesquisa', delta: pdf_delta(cmp[:total]) },
     { label: 'Nota média', value: br.call(k[:avg_rating]), meaning: 'de 1 (muito ruim) a 5 (excelente)', delta: pdf_delta(cmp[:avg]) },
-    { label: 'Responderam', value: "#{br.call(k[:response_rate])}%", meaning: 'de cada 100 pesquisas enviadas' },
+    { label: 'Responderam', value: "#{br.call(k[:response_rate])}%", meaning: 'das pesquisas enviadas' },
   ] %>
 </div>
 
