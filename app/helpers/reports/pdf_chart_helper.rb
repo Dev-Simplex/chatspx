@@ -289,7 +289,8 @@ module Reports::PdfChartHelper
     last = points.size - 1
     points.each_with_index.map do |(point_x, point_y), i|
       show = i.zero? || i == last || highlight.include?(i) || points.size <= 8
-      text = format_chart_value(series[i][:value], value_format)
+      # Dia sem conversa nao tem tempo para mostrar ("N/A" so confundia).
+      text = value_format == :seconds && series[i][:value].to_f.zero? ? '' : format_chart_value(series[i][:value], value_format)
       label = show && text.present? ? chart_text(point_x, dot_label_y(point_y), text, color: '#667781', weight: 700, anchor: dot_anchor(i, last)) : ''
       %(<circle cx="#{point_x}" cy="#{point_y}" r="3" fill="#ffffff" stroke="#{color}" stroke-width="2"/>#{label})
     end.join
