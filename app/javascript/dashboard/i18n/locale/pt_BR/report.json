@@ -897,8 +897,8 @@
     "SATURDAY": "Sábado"
   },
   "SLA_REPORTS": {
-    "HEADER": "Relatórios SLA",
-    "NO_RECORDS": "Conversas com SLA aplicadas não estão disponíveis.",
+    "HEADER": "Prazos de atendimento (SLA)",
+    "NO_RECORDS": "Nenhuma conversa passou do prazo neste período. 🎉",
     "LOADING": "Carregando dados de SLA...",
     "DOWNLOAD_SLA_REPORTS": "Baixar relatórios de SLA",
     "DOWNLOAD_FAILED": "Falha ao baixar os relatórios de SLA",
@@ -916,34 +916,38 @@
         "LABELS": "Nome da etiqueta",
         "TEAMS": "Nome do Time"
       },
-      "SLA": "Política SLA",
+      "SLA": "Prazo (política de SLA)",
       "INBOXES": "Caixa de Entrada",
       "AGENTS": "Agente",
-      "LABELS": "Nome do campo",
+      "LABELS": "Etiqueta",
       "TEAMS": "Time"
     },
     "WITH": "com",
     "METRICS": {
       "HIT_RATE": {
-        "LABEL": "Taxa de acerto",
-        "TOOLTIP": "Porcentagem de SLAs criados foram concluídos com êxito"
+        "LABEL": "Quantas cumpriram o prazo?",
+        "TOOLTIP": "De cada 100 conversas com prazo, quantas foram atendidas dentro dele."
       },
       "NO_OF_MISSES": {
-        "LABEL": "Número de Erros",
-        "TOOLTIP": "Total de SLA perdidos em um determinado período"
+        "LABEL": "Quantas passaram do prazo?",
+        "TOOLTIP": "Conversas em que a equipe não respondeu ou não resolveu dentro do prazo combinado."
       },
       "NO_OF_CONVERSATIONS": {
-        "LABEL": "Nº de Conversas",
-        "TOOLTIP": "Número total de conversas com SLA"
+        "LABEL": "Quantas tinham prazo?",
+        "TOOLTIP": "Conversas que tinham um prazo de atendimento (SLA) no período."
       }
     },
     "TABLE": {
       "HEADER": {
-        "POLICY": "Política",
-        "CONVERSATION": "Conversas",
-        "AGENT": "Agente"
+        "POLICY": "Prazo combinado",
+        "CONVERSATION": "Conversa que passou do prazo",
+        "AGENT": "Atendente"
       },
-      "VIEW_DETAILS": "Ver detalhes"
+      "VIEW_DETAILS": "Ver o que passou do prazo"
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversas tinham um prazo combinado para ser atendidas (SLA). {rate} cumpriram o prazo e {misses} passaram dele.",
+      "HOW_TO_READ": "Embaixo estão só as conversas que passaram do prazo. Clique em “Ver o que passou do prazo” para saber qual prazo foi perdido, ou no número para abrir a conversa."
     }
   },
   "SUMMARY_REPORTS": {

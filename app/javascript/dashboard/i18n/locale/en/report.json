@@ -897,8 +897,8 @@
     "SATURDAY": "Saturday"
   },
   "SLA_REPORTS": {
-    "HEADER": "SLA Reports",
-    "NO_RECORDS": "SLA applied conversations are not available.",
+    "HEADER": "Response deadlines (SLA)",
+    "NO_RECORDS": "No conversation missed the deadline in this period. 🎉",
     "LOADING": "Loading SLA data...",
     "DOWNLOAD_SLA_REPORTS": "Download SLA reports",
     "DOWNLOAD_FAILED": "Failed to download SLA Reports",
@@ -916,7 +916,7 @@
         "LABELS": "Label name",
         "TEAMS": "Team name"
       },
-      "SLA": "SLA Policy",
+      "SLA": "Deadline (SLA policy)",
       "INBOXES": "Inbox",
       "AGENTS": "Agent",
       "LABELS": "Label",
@@ -925,25 +925,29 @@
     "WITH": "with",
     "METRICS": {
       "HIT_RATE": {
-        "LABEL": "Hit Rate",
-        "TOOLTIP": "Percentage of SLAs created were completed successfully"
+        "LABEL": "How many met the deadline?",
+        "TOOLTIP": "Out of every 100 conversations with a deadline, how many were handled within it."
       },
       "NO_OF_MISSES": {
-        "LABEL": "Number of Misses",
-        "TOOLTIP": "Total SLA misses in a certain period"
+        "LABEL": "How many missed the deadline?",
+        "TOOLTIP": "Conversations where the team did not reply or resolve within the agreed deadline."
       },
       "NO_OF_CONVERSATIONS": {
-        "LABEL": "Number of Conversations",
-        "TOOLTIP": "Total number of conversations with SLA"
+        "LABEL": "How many had a deadline?",
+        "TOOLTIP": "Conversations that had a response deadline (SLA) in the period."
       }
     },
     "TABLE": {
       "HEADER": {
-        "POLICY": "Policy",
-        "CONVERSATION": "Conversation",
+        "POLICY": "Agreed deadline",
+        "CONVERSATION": "Conversation that missed it",
         "AGENT": "Agent"
       },
-      "VIEW_DETAILS": "View Details"
+      "VIEW_DETAILS": "See what was missed"
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversations had an agreed response deadline (SLA). {rate} met the deadline and {misses} missed it.",
+      "HOW_TO_READ": "Below are only the conversations that missed the deadline. Click “See what was missed” to know which deadline was lost, or the number to open the conversation."
     }
   },
   "SUMMARY_REPORTS": {
