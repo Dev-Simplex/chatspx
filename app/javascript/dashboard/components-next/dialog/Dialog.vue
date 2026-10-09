@@ -181,13 +181,16 @@ defineExpose({ open, close });
               </h3>
               <button
                 v-if="showCloseButton"
-                v-tooltip="t('DIALOG.BUTTONS.CLOSE')"
+                v-tooltip="{
+                  content: t('DIALOG.BUTTONS.CLOSE'),
+                  container: 'dialog[open]',
+                }"
                 type="button"
                 class="inline-flex items-center justify-center flex-shrink-0 -mt-1 -me-2 rounded-full size-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
                 :aria-label="t('DIALOG.BUTTONS.CLOSE')"
                 @click="close"
               >
-                <span class="i-lucide-x size-5" />
+                <span class="text-lg i-lucide-x" />
               </button>
             </div>
             <slot name="description">

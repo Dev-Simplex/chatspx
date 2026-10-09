@@ -324,7 +324,7 @@ defineExpose({ openCompose, focusSearch });
                   :aria-label="t('INTERNAL_CHAT.CLOSE')"
                   @click="showSettings = false"
                 >
-                  <span class="i-lucide-x size-4" />
+                  <span class="text-base i-lucide-x" />
                 </button>
               </div>
               <NotificationSettings />
@@ -360,7 +360,7 @@ defineExpose({ openCompose, focusSearch });
                   :aria-label="t('INTERNAL_CHAT.CLOSE')"
                   @click="closeCompose"
                 >
-                  <span class="i-lucide-x size-4" />
+                  <span class="text-base i-lucide-x" />
                 </button>
               </div>
               <!-- mode switch -->

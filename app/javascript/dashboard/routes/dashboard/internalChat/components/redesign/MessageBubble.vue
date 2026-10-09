@@ -327,7 +327,7 @@ const iReacted = emoji =>
           ref="editRef"
           v-model="editDraft"
           rows="2"
-          class="reset-base w-full px-3.5 py-2 text-[15px] border outline-none !outline-0 resize-none rounded-2xl bg-n-solid-1 border-n-weak text-n-slate-12 focus:border-n-teal-9"
+          class="reset-base w-full px-3.5 py-2 text-[15px] border outline-none !outline-0 resize-none rounded-2xl bg-n-solid-1 border-n-strong text-n-slate-12 focus:border-n-teal-9"
           @keydown.enter.exact.prevent="saveEdit"
           @keydown.esc.stop="cancelEdit"
         />
@@ -337,7 +337,8 @@ const iReacted = emoji =>
           </button>
           <button
             type="button"
-            class="font-semibold text-n-teal-11"
+            class="font-semibold text-n-teal-11 disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="!editDraft.trim()"
             @click="saveEdit"
           >
             {{ t('INTERNAL_CHAT.SAVE_EDIT') }}

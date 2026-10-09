@@ -18,6 +18,9 @@ const store = useStore();
 const { t } = useI18n();
 const dialogRef = ref(null);
 const nameRef = ref(null);
+// Dica dentro do <dialog> modal: nasce dentro dele, senão fica atrás (camada
+// do topo do navegador) e não aparece.
+const tip = content => ({ content, container: 'dialog[open]' });
 // Botão "Remover" da confirmação já com o foco (Enter confirma).
 const vFocusOnMount = { mounted: el => el.focus() };
 
@@ -184,7 +187,7 @@ watch(
             class="reset-base flex-1 min-w-0 px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand"
             @keydown.enter.prevent="rename"
           />
-          <span v-tooltip="saveBlockedReason" class="inline-flex">
+          <span v-tooltip="tip(saveBlockedReason)" class="inline-flex">
             <Button
               type="button"
               color="blue"
@@ -271,7 +274,9 @@ watch(
               <button
                 v-else
                 v-tooltip="
-                  t('INTERNAL_CHAT.MANAGE.REMOVE_NAME', { name: member.name })
+                  tip(
+                    t('INTERNAL_CHAT.MANAGE.REMOVE_NAME', { name: member.name })
+                  )
                 "
                 type="button"
                 class="inline-flex items-center justify-center rounded-full size-7 text-n-slate-10 hover:bg-n-ruby-3 hover:text-n-ruby-11"
@@ -280,7 +285,7 @@ watch(
                 "
                 @click="confirmRemoveId = member.id"
               >
-                <span class="i-lucide-user-minus size-4" />
+                <span class="text-base i-lucide-user-minus" />
               </button>
             </template>
           </div>
@@ -330,7 +335,9 @@ watch(
           <button
             v-for="agent in filteredAddable"
             :key="agent.id"
-            v-tooltip="t('INTERNAL_CHAT.MANAGE.ADD_NAME', { name: agent.name })"
+            v-tooltip="
+              tip(t('INTERNAL_CHAT.MANAGE.ADD_NAME', { name: agent.name }))
+            "
             type="button"
             class="flex items-center gap-2.5 w-full px-2 py-1.5 rounded-lg text-sm text-n-slate-12 hover:bg-n-alpha-1 disabled:opacity-60"
             :disabled="Boolean(busyId)"
@@ -347,7 +354,7 @@ watch(
               v-if="busyId === agent.id"
               class="i-lucide-loader-circle animate-spin text-n-slate-10"
             />
-            <span v-else class="i-lucide-user-plus size-4 text-n-slate-10" />
+            <span v-else class="text-base i-lucide-user-plus text-n-slate-10" />
           </button>
         </div>
       </div>
