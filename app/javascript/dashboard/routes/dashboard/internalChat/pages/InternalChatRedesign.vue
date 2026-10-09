@@ -235,12 +235,20 @@ const mapChannel = ch => {
     // Somente-leitura quando o usuário não é membro do canal (auditoria admin
     // ou grupo de time aberto por um admin que não está na equipe).
     readOnly: !isMember,
+    // Arquivada só para mim: sai da lista até chegar mensagem nova.
+    archived: Boolean(ch.archived_at),
   };
 };
 
 // Mais recente no topo (como em qualquer mensageiro); sem mensagem vai pro fim.
-const conversationList = computed(() =>
+const allConversations = computed(() =>
   rawChannelList.value.map(mapChannel).sort((a, b) => b.lastAt - a.lastAt)
+);
+const conversationList = computed(() =>
+  allConversations.value.filter(c => !c.archived)
+);
+const archivedList = computed(() =>
+  allConversations.value.filter(c => c.archived)
 );
 
 const activeRaw = computed(
@@ -723,6 +731,25 @@ const onCreateTeam = async team => {
   }
 };
 
+// Arquivar (só para mim): sai da lista sem sair do grupo; volta sozinha com
+// mensagem nova. "Arquivadas (N)" fica no fim da lista.
+const setArchived = async (id, archived) => {
+  if (id == null) return;
+  try {
+    await store.dispatch('internalChat/archiveChannel', {
+      channelId: id,
+      archived,
+    });
+    useAlert(
+      archived
+        ? t('INTERNAL_CHAT.ARCHIVE.DONE_ON')
+        : t('INTERNAL_CHAT.ARCHIVE.DONE_OFF')
+    );
+  } catch {
+    failAlert();
+  }
+};
+
 const onFavorite = () => {
   const id = activeId.value;
   if (id == null) return;
@@ -887,6 +914,7 @@ onBeforeUnmount(() => {
         ref="chatSidebarRef"
         class="flex-1 min-h-0"
         :conversations="conversationList"
+        :archived="archivedList"
         :active-id="activeId"
         :agents="agents"
         :teams="teamList"
@@ -903,6 +931,7 @@ onBeforeUnmount(() => {
         @toggle-audit="toggleAudit"
         @retry="resyncList"
         @open-message="onOpenMessage"
+        @unarchive="id => setArchived(id, false)"
       />
       <InternalChatPushPrompt v-if="activeId" />
     </div>
@@ -926,6 +955,7 @@ onBeforeUnmount(() => {
             @manage="showManage = true"
             @toggle-mute="onToggleMute"
             @favorite="onFavorite"
+            @archive="setArchived(activeId, !activeConversation.archived)"
             @leave="onLeave"
             @clear="onClear"
           />
@@ -1054,7 +1084,7 @@ onBeforeUnmount(() => {
         <ForwardDialog
           v-if="forwarding"
           :message="forwarding.message"
-          :conversations="conversationList"
+          :conversations="allConversations"
           :agents="agents"
           :current-user-id="currentUserId"
           :sending="forwarding.sending"

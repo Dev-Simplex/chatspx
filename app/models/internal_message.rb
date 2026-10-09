@@ -69,6 +69,10 @@ class InternalMessage < ApplicationRecord
 
   scope :recent_first, -> { order(created_at: :desc) }
 
+  # "Arquivar conversa" é até chegar mensagem nova (como no WhatsApp): qualquer mensagem, inclusive
+  # aviso do sistema, devolve a conversa à lista de todo mundo que a tinha arquivado.
+  after_create_commit :unarchive_channel
+
   def deleted?
     deleted_at.present?
   end
@@ -108,6 +112,10 @@ class InternalMessage < ApplicationRecord
   end
 
   private
+
+  def unarchive_channel
+    internal_channel.members.where.not(archived_at: nil).update_all(archived_at: nil) # rubocop:disable Rails/SkipsModelValidations
+  end
 
   # Reject oversized attachments before they are persisted (the controller maps
   # ActiveRecord::RecordInvalid to a 422). Inspects the pending upload directly,

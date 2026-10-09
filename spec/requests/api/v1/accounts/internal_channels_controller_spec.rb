@@ -258,4 +258,37 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe 'POST /internal_channels/:id/archive' do
+    let(:channel) { create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob) }
+    let(:url) { "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/archive" }
+
+    it 'archives only for me (bob still sees it in his list)' do
+      post url, params: { archived: true }, headers: alice.create_new_auth_token
+
+      expect(response.parsed_body['archived_at']).to be_present
+      get "/api/v1/accounts/#{account.id}/internal_channels", headers: bob.create_new_auth_token
+      expect(response.parsed_body.first['archived_at']).to be_nil
+    end
+
+    it 'comes back by itself when a new message arrives' do
+      post url, params: { archived: true }, headers: alice.create_new_auth_token
+      create(:internal_message, internal_channel: channel, user: bob, content: 'voltou?')
+
+      expect(channel.members.find_by(user: alice).reload.archived_at).to be_nil
+    end
+
+    it 'unarchives on request' do
+      channel.members.find_by(user: alice).update!(archived_at: Time.current)
+
+      post url, params: { archived: false }, headers: alice.create_new_auth_token
+
+      expect(response.parsed_body['archived_at']).to be_nil
+    end
+
+    it 'refuses someone outside the conversation' do
+      post url, params: { archived: true }, headers: outsider.create_new_auth_token
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

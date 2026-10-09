@@ -19,6 +19,8 @@ const props = defineProps({
   currentUserId: { type: [Number, String], default: null },
   // Colegas online agora (já sem o próprio usuário): faixa de atalho no topo.
   onlineAgents: { type: Array, default: () => [] },
+  // Conversas que EU arquivei (somem da lista até chegar mensagem nova).
+  archived: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits([
@@ -29,6 +31,7 @@ const emit = defineEmits([
   'toggleAudit',
   'retry',
   'openMessage',
+  'unarchive',
 ]);
 
 const { t } = useI18n();
@@ -134,6 +137,8 @@ const peopleResults = computed(() => {
 const emptyFilterText = computed(() => {
   if (search.value.trim()) return t('INTERNAL_CHAT.NO_SEARCH_RESULTS');
   if (activeFilter.value === 'unread') return t('INTERNAL_CHAT.LIST.NO_UNREAD');
+  if (activeFilter.value === 'all')
+    return t('INTERNAL_CHAT.ARCHIVE.ALL_ARCHIVED');
   return t('INTERNAL_CHAT.LIST.NO_FAVORITES');
 });
 
@@ -258,7 +263,20 @@ const startTeam = team => {
   emit('createTeam', team);
 };
 
+// "Arquivadas (N)": vista própria no lugar da lista (Esc ou ← volta).
+const showArchived = ref(false);
+const archivedFiltered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  return q
+    ? props.archived.filter(c => c.name.toLowerCase().includes(q))
+    : props.archived;
+});
+const selectArchived = id => emit('select', id);
+
 useEscClose(showCompose, closeCompose);
+useEscClose(showArchived, () => {
+  showArchived.value = false;
+});
 useEscClose(showSettings, () => {
   showSettings.value = false;
 });
@@ -745,9 +763,61 @@ defineExpose({ openCompose, focusSearch });
           {{ t('INTERNAL_CHAT.RETRY') }}
         </button>
       </div>
+      <!-- Arquivadas: só as minhas; voltam sozinhas com mensagem nova -->
+      <div v-else-if="showArchived" class="pt-1">
+        <div class="flex items-center gap-1 px-1 pb-1">
+          <button
+            v-tooltip="t('INTERNAL_CHAT.ARCHIVE.BACK')"
+            type="button"
+            class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+            :aria-label="t('INTERNAL_CHAT.ARCHIVE.BACK')"
+            @click="showArchived = false"
+          >
+            <span class="flex-shrink-0 i-lucide-chevron-left size-5" />
+          </button>
+          <h2 class="mb-0 text-sm font-semibold text-n-slate-12">
+            {{ t('INTERNAL_CHAT.ARCHIVE.TITLE') }}
+          </h2>
+        </div>
+        <p class="px-4 pb-2 mb-0 text-xs text-n-slate-11">
+          {{ t('INTERNAL_CHAT.ARCHIVE.LIST_HINT') }}
+        </p>
+        <p
+          v-if="!archivedFiltered.length"
+          class="px-4 py-8 mb-0 text-sm text-center text-n-slate-10"
+        >
+          {{
+            search.trim()
+              ? t('INTERNAL_CHAT.NO_SEARCH_RESULTS')
+              : t('INTERNAL_CHAT.ARCHIVE.EMPTY')
+          }}
+        </p>
+        <div
+          v-for="c in archivedFiltered"
+          :key="`arch-${c.id}`"
+          class="relative flex items-center group/arch"
+        >
+          <ConversationListItem
+            class="flex-1 min-w-0"
+            :conversation="c"
+            :active="c.id === activeId"
+            :current-user-id="currentUserId"
+            @select="selectArchived"
+          />
+          <button
+            v-tooltip="t('INTERNAL_CHAT.ARCHIVE.OFF')"
+            type="button"
+            class="absolute inline-flex items-center justify-center -translate-y-1/2 border rounded-full shadow-sm right-2 top-1/2 size-8 bg-n-solid-1 dark:bg-n-solid-3 border-n-weak text-n-slate-11 hover:text-n-slate-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+            :aria-label="t('INTERNAL_CHAT.ARCHIVE.OFF')"
+            @click="emit('unarchive', c.id)"
+          >
+            <span class="flex-shrink-0 i-lucide-archive-restore size-4" />
+          </button>
+        </div>
+      </div>
       <!-- Ninguém conversou ainda: diz o que fazer -->
       <div
-        v-else-if="!conversations.length && !search.trim()"
+        v-else-if="!conversations.length && !archived.length && !search.trim()"
         class="flex flex-col items-center gap-3 px-6 py-10 text-center"
       >
         <span class="text-3xl i-lucide-messages-square text-n-slate-9" />
@@ -832,6 +902,31 @@ defineExpose({ openCompose, focusSearch });
         >
           {{ emptyFilterText }}
         </p>
+
+        <!-- Arquivadas (N): no fim da lista, como no WhatsApp -->
+        <button
+          v-if="archived.length && activeFilter === 'all' && !search.trim()"
+          type="button"
+          class="flex items-center w-full gap-3 py-2.5 pl-4 pr-3 mt-1 text-left transition-colors rounded-2xl hover:bg-n-alpha-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+          @click="showArchived = true"
+        >
+          <span
+            class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-12 bg-n-alpha-2 text-n-slate-11"
+          >
+            <span class="flex-shrink-0 i-lucide-archive size-5" />
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="block text-[15px] font-semibold text-n-slate-12">
+              {{ t('INTERNAL_CHAT.ARCHIVE.ROW', { count: archived.length }) }}
+            </span>
+            <span class="block text-xs text-n-slate-11">
+              {{ t('INTERNAL_CHAT.ARCHIVE.ROW_HINT') }}
+            </span>
+          </span>
+          <span
+            class="flex-shrink-0 i-lucide-chevron-right size-4 text-n-slate-10"
+          />
+        </button>
 
         <!-- Resultados de mensagens (busca por conteúdo, cross-channel) -->
         <template v-if="showMessageResults">

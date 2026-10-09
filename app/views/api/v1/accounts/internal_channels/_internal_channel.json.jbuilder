@@ -13,6 +13,9 @@ json.members channel.members do |m|
   json.last_seen_at internal_chat_last_seen[m.user_id]
 end
 
+# Arquivada só para mim (nulo = na lista).
+json.archived_at channel.members.detect { |m| m.user_id == Current.user.id }&.archived_at&.to_i
+
 # On the list (index) the controller precomputes these in 2 grouped queries; on
 # show (single channel) the ivars are absent, so fall back to per-channel lookups.
 if defined?(@unread_counts) && @unread_counts

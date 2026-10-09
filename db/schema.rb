@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_09_190000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_09_200000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1598,6 +1598,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_09_190000) do
     t.datetime "last_read_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "archived_at"
     t.index ["internal_channel_id", "user_id"], name: "idx_on_internal_channel_id_user_id_30257ceaa6", unique: true
     t.index ["internal_channel_id"], name: "index_internal_channel_members_on_internal_channel_id"
     t.index ["user_id"], name: "index_internal_channel_members_on_user_id"

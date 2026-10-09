@@ -415,6 +415,20 @@
       "SEARCH": "Buscar por nome ou endereço…",
       "OPEN_FILE": "Abrir em outra aba",
       "GO_TO_MESSAGE": "Ir até a mensagem"
+    },
+    "ARCHIVE": {
+      "ON": "Arquivar conversa",
+      "OFF": "Desarquivar",
+      "HINT": "Sai da sua lista sem sair do grupo. Volta quando chegar mensagem nova.",
+      "DONE_ON": "Conversa arquivada. Ela volta quando chegar mensagem nova (veja em Arquivadas, no fim da lista).",
+      "DONE_OFF": "Conversa de volta à sua lista.",
+      "TITLE": "Arquivadas",
+      "BACK": "Voltar às conversas",
+      "LIST_HINT": "Só você vê. Cada conversa volta para a lista quando chega mensagem nova.",
+      "EMPTY": "Nenhuma conversa arquivada.",
+      "ROW": "Arquivadas ({count})",
+      "ROW_HINT": "Fora da sua lista até chegar mensagem nova",
+      "ALL_ARCHIVED": "Todas as suas conversas estão arquivadas. Veja em Arquivadas, abaixo."
     }
   }
 }

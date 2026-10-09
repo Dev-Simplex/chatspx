@@ -415,6 +415,20 @@
       "SEARCH": "Search by name or address…",
       "OPEN_FILE": "Open in a new tab",
       "GO_TO_MESSAGE": "Go to the message"
+    },
+    "ARCHIVE": {
+      "ON": "Archive conversation",
+      "OFF": "Unarchive",
+      "HINT": "Leaves your list without leaving the group. Comes back when a new message arrives.",
+      "DONE_ON": "Conversation archived. It comes back when a new message arrives (see Archived, at the end of the list).",
+      "DONE_OFF": "Conversation back in your list.",
+      "TITLE": "Archived",
+      "BACK": "Back to conversations",
+      "LIST_HINT": "Only you see this. Each conversation comes back to the list when a new message arrives.",
+      "EMPTY": "No archived conversations.",
+      "ROW": "Archived ({count})",
+      "ROW_HINT": "Out of your list until a new message arrives",
+      "ALL_ARCHIVED": "All your conversations are archived. See Archived below."
     }
   }
 }

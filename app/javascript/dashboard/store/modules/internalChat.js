@@ -285,6 +285,12 @@ export const actions = {
     await InternalChatAPI.leaveChannel(channelId);
     commit('REMOVE_CHANNEL', channelId);
   },
+  // Arquivar só tira da MINHA lista; o servidor devolve o canal atualizado.
+  archiveChannel: async ({ commit }, { channelId, archived }) => {
+    const { data } = await InternalChatAPI.archiveChannel(channelId, archived);
+    commit('UPSERT_CHANNEL', data);
+    return data;
+  },
   // Real-time: a channel's name/membership changed elsewhere.
   applyChannelUpdated: ({ dispatch }) => dispatch('fetchChannels'),
 
@@ -327,6 +333,8 @@ export const actions = {
       commit('APPEND_MESSAGE', { channelId, message });
     }
     commit('SET_LAST_MESSAGE', { channelId, message });
+    // Mensagem nova devolve a conversa arquivada à lista (o servidor faz o mesmo).
+    commit('SET_ARCHIVED', { channelId, archivedAt: null });
     // Canal que ainda não está na lista (ex.: DM nova): um único refetch, mesmo
     // que cheguem várias mensagens dele enquanto a busca está em voo.
     if (!$state.channels.some(c => c.id === channelId) && !refetchInFlight) {
@@ -634,6 +642,11 @@ export const mutations = {
       user_name: message.user?.name,
       deleted: Boolean(message.deleted),
     };
+  },
+  SET_ARCHIVED($state, { channelId, archivedAt }) {
+    const channel = $state.channels.find(c => c.id === channelId);
+    if (channel && channel.archived_at !== archivedAt)
+      channel.archived_at = archivedAt;
   },
   BUMP_UNREAD($state, channelId) {
     const channel = $state.channels.find(c => c.id === channelId);

@@ -124,6 +124,10 @@ class InternalChatAPI extends ApiClient {
     return axios.get(`${this.url}/${channelId}/shared_media`);
   }
 
+  archiveChannel(channelId, archived) {
+    return axios.post(`${this.url}/${channelId}/archive`, { archived });
+  }
+
   getAgents() {
     return axios.get(`${this.baseUrl()}/agents_for_internal_chat`);
   }

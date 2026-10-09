@@ -241,6 +241,7 @@ Rails.application.routes.draw do
               post :leave
               get :starred
               get :shared_media
+              post :archive
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
               member do

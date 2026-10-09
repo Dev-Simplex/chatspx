@@ -5,7 +5,7 @@
 class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseController
   include InternalChatFeatureGuard
 
-  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave, :starred, :shared_media]
+  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave, :starred, :shared_media, :archive]
   before_action :check_authorization
   helper_method :internal_chat_last_seen
 
@@ -107,6 +107,13 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
                        .includes(:user, attachments_attachments: :blob)
                        .reorder('internal_message_stars.created_at DESC')
     render json: messages.map { |message| starred_json(message) }
+  end
+
+  # Arquivar (archived=true) tira a conversa só da MINHA lista; volta sozinha com mensagem nova.
+  def archive
+    archived = ActiveModel::Type::Boolean.new.cast(params[:archived])
+    @channel.members.find_by!(user_id: Current.user.id).update!(archived_at: archived ? Time.current : nil)
+    render :show
   end
 
   # Painel Detalhes: Mídia (imagens/vídeos), Docs (demais arquivos) e Links das mensagens.

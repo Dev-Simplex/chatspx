@@ -20,6 +20,7 @@ const emit = defineEmits([
   'manage',
   'toggleMute',
   'favorite',
+  'archive',
   'leave',
   'clear',
 ]);
@@ -243,6 +244,37 @@ const pick = () => {
                   ? t('INTERNAL_CHAT.HEADER.UNFAVORITE')
                   : t('INTERNAL_CHAT.HEADER.FAVORITE')
               }}
+            </button>
+            <button
+              v-if="!conversation.readOnly"
+              type="button"
+              class="flex items-start w-full gap-2.5 px-3 py-2.5 text-sm text-left rounded-xl text-n-slate-12 hover:bg-n-alpha-1"
+              @click="
+                pick();
+                emit('archive');
+              "
+            >
+              <span
+                class="mt-0.5 text-base"
+                :class="
+                  conversation.archived
+                    ? 'i-lucide-archive-restore'
+                    : 'i-lucide-archive'
+                "
+              />
+              <span class="flex-1">
+                {{
+                  conversation.archived
+                    ? t('INTERNAL_CHAT.ARCHIVE.OFF')
+                    : t('INTERNAL_CHAT.ARCHIVE.ON')
+                }}
+                <span
+                  v-if="!conversation.archived"
+                  class="block text-[11px] text-n-slate-10"
+                >
+                  {{ t('INTERNAL_CHAT.ARCHIVE.HINT') }}
+                </span>
+              </span>
             </button>
             <button
               type="button"

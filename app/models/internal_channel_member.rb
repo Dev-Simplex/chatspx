@@ -5,6 +5,7 @@
 # Table name: internal_channel_members
 #
 #  id                  :bigint           not null, primary key
+#  archived_at         :datetime
 #  last_read_at        :datetime
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
