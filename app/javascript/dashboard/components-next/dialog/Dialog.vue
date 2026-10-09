@@ -190,7 +190,7 @@ defineExpose({ open, close });
                 :aria-label="t('DIALOG.BUTTONS.CLOSE')"
                 @click="close"
               >
-                <span class="text-lg i-lucide-x" />
+                <span class="flex-shrink-0 text-lg i-lucide-x" />
               </button>
             </div>
             <slot name="description">

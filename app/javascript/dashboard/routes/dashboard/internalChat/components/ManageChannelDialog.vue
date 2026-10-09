@@ -285,7 +285,7 @@ watch(
                 "
                 @click="confirmRemoveId = member.id"
               >
-                <span class="text-base i-lucide-user-minus" />
+                <span class="flex-shrink-0 text-base i-lucide-user-minus" />
               </button>
             </template>
           </div>
@@ -354,7 +354,10 @@ watch(
               v-if="busyId === agent.id"
               class="i-lucide-loader-circle animate-spin text-n-slate-10"
             />
-            <span v-else class="text-base i-lucide-user-plus text-n-slate-10" />
+            <span
+              v-else
+              class="flex-shrink-0 text-base i-lucide-user-plus text-n-slate-10"
+            />
           </button>
         </div>
       </div>

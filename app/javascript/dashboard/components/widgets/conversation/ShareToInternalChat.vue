@@ -129,7 +129,7 @@ watch(
         v-model="note"
         rows="2"
         :aria-label="t('INTERNAL_CHAT.SHARE.NOTE_PLACEHOLDER')"
-        class="reset-base flex-shrink-0 w-full px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand resize-none"
+        class="reset-base flex-shrink-0 w-full h-auto !mb-0 px-3 py-2 text-sm !bg-n-alpha-1 !border !border-solid !border-n-weak rounded-lg text-n-slate-12 !outline-none focus:!border-n-teal-9 resize-none"
         :placeholder="t('INTERNAL_CHAT.SHARE.NOTE_PLACEHOLDER')"
       />
 

@@ -118,7 +118,7 @@ const enable = async () => {
               }[state] || t('INTERNAL_CHAT.PUSH_PROMPT.DESCRIPTION')
             }}
           </div>
-          <div v-if="state !== 'asking'" class="flex gap-2 mt-3">
+          <div v-if="state !== 'asking'" class="flex flex-wrap gap-2 mt-3">
             <button
               type="button"
               class="px-3 py-1.5 text-xs font-medium text-white rounded-full whitespace-nowrap bg-n-teal-9 hover:bg-n-teal-10"
