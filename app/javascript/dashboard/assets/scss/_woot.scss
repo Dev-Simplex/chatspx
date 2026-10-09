@@ -37,6 +37,10 @@ body {
     'Helvetica Neue',
     Tahoma,
     Arial,
+    // Reserva de emoji (Noto vem do Google Fonts no layout): emoji novo não vira caixa "NO GLYPH".
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Noto Color Emoji',
     sans-serif !important;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;

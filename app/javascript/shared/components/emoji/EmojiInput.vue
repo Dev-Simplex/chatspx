@@ -247,7 +247,7 @@ export default {
         role="menu"
       >
         <ul
-          class="flex relative left-[2px] rtl:left-[unset] rtl:right-[2px] list-none m-0 overflow-auto py-1 px-0"
+          class="flex justify-between relative list-none m-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1 px-0"
         >
           <li>
             <button
@@ -337,7 +337,7 @@ export default {
 .emoji-dialog--footer {
   ul {
     > li {
-      @apply items-center cursor-pointer flex justify-center p-1;
+      @apply items-center cursor-pointer flex justify-center p-0.5 flex-shrink-0;
     }
 
     li .active {
