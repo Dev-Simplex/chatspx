@@ -466,22 +466,6 @@ const mentionNames = computed(() =>
   (agents.value || []).map(a => a.name).filter(Boolean)
 );
 
-// ── Mídia e documentos da conversa (anexos das mensagens carregadas) ─────────
-const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i;
-const threadAttachments = computed(() => {
-  const out = [];
-  rawMessages.value.forEach(m =>
-    (m.attachments || []).forEach(a => out.push(a))
-  );
-  return out;
-});
-const mediaItems = computed(() =>
-  threadAttachments.value.filter(a => IMAGE_RE.test(a.filename || ''))
-);
-const docItems = computed(() =>
-  threadAttachments.value.filter(a => !IMAGE_RE.test(a.filename || ''))
-);
-
 // ── Handlers ─────────────────────────────────────────────────────────────
 // Mensagem sendo respondida (barra "respondendo a X" no composer). Fica no pai
 // para que enviar/cancelar/trocar de conversa a limpem de forma consistente.
@@ -695,8 +679,8 @@ const onToggleStar = msg => {
     )
     .catch(failAlert);
 };
-// Clique numa favorita (painel Detalhes): leva até a mensagem.
-const onOpenStarred = messageId => {
+// Clique numa favorita, mídia, doc ou link (painel Detalhes): leva até a mensagem.
+const onOpenFromInfo = messageId => {
   if (window.innerWidth < 1280) showInfo.value = false;
   onOpenMessage({ channelId: activeId.value, messageId });
 };
@@ -1052,11 +1036,9 @@ onBeforeUnmount(() => {
             <ChatInfoPanel
               :conversation="activeConversation"
               :current-user-id="currentUserId"
-              :media="mediaItems"
-              :docs="docItems"
               :starred="starred"
               :can-manage="canManage"
-              @open-starred="onOpenStarred"
+              @open-message="onOpenFromInfo"
               @retry-starred="
                 store.dispatch('internalChat/fetchStarred', activeId)
               "

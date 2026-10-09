@@ -35,6 +35,11 @@ class InternalChannelPolicy < ApplicationPolicy
     member?
   end
 
+  # Mídia, links e docs: quem pode ler a conversa (membro ou admin em auditoria).
+  def shared_media?
+    show?
+  end
+
   def typing?
     member?
   end

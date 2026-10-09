@@ -402,6 +402,19 @@
       "OPEN": "Go to the message",
       "DONE_ON": "Message starred. See it in Details › Starred messages.",
       "DONE_OFF": "Removed from starred."
+    },
+    "SHARED_MEDIA": {
+      "TITLE": "Media, links and docs",
+      "TAB_MEDIA": "Media",
+      "TAB_DOCS": "Docs",
+      "TAB_LINKS": "Links",
+      "EMPTY_MEDIA": "No photos or videos in this conversation yet.",
+      "EMPTY_DOCS": "No files in this conversation yet.",
+      "EMPTY_LINKS": "No links in this conversation yet.",
+      "ERROR": "Could not load the media of this conversation.",
+      "SEARCH": "Search by name or address…",
+      "OPEN_FILE": "Open in a new tab",
+      "GO_TO_MESSAGE": "Go to the message"
     }
   }
 }

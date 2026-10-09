@@ -5,12 +5,11 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import AutoAlertsAPI from 'dashboard/api/internalChatAutoAlerts';
 import { lastSeenText } from './lastSeen';
+import SharedMediaTabs from './SharedMediaTabs.vue';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
   currentUserId: { type: [Number, String], default: null },
-  media: { type: Array, default: () => [] },
-  docs: { type: Array, default: () => [] },
   canManage: { type: Boolean, default: false },
   // Minhas mensagens favoritas desta conversa: { items, state }.
   starred: { type: Object, default: () => ({ items: [], state: 'idle' }) },
@@ -22,7 +21,7 @@ defineEmits([
   'search',
   'toggleMute',
   'favorite',
-  'openStarred',
+  'openMessage',
   'retryStarred',
 ]);
 
@@ -316,7 +315,7 @@ const toggleAlert = async (event, value) => {
               v-tooltip.left="t('INTERNAL_CHAT.STARRED.OPEN')"
               type="button"
               class="flex flex-col w-full gap-0.5 px-3 py-2 text-left border-b last:border-b-0 border-n-weak hover:bg-n-alpha-2 focus-visible:bg-n-alpha-2 focus-visible:outline-none"
-              @click="$emit('openStarred', m.id)"
+              @click="$emit('openMessage', m.id)"
             >
               <span class="flex items-center justify-between gap-2 text-xs">
                 <span class="font-semibold truncate text-n-slate-12">
@@ -336,59 +335,13 @@ const toggleAlert = async (event, value) => {
         </template>
       </div>
 
-      <!-- Mídia e documentos da conversa -->
+      <!-- Mídia, links e docs da conversa -->
       <div class="px-3 pb-3">
-        <p
-          class="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
-        >
-          {{ t('INTERNAL_CHAT.INFO.MEDIA') }}
-        </p>
-
-        <div v-if="media.length" class="grid grid-cols-3 gap-1.5 mb-3">
-          <a
-            v-for="a in media"
-            :key="a.id"
-            :href="a.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            :title="a.filename"
-            class="overflow-hidden rounded-xl aspect-square bg-n-alpha-2"
-          >
-            <img
-              :src="a.url"
-              :alt="a.filename"
-              class="object-cover w-full h-full"
-            />
-          </a>
-        </div>
-
-        <div v-if="docs.length" class="space-y-1">
-          <a
-            v-for="a in docs"
-            :key="a.id"
-            :href="a.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            class="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-n-alpha-1"
-          >
-            <span class="text-lg i-lucide-file-text text-n-slate-10" />
-            <span
-              class="flex-1 text-sm truncate text-n-slate-12"
-              :title="a.filename"
-            >
-              {{ a.filename }}
-            </span>
-            <span class="i-lucide-download text-n-slate-10" />
-          </a>
-        </div>
-
-        <p
-          v-if="!media.length && !docs.length"
-          class="mb-0 px-3 py-4 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
-        >
-          {{ t('INTERNAL_CHAT.INFO.NO_MEDIA') }}
-        </p>
+        <SharedMediaTabs
+          :channel-id="conversation.id"
+          :last-at="conversation.lastAt || 0"
+          @open-message="$emit('openMessage', $event)"
+        />
       </div>
 
       <!-- Avisos automáticos da sala do time -->

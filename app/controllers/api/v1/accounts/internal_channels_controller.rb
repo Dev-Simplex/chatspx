@@ -5,7 +5,7 @@
 class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseController
   include InternalChatFeatureGuard
 
-  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave, :starred]
+  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave, :starred, :shared_media]
   before_action :check_authorization
   helper_method :internal_chat_last_seen
 
@@ -107,6 +107,11 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
                        .includes(:user, attachments_attachments: :blob)
                        .reorder('internal_message_stars.created_at DESC')
     render json: messages.map { |message| starred_json(message) }
+  end
+
+  # Painel Detalhes: Mídia (imagens/vídeos), Docs (demais arquivos) e Links das mensagens.
+  def shared_media
+    render json: InternalChannels::SharedMediaService.new(channel: @channel).perform
   end
 
   # Real-time "digitando…" — broadcast to the other members only.

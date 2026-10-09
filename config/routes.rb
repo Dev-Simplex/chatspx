@@ -240,6 +240,7 @@ Rails.application.routes.draw do
               delete :remove_member
               post :leave
               get :starred
+              get :shared_media
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
               member do

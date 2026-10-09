@@ -402,6 +402,19 @@
       "OPEN": "Ir até a mensagem",
       "DONE_ON": "Mensagem favoritada. Veja em Detalhes › Mensagens favoritas.",
       "DONE_OFF": "Removida das favoritas."
+    },
+    "SHARED_MEDIA": {
+      "TITLE": "Mídia, links e docs",
+      "TAB_MEDIA": "Mídia",
+      "TAB_DOCS": "Docs",
+      "TAB_LINKS": "Links",
+      "EMPTY_MEDIA": "Nenhuma foto ou vídeo nesta conversa ainda.",
+      "EMPTY_DOCS": "Nenhum arquivo nesta conversa ainda.",
+      "EMPTY_LINKS": "Nenhum link nesta conversa ainda.",
+      "ERROR": "Não deu para carregar a mídia desta conversa.",
+      "SEARCH": "Buscar por nome ou endereço…",
+      "OPEN_FILE": "Abrir em outra aba",
+      "GO_TO_MESSAGE": "Ir até a mensagem"
     }
   }
 }
