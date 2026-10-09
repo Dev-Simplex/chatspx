@@ -64,7 +64,7 @@ export default {
 
     <span
       v-else
-      class="text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
+      class="text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
     >
       {{ value }}
     </span>

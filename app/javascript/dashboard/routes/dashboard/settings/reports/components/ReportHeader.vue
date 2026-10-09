@@ -50,7 +50,8 @@ const account = useMapGetter('getCurrentAccount');
           {{ headerDescription }}
         </p>
       </div>
-      <div class="flex flex-wrap items-center gap-2 shrink-0">
+      <!-- [&>div]: as telas embrulham os botoes num div proprio; ele tambem quebra linha no celular -->
+      <div class="flex flex-wrap items-center gap-2 min-w-0 [&>div]:flex-wrap">
         <slot />
       </div>
     </div>

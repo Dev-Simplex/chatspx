@@ -70,7 +70,7 @@ const trendClass = computed(
     </h3>
     <h4
       data-test-id="reportMetricValue"
-      class="m-0 text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
+      class="m-0 text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
     >
       {{ value }}
     </h4>
