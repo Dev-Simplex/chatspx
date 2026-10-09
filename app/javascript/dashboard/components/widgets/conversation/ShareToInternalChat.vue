@@ -35,6 +35,8 @@ const agents = computed(() =>
 const note = ref('');
 const selected = ref(null); // { type: 'channel' | 'agent', id }
 const isSending = ref(false);
+// Erro aparece dentro da janela (o aviso flutuante nasce atrás do <dialog>).
+const shareError = ref(false);
 
 const displayId = computed(
   () => props.conversation?.display_id ?? props.conversation?.id
@@ -54,6 +56,7 @@ const close = () => emit('close');
 const share = async () => {
   if (!selected.value || !displayId.value) return;
   isSending.value = true;
+  shareError.value = false;
   try {
     await store.dispatch('internalChat/shareConversation', {
       channelId: selected.value.type === 'channel' ? selected.value.id : null,
@@ -68,7 +71,7 @@ const share = async () => {
     useAlert(t('INTERNAL_CHAT.SHARE.DONE'));
     close();
   } catch (e) {
-    useAlert(t('INTERNAL_CHAT.SHARE.ERROR'));
+    shareError.value = true;
   } finally {
     isSending.value = false;
   }
@@ -81,6 +84,7 @@ watch(
       note.value = '';
       query.value = '';
       selected.value = null;
+      shareError.value = false;
       isLoading.value = !store.getters['internalChat/getAgents'].length;
       Promise.allSettled([
         store.dispatch('internalChat/fetchChannels'),
@@ -218,7 +222,17 @@ watch(
 
     <template #footer>
       <div class="flex items-center justify-end w-full gap-3 shrink-0">
-        <span v-if="!selected" class="flex-1 min-w-0 text-xs text-n-slate-10">
+        <span
+          v-if="shareError"
+          role="alert"
+          class="flex-1 min-w-0 text-xs text-n-ruby-11"
+        >
+          {{ t('INTERNAL_CHAT.SHARE.ERROR') }}
+        </span>
+        <span
+          v-else-if="!selected"
+          class="flex-1 min-w-0 text-xs text-n-slate-10"
+        >
           {{ t('INTERNAL_CHAT.SHARE.PICK_FIRST') }}
         </span>
         <Button

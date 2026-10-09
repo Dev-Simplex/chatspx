@@ -31,6 +31,17 @@ const addQuery = ref('');
 // Remover pede confirmação na própria linha; busy = id em andamento.
 const confirmRemoveId = ref(null);
 const busyId = ref(null);
+// Retorno das ações DENTRO da janela: o aviso flutuante do app nasce atrás do
+// <dialog> modal (camada do topo) e ficava ilegível, borrado pelo fundo.
+const notice = ref(null); // { text, error }
+let noticeTimer = null;
+const say = (text, error = false) => {
+  clearTimeout(noticeTimer);
+  notice.value = { text, error };
+  noticeTimer = setTimeout(() => {
+    notice.value = null;
+  }, 4000);
+};
 
 const isMe = member => Number(member.id) === Number(props.currentUserId);
 // Você primeiro (marcado "você"); sair é pelo botão "Sair do grupo".
@@ -69,9 +80,9 @@ const rename = async () => {
       channelId: props.channel.id,
       name: trimmedName.value,
     });
-    useAlert(t('INTERNAL_CHAT.MANAGE.RENAMED'));
+    say(t('INTERNAL_CHAT.MANAGE.RENAMED'));
   } catch {
-    useAlert(t('INTERNAL_CHAT.MANAGE.RENAME_ERROR'));
+    say(t('INTERNAL_CHAT.MANAGE.RENAME_ERROR'), true);
   } finally {
     isSaving.value = false;
   }
@@ -85,9 +96,9 @@ const addMember = async agent => {
       channelId: props.channel.id,
       userId: agent.id,
     });
-    useAlert(t('INTERNAL_CHAT.MANAGE.ADDED', { name: agent.name }));
+    say(t('INTERNAL_CHAT.MANAGE.ADDED', { name: agent.name }));
   } catch {
-    useAlert(t('INTERNAL_CHAT.ACTION_ERROR'));
+    say(t('INTERNAL_CHAT.ACTION_ERROR'), true);
   } finally {
     busyId.value = null;
   }
@@ -101,9 +112,9 @@ const removeMember = async member => {
       channelId: props.channel.id,
       userId: member.id,
     });
-    useAlert(t('INTERNAL_CHAT.MANAGE.REMOVED', { name: member.name }));
+    say(t('INTERNAL_CHAT.MANAGE.REMOVED', { name: member.name }));
   } catch {
-    useAlert(t('INTERNAL_CHAT.ACTION_ERROR'));
+    say(t('INTERNAL_CHAT.ACTION_ERROR'), true);
   } finally {
     busyId.value = null;
   }
@@ -141,6 +152,7 @@ watch(
       name.value = props.channel?.title || '';
       addQuery.value = '';
       confirmRemoveId.value = null;
+      notice.value = null;
       loadAgents();
       nextTick(() =>
         setTimeout(() => {
@@ -364,6 +376,22 @@ watch(
     </div>
 
     <template #footer>
+      <p
+        v-if="notice"
+        role="status"
+        class="flex items-center gap-1.5 px-3 py-2 -mb-3 text-xs rounded-lg shrink-0"
+        :class="
+          notice.error
+            ? 'bg-n-ruby-3 text-n-ruby-11'
+            : 'bg-n-teal-3 text-n-teal-11'
+        "
+      >
+        <span
+          class="flex-shrink-0 text-sm"
+          :class="notice.error ? 'i-lucide-circle-alert' : 'i-lucide-check'"
+        />
+        {{ notice.text }}
+      </p>
       <div
         class="flex items-center justify-between w-full pt-4 border-t shrink-0 border-n-weak"
       >
