@@ -27,8 +27,8 @@
   },
   "PHONE_INPUT": {
     "SEARCH_PLACEHOLDER": "Selecione o país",
-    "ERROR": "O número de telefone deve estar vazio ou no formato E.164",
-    "DIAL_CODE_ERROR": "Por favor, selecione um código de discagem da lista"
+    "ERROR": "Número inválido. Digite o DDD e o número, por exemplo 65 98877-9055.",
+    "DIAL_CODE_ERROR": "Escolha o país no botão ao lado do número."
   },
   "THUMBNAIL": {
     "AUTHOR": {

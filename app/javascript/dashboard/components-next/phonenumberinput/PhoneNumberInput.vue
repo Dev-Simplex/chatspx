@@ -42,6 +42,15 @@ const activeCountryCode = ref(getActiveCountryCode());
 const activeDialCode = ref(getActiveDialCode());
 const phoneNumber = ref('');
 
+// Ninguém digita telefone só com algarismos: "65 98877-9055", "(65) 98877.9055" ou
+// "+55 65 98877-9055" colado valem. Valida e grava só os dígitos, sem o código do país.
+const phoneDigits = computed(() => {
+  const cleaned = phoneNumber.value.replace(/[\s().-]/g, '');
+  return cleaned.startsWith(activeDialCode.value)
+    ? cleaned.slice(activeDialCode.value.length)
+    : cleaned;
+});
+
 const rules = {
   phoneNumber: {
     minLength: minLength(2),
@@ -56,7 +65,7 @@ const rules = {
 };
 
 const v$ = useVuelidate(rules, {
-  phoneNumber,
+  phoneNumber: phoneDigits,
   activeDialCode,
 });
 
@@ -124,8 +133,8 @@ const onSelectCountry = async ({ value, dialCode }) => {
   activeDialCode.value = dialCode;
   searchQuery.value = '';
   showDropdown.value = false;
-  if (!v$.value.$invalid && phoneNumber.value) {
-    emitPhoneNumber(phoneNumber.value);
+  if (!v$.value.$invalid && phoneDigits.value) {
+    emitPhoneNumber(phoneDigits.value);
   }
 };
 
@@ -137,16 +146,23 @@ const closeCountryDropdown = () => {
   showDropdown.value = false;
 };
 
-watch(phoneNumber, async value => {
+watch(phoneNumber, async () => {
   await v$.value.$touch();
   if (!v$.value.$invalid) {
-    emitPhoneNumber(value);
+    emitPhoneNumber(phoneDigits.value);
   }
 });
 
 watch(
   modelValue,
   newValue => {
+    // O valor que acabamos de emitir já está no campo como a pessoa digitou (com espaços).
+    if (
+      newValue &&
+      newValue === `${activeDialCode.value}${phoneDigits.value}`
+    ) {
+      return;
+    }
     const number = parsePhoneNumber(newValue);
     if (number) {
       if (number?.country) activeCountryCode.value = number.country;

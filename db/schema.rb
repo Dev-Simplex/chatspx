@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_05_184137) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_08_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -933,6 +933,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_05_184137) do
     t.index ["name", "email", "phone_number", "identifier"], name: "index_contacts_on_name_email_phone_number_identifier", opclass: :gin_trgm_ops, using: :gin
     t.index ["name"], name: "idx_contacts_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["phone_number", "account_id"], name: "index_contacts_on_phone_number_and_account_id"
+    t.index ["account_id", "phone_number"], name: "uniq_phone_number_per_account_contact", unique: true, where: "((phone_number IS NOT NULL) AND ((phone_number)::text <> ''::text))"
     t.index ["phone_number"], name: "idx_contacts_phone_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
