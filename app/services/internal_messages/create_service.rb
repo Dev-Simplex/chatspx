@@ -36,6 +36,7 @@ class InternalMessages::CreateService
     mark_read!
     InternalMessages::BroadcastService.created(message)
     broadcast_mentions(message)
+    InternalMessages::LinkPreviewJob.perform_later(message.id) if InternalMessages::LinkPreviewJob.link?(message.content)
     message
   end
 

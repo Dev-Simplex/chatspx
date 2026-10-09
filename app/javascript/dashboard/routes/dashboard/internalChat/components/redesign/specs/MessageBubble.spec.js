@@ -131,4 +131,24 @@ describe('MessageBubble do chat interno', () => {
     expect(document.body.textContent).not.toContain('Forward');
     pending.unmount();
   });
+
+  it('prévia de link vira cartão (some se o link saiu do texto)', () => {
+    const preview = {
+      url: 'https://exemplo.com/a',
+      title: 'Página A',
+      description: 'Descrição',
+      domain: 'exemplo.com',
+    };
+    const card = mountBubble({
+      content: 'veja https://exemplo.com/a',
+      contentAttributes: { link_preview: preview },
+    });
+    expect(card.text()).toContain('Página A');
+    expect(card.text()).toContain('exemplo.com');
+    const edited = mountBubble({
+      content: 'sem link agora',
+      contentAttributes: { link_preview: preview },
+    });
+    expect(edited.text()).not.toContain('Página A');
+  });
 });

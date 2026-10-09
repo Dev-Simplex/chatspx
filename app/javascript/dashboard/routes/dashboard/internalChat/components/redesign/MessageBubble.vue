@@ -155,6 +155,15 @@ const persisted = computed(
 const forwarded = computed(() =>
   Boolean(props.message.contentAttributes?.forwarded)
 );
+// Prévia do link (o servidor busca e manda por tempo real). Some se a mensagem
+// foi editada e o link saiu do texto.
+const linkPreview = computed(() => {
+  const preview = props.message.contentAttributes?.link_preview;
+  if (!preview?.url || !preview.title) return null;
+  return (props.message.content || '').includes(preview.url) ? preview : null;
+});
+const hidePreviewImage = ref(false);
+
 const onForward = () => {
   closeAll();
   emit('forward', props.message);
@@ -670,6 +679,51 @@ const iReacted = emoji =>
             >{{ t('INTERNAL_CHAT.EDITED') }}</span
           >
         </p>
+
+        <!-- Prévia do link: título, descrição, imagem e domínio -->
+        <a
+          v-if="linkPreview"
+          :href="linkPreview.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block w-72 max-w-full mt-2 mb-1 overflow-hidden transition-colors border rounded-2xl"
+          :class="
+            message.mine
+              ? 'bg-white/10 border-white/25 hover:bg-white/15 text-white'
+              : 'bg-n-solid-1 dark:bg-n-solid-2 border-n-weak hover:bg-n-alpha-1 text-n-slate-12'
+          "
+        >
+          <img
+            v-if="linkPreview.image && !hidePreviewImage"
+            :src="linkPreview.image"
+            alt=""
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            class="object-cover w-full h-36 bg-n-alpha-2"
+            @error="hidePreviewImage = true"
+          />
+          <span class="block px-3 py-2">
+            <span
+              class="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider opacity-75"
+            >
+              <span class="flex-shrink-0 i-lucide-globe size-3" />
+              <span class="truncate">
+                {{ linkPreview.site_name || linkPreview.domain }}
+              </span>
+            </span>
+            <span
+              class="block mt-0.5 text-sm font-semibold leading-snug line-clamp-2"
+            >
+              {{ linkPreview.title }}
+            </span>
+            <span
+              v-if="linkPreview.description"
+              class="block mt-0.5 text-xs leading-snug line-clamp-2 opacity-80"
+            >
+              {{ linkPreview.description }}
+            </span>
+          </span>
+        </a>
 
         <!-- Conversa de cliente compartilhada: cartão que abre a conversa -->
         <router-link

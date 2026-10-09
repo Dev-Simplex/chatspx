@@ -48,6 +48,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
     @message.update!(content: params[:content].to_s, edited_at: Time.current)
     InternalMessages::BroadcastService.updated(@message)
+    InternalMessages::LinkPreviewJob.perform_later(@message.id) if InternalMessages::LinkPreviewJob.link?(@message.content)
     render :show
   rescue ActiveRecord::RecordInvalid => e
     render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
