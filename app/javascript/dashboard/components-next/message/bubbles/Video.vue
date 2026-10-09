@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useIntersectionObserver } from '@vueuse/core';
 import BaseBubble from './Base.vue';
 import Icon from 'next/icon/Icon.vue';
@@ -10,6 +11,7 @@ import GalleryView from 'dashboard/components/widgets/conversation/components/Ga
 import { ATTACHMENT_TYPES } from '../constants';
 
 const emit = defineEmits(['error']);
+const { t } = useI18n();
 const hasError = ref(false);
 const showGallery = ref(false);
 const shouldLoadVideo = ref(false);
@@ -100,6 +102,13 @@ useIntersectionObserver(
         @error="handleError"
       />
     </div>
+    <p
+      v-if="attachment.comoDocumento"
+      class="flex items-center gap-1 mt-1.5 text-xs text-n-slate-11"
+    >
+      <Icon icon="i-lucide-file" class="size-3.5 flex-shrink-0" />
+      {{ t('CONVERSATION.SENT_AS_DOCUMENT') }}
+    </p>
   </BaseBubble>
   <GalleryView
     v-if="showGallery"

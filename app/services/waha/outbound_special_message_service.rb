@@ -8,6 +8,7 @@
 # - Location: https://waha.devlike.pro/docs/how-to/send-messages/#location
 # - Contact vCard: https://waha.devlike.pro/docs/how-to/send-messages/#contact-vcard
 class Waha::OutboundSpecialMessageService
+  DOCUMENT_TIMEOUT = 300
   def initialize(message)
     @message = message
     @inbox = message.inbox
@@ -41,6 +42,11 @@ class Waha::OutboundSpecialMessageService
 
   def dispatch_attachment
     attachment = @message.attachments.first
+    if attachment.vai_como_documento?
+      send_document(attachment)
+      return true
+    end
+
     case attachment.file_type.to_s
     when 'location'
       send_location(attachment)
@@ -62,8 +68,8 @@ class Waha::OutboundSpecialMessageService
   end
 
   def attachment_applicable?
-    file_type = @message.attachments.first&.file_type.to_s
-    %w[location contact].include?(file_type)
+    attachment = @message.attachments.first
+    %w[location contact].include?(attachment&.file_type.to_s) || attachment&.vai_como_documento?
   end
 
   # An outgoing interactive menu: content_type input_select with a non-empty
@@ -126,6 +132,17 @@ class Waha::OutboundSpecialMessageService
       chat_id: chat_id,
       latitude: attachment.coordinates_lat.to_f,
       longitude: attachment.coordinates_long.to_f
+    )
+    mark_sent(resp)
+  end
+
+  # MIDIA-01: video acima de 16 MB vai como documento. A legenda e o mesmo texto que o app do WAHA recebe no
+  # webhook, com a formatacao do WhatsApp (*negrito*). Timeout longo: o WAHA baixa ate 100 MB antes de responder.
+  def send_document(attachment)
+    caption = Messages::MarkdownRendererService.new(@message.webhook_content, 'Channel::Whatsapp').render
+    resp = Waha::ApiService.new(timeout: DOCUMENT_TIMEOUT).send_file(
+      session: @inbox.waha_session_name, chat_id: chat_id, caption: caption,
+      file: { url: attachment.download_url, filename: attachment.file.filename.to_s, mimetype: attachment.file.content_type }
     )
     mark_sent(resp)
   end

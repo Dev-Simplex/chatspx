@@ -25,6 +25,7 @@ class Attachment < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include Rails.application.routes.url_helpers
   include AttachmentMp4Conversion
   include AttachmentVideoPoster
+  include AttachmentEnvioComoDocumento
 
   ACCEPTABLE_FILE_TYPES = %w[
     text/csv text/plain text/rtf
@@ -131,6 +132,7 @@ class Attachment < ApplicationRecord # rubocop:disable Metrics/ClassLength
       width: file.metadata[:width],
       height: file.metadata[:height]
     }
+    metadata[:como_documento] = true if vai_como_documento?
 
     metadata[:data_url] = metadata[:thumb_url] = external_url if message.inbox.instagram? && message.incoming?
     metadata
@@ -187,7 +189,8 @@ class Attachment < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # WAHA_MAX_SIZE_BY_CATEGORY (shared/helpers/FileHelper.js). Server-side net so
   # oversized media for the channel never gets saved and then rejected by the
   # WhatsApp engine at send time. Only applied to Channel::Api.
-  WAHA_MAX_SIZE_BY_CATEGORY_MB = { 'image' => 16, 'video' => 16, 'audio' => 16, 'document' => 100 }.freeze
+  # Video ate 100 MB: acima de 16 MB sai como documento (MIDIA-01, AttachmentEnvioComoDocumento).
+  WAHA_MAX_SIZE_BY_CATEGORY_MB = { 'image' => 16, 'video' => 100, 'audio' => 16, 'document' => 100 }.freeze
 
   def should_validate_file?
     return unless file.attached?

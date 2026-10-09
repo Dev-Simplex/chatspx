@@ -185,6 +185,16 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     post('/api/sendText', payload)
   end
 
+  # Arquivo como DOCUMENTO (MIDIA-01: video acima de 16 MB). O WAHA baixa o arquivo pela URL, entao a chamada
+  # demora o tempo do download — use com um timeout maior, fora do ciclo web.
+  # https://waha.devlike.pro/docs/how-to/send-messages/#send-file
+  # file: { url:, filename:, mimetype: }
+  def send_file(session:, chat_id:, file:, caption: nil)
+    payload = { session: session, chatId: chat_id, file: file }
+    payload[:caption] = caption if caption.present?
+    post('/api/sendFile', payload)
+  end
+
   # Plain text message via WAHA REST. Used as the fallback path when an
   # interactive menu can't be expressed as a poll (fewer than 2 options).
   def send_text(session:, chat_id:, text:)
