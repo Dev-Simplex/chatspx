@@ -31,6 +31,10 @@ class InternalChannelPolicy < ApplicationPolicy
     member?
   end
 
+  def starred?
+    member?
+  end
+
   def typing?
     member?
   end

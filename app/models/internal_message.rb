@@ -24,6 +24,8 @@ class InternalMessage < ApplicationRecord
   belongs_to :reply_to, class_name: 'InternalMessage', optional: true
   belongs_to :shared_conversation, class_name: 'Conversation', optional: true
   has_many_attached :attachments
+  # Estrelas por usuário ("Mensagens favoritas"); o banco também apaga em cascata.
+  has_many :stars, class_name: 'InternalMessageStar', dependent: :delete_all
 
   # Hard cap for a single internal-chat attachment (defense in depth — the
   # composer also checks this client-side before uploading).

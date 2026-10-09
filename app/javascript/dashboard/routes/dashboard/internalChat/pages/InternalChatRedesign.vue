@@ -339,6 +339,14 @@ const deliveryOf = m => {
   return readAt && readAt >= m.created_at ? 'read' : 'sent';
 };
 
+// Mensagens favoritas (minhas) da conversa aberta.
+const starred = computed(() =>
+  activeId.value
+    ? store.getters['internalChat/getStarred'](activeId.value)
+    : { items: [], state: 'idle' }
+);
+const starredIds = computed(() => new Set(starred.value.items.map(m => m.id)));
+
 const GROUP_WINDOW = 5 * 60; // mensagens seguidas do mesmo autor em 5 min
 const STAMP_GAP = 30 * 60; // pausa maior que isso ganha horário centralizado
 // Onde começam as mensagens novas da conversa aberta (capturado ao abrir,
@@ -431,6 +439,8 @@ const threadItems = computed(() => {
       status: m.status,
       uploadProgress: m.upload_progress ?? null,
       mentionedUserIds: m.mentioned_user_ids || [],
+      starred: starredIds.value.has(m.id),
+      canStar: !activeConversation.value?.readOnly,
       // Aviso do sistema (system).
       messageType: m.message_type || 'text',
       contentAttributes: m.content_attributes || {},
@@ -495,6 +505,7 @@ const onSelect = async id => {
   const opened = rawChannelList.value.find(c => c.id === id);
   unreadOnOpen.value = { channelId: id, count: opened?.unread_count || 0 };
   store.commit('internalChat/CLEAR_UNREAD', id);
+  store.dispatch('internalChat/fetchStarred', id);
   loadingMessages.value = !store.getters['internalChat/getMessages'](id).length;
   messagesError.value = false;
   try {
@@ -667,6 +678,27 @@ const confirmForward = async ({ channelIds, userIds }) => {
       forwarding.value = { ...forwarding.value, sending: false, failed: true };
     }
   }
+};
+
+const onToggleStar = msg => {
+  const id = activeId.value;
+  const raw = rawMessages.value.find(m => m.id === msg.id);
+  if (!id || !raw) return;
+  store
+    .dispatch('internalChat/toggleStar', { channelId: id, message: raw })
+    .then(isStarred =>
+      useAlert(
+        isStarred
+          ? t('INTERNAL_CHAT.STARRED.DONE_ON')
+          : t('INTERNAL_CHAT.STARRED.DONE_OFF')
+      )
+    )
+    .catch(failAlert);
+};
+// Clique numa favorita (painel Detalhes): leva até a mensagem.
+const onOpenStarred = messageId => {
+  if (window.innerWidth < 1280) showInfo.value = false;
+  onOpenMessage({ channelId: activeId.value, messageId });
 };
 
 const onCreateDm = async agentId => {
@@ -961,6 +993,7 @@ onBeforeUnmount(() => {
             @retry="onRetry"
             @forward="onForward"
             @info="infoMessage = $event"
+            @star="onToggleStar"
             @reload="onSelect(activeId)"
           />
 
@@ -1021,7 +1054,12 @@ onBeforeUnmount(() => {
               :current-user-id="currentUserId"
               :media="mediaItems"
               :docs="docItems"
+              :starred="starred"
               :can-manage="canManage"
+              @open-starred="onOpenStarred"
+              @retry-starred="
+                store.dispatch('internalChat/fetchStarred', activeId)
+              "
               @manage="showManage = true"
               @search="onInfoSearch"
               @toggle-mute="onToggleMute"

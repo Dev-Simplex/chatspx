@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_10_08_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_09_190000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1618,6 +1618,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_08_120000) do
     t.index ["team_id"], name: "index_internal_channels_on_team_id"
   end
 
+  create_table "internal_message_stars", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "internal_message_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["internal_message_id"], name: "index_internal_message_stars_on_internal_message_id"
+    t.index ["user_id", "internal_message_id"], name: "idx_internal_message_stars_user_message", unique: true
+  end
+
   create_table "internal_messages", force: :cascade do |t|
     t.bigint "internal_channel_id", null: false
     t.bigint "user_id"
@@ -2443,6 +2452,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_08_120000) do
   add_foreign_key "internal_channel_members", "users"
   add_foreign_key "internal_channels", "accounts"
   add_foreign_key "internal_channels", "teams"
+  add_foreign_key "internal_message_stars", "internal_messages", on_delete: :cascade
+  add_foreign_key "internal_message_stars", "users", on_delete: :cascade
   add_foreign_key "internal_messages", "conversations", column: "shared_conversation_id", on_delete: :nullify
   add_foreign_key "internal_messages", "internal_channels"
   add_foreign_key "internal_messages", "internal_messages", column: "reply_to_id", on_delete: :nullify

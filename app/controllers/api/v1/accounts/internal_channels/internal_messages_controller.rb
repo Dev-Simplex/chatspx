@@ -8,7 +8,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   before_action :fetch_channel
   before_action :authorize_channel
-  before_action :fetch_message, only: [:update, :destroy, :react, :forward, :receipts]
+  before_action :fetch_message, only: [:update, :destroy, :react, :forward, :receipts, :star]
 
   PAGE_SIZE = 30
 
@@ -98,6 +98,19 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
       read: read.sort_by(&:last_read_at).map { |m| receipt_json(m) },
       unread: unread.sort_by { |m| m.user&.name.to_s }.map { |m| receipt_json(m) }
     }
+  end
+
+  # Favoritar / desfavoritar (starred=true|false): só para mim, só em conversa que participo.
+  def star
+    return render_forbidden unless channel_member?
+
+    stars = @message.stars.where(user_id: Current.user.id)
+    if ActiveModel::Type::Boolean.new.cast(params[:starred])
+      stars.first_or_create!
+    else
+      stars.delete_all
+    end
+    render json: { id: @message.id, starred: stars.exists? }
   end
 
   private

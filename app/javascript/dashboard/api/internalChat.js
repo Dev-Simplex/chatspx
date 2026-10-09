@@ -109,6 +109,17 @@ class InternalChatAPI extends ApiClient {
     );
   }
 
+  starMessage(channelId, messageId, starred) {
+    return axios.post(
+      `${this.url}/${channelId}/internal_messages/${messageId}/star`,
+      { starred }
+    );
+  }
+
+  getStarred(channelId) {
+    return axios.get(`${this.url}/${channelId}/starred`);
+  }
+
   getAgents() {
     return axios.get(`${this.baseUrl()}/agents_for_internal_chat`);
   }

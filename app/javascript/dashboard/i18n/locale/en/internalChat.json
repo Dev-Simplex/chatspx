@@ -246,7 +246,10 @@
       "FORWARD": "Forward",
       "FORWARDED": "Forwarded",
       "FORWARDED_HINT": "This message was forwarded from another conversation.",
-      "INFO": "Message info"
+      "INFO": "Message info",
+      "STAR": "Star message",
+      "UNSTAR": "Remove from starred",
+      "STARRED_HINT": "Starred message (only you see this)"
     },
     "SHARED": {
       "OPEN": "Open",
@@ -390,6 +393,15 @@
       "EVERYONE_READ": "Everyone has read it.",
       "READ_AT_HINT": "Last time this person opened the conversation",
       "ERROR": "Could not load who read this message."
+    },
+    "STARRED": {
+      "TITLE": "Starred messages",
+      "EMPTY": "No starred messages. In a bubble, ⌄ › Star message.",
+      "ERROR": "Could not load the starred messages.",
+      "SEARCH": "Search starred messages…",
+      "OPEN": "Go to the message",
+      "DONE_ON": "Message starred. See it in Details › Starred messages.",
+      "DONE_OFF": "Removed from starred."
     }
   }
 }

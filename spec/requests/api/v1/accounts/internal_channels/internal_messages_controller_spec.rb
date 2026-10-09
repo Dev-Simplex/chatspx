@@ -273,4 +273,44 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe 'POST /internal_messages/:id/star (favoritas por usuário)' do
+    let(:message) { create(:internal_message, internal_channel: channel, user: bob, content: 'senha do wifi: 1234') }
+    let(:star_url) { "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}/star" }
+    let(:list_url) { "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/starred" }
+
+    it 'stars only for me and lists only my stars' do
+      post star_url, params: { starred: true }, headers: alice.create_new_auth_token
+      expect(response.parsed_body['starred']).to be(true)
+
+      get list_url, headers: alice.create_new_auth_token
+      expect(response.parsed_body.pluck('id')).to eq([message.id])
+
+      get list_url, headers: bob.create_new_auth_token
+      expect(response.parsed_body).to be_empty
+    end
+
+    it 'is idempotent and unstars' do
+      2.times { post star_url, params: { starred: true }, headers: alice.create_new_auth_token }
+      expect(message.stars.count).to eq(1)
+
+      post star_url, params: { starred: false }, headers: alice.create_new_auth_token
+      expect(response.parsed_body['starred']).to be(false)
+      expect(message.stars.count).to eq(0)
+    end
+
+    it 'leaves deleted messages out of the list' do
+      post star_url, params: { starred: true }, headers: alice.create_new_auth_token
+      message.soft_delete!
+
+      get list_url, headers: alice.create_new_auth_token
+      expect(response.parsed_body).to be_empty
+    end
+
+    it 'refuses someone outside the conversation' do
+      post star_url, params: { starred: true }, headers: outsider.create_new_auth_token
+      expect(response).to have_http_status(:not_found)
+      expect(message.stars).to be_empty
+    end
+  end
 end

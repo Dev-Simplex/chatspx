@@ -31,6 +31,7 @@ const emit = defineEmits([
   'scrollTo',
   'forward',
   'info',
+  'star',
 ]);
 
 const { t } = useI18n();
@@ -156,6 +157,11 @@ const forwarded = computed(() =>
 const onForward = () => {
   closeAll();
   emit('forward', props.message);
+};
+
+const onStar = () => {
+  closeAll();
+  emit('star', props.message);
 };
 
 const onInfo = () => {
@@ -484,6 +490,17 @@ const iReacted = emoji =>
               @click.stop="onForward"
             />
             <MenuItem
+              v-if="persisted && message.canStar"
+              :option="{
+                icon: message.starred ? 'i-lucide-star-off' : 'i-lucide-star',
+                label: message.starred
+                  ? t('INTERNAL_CHAT.BUBBLE.UNSTAR')
+                  : t('INTERNAL_CHAT.BUBBLE.STAR'),
+              }"
+              variant="icon"
+              @click.stop="onStar"
+            />
+            <MenuItem
               v-if="message.content"
               :option="{
                 icon: 'clipboard',
@@ -798,6 +815,15 @@ const iReacted = emoji =>
         </span>
       </span>
     </div>
+
+    <!-- Estrela pequena: mensagem favorita (só para você) -->
+    <span
+      v-if="message.starred && !message.deleted"
+      v-tooltip="t('INTERNAL_CHAT.BUBBLE.STARRED_HINT')"
+      class="flex-shrink-0 self-center i-ph-star-fill size-3.5 text-n-amber-9"
+      :aria-label="t('INTERNAL_CHAT.BUBBLE.STARRED_HINT')"
+      role="img"
+    />
 
     <!-- Ao lado do balão, no hover/foco: Responder e Reagir à vista (antes só
          pela setinha escondida dentro do balão) + o horário -->

@@ -239,12 +239,14 @@ Rails.application.routes.draw do
               post :add_member
               delete :remove_member
               post :leave
+              get :starred
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
               member do
                 post :react
                 post :forward
                 get :receipts
+                post :star
               end
             end
             resource :auto_alerts, only: [:show, :update], module: :internal_channels

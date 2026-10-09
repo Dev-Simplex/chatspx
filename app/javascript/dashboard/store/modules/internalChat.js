@@ -27,6 +27,8 @@ export const state = {
   messagesByChannel: {},
   hasMoreByChannel: {},
   typingByChannel: {},
+  // "Mensagens favoritas" (minhas) por conversa: { items, state }.
+  starredByChannel: {},
   pendingMention: null,
   // Canal aberto no momento (para não notificar mensagens do canal que estou
   // olhando) e a última notificação pendente de nova mensagem (a Sidebar, sempre
@@ -63,6 +65,8 @@ export const getters = {
     Object.values($state.typingByChannel[channelId] || {}).map(u => u.name),
   getHasMore: $state => channelId =>
     Boolean($state.hasMoreByChannel[channelId]),
+  getStarred: $state => channelId =>
+    $state.starredByChannel[channelId] || { items: [], state: 'idle' },
   getMentions: $state => $state.mentions,
   getSearchResults: $state => $state.searchResults,
 };
@@ -422,6 +426,46 @@ export const actions = {
     return data.internal_channel_ids || [];
   },
 
+  fetchStarred: async ({ commit }, channelId) => {
+    commit('SET_STARRED', { channelId, patch: { state: 'loading' } });
+    try {
+      const { data } = await InternalChatAPI.getStarred(channelId);
+      commit('SET_STARRED', {
+        channelId,
+        patch: { items: data, state: 'ready' },
+      });
+    } catch (e) {
+      commit('SET_STARRED', { channelId, patch: { state: 'error' } });
+    }
+  },
+
+  // Favoritar/desfavoritar: a lista local muda na hora; se o servidor recusar,
+  // volta como estava e o erro sobe para a tela avisar.
+  toggleStar: async ({ commit, state: $state }, { channelId, message }) => {
+    const current = $state.starredByChannel[channelId]?.items || [];
+    const starred = !current.some(m => m.id === message.id);
+    const next = starred
+      ? [
+          {
+            id: message.id,
+            content: message.content,
+            created_at: message.created_at,
+            user: message.user,
+            attachments: message.attachments || [],
+          },
+          ...current,
+        ]
+      : current.filter(m => m.id !== message.id);
+    commit('SET_STARRED', { channelId, patch: { items: next } });
+    try {
+      await InternalChatAPI.starMessage(channelId, message.id, starred);
+      return starred;
+    } catch (error) {
+      commit('SET_STARRED', { channelId, patch: { items: current } });
+      throw error;
+    }
+  },
+
   // "Digitando…" — best-effort; failures are silent (cosmetic feature).
   sendTyping: async (_ctx, { channelId, typing }) => {
     try {
@@ -617,6 +661,16 @@ export const mutations = {
     $state.typingByChannel = {
       ...$state.typingByChannel,
       [channelId]: current,
+    };
+  },
+  SET_STARRED($state, { channelId, patch }) {
+    const current = $state.starredByChannel[channelId] || {
+      items: [],
+      state: 'idle',
+    };
+    $state.starredByChannel = {
+      ...$state.starredByChannel,
+      [channelId]: { ...current, ...patch },
     };
   },
   SET_MEMBER_READ($state, { channelId, userId, lastReadAt }) {

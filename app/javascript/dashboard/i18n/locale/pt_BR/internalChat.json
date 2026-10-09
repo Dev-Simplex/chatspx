@@ -246,7 +246,10 @@
       "FORWARD": "Encaminhar",
       "FORWARDED": "Encaminhada",
       "FORWARDED_HINT": "Esta mensagem veio de outra conversa.",
-      "INFO": "Dados da mensagem"
+      "INFO": "Dados da mensagem",
+      "STAR": "Favoritar mensagem",
+      "UNSTAR": "Remover dos favoritos",
+      "STARRED_HINT": "Mensagem favorita (só você vê)"
     },
     "SHARED": {
       "OPEN": "Abrir",
@@ -390,6 +393,15 @@
       "EVERYONE_READ": "Todo mundo já leu.",
       "READ_AT_HINT": "Última vez que a pessoa abriu a conversa",
       "ERROR": "Não deu para carregar quem leu esta mensagem."
+    },
+    "STARRED": {
+      "TITLE": "Mensagens favoritas",
+      "EMPTY": "Nenhuma mensagem favorita. Num balão, ⌄ › Favoritar mensagem.",
+      "ERROR": "Não deu para carregar as favoritas.",
+      "SEARCH": "Buscar nas favoritas…",
+      "OPEN": "Ir até a mensagem",
+      "DONE_ON": "Mensagem favoritada. Veja em Detalhes › Mensagens favoritas.",
+      "DONE_OFF": "Removida das favoritas."
     }
   }
 }

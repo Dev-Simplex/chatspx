@@ -5,7 +5,7 @@
 class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseController
   include InternalChatFeatureGuard
 
-  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave]
+  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave, :starred]
   before_action :check_authorization
   helper_method :internal_chat_last_seen
 
@@ -100,6 +100,15 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     head :ok
   end
 
+  # "Mensagens favoritas" desta conversa — só as MINHAS estrelas, mais recentes primeiro.
+  def starred
+    messages = @channel.messages.where(deleted_at: nil)
+                       .joins(:stars).where(internal_message_stars: { user_id: Current.user.id })
+                       .includes(:user, attachments_attachments: :blob)
+                       .reorder('internal_message_stars.created_at DESC')
+    render json: messages.map { |message| starred_json(message) }
+  end
+
   # Real-time "digitando…" — broadcast to the other members only.
   def typing
     tokens = @channel.users.where.not(id: Current.user.id).pluck(:pubsub_token).compact
@@ -115,6 +124,14 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
   end
 
   private
+
+  def starred_json(message)
+    {
+      id: message.id, content: message.content, created_at: message.created_at.to_i,
+      user: { id: message.user_id, name: message.user&.name },
+      attachments: message.attachments.map { |a| { id: a.id, filename: a.blob.filename.to_s } }
+    }
+  end
 
   # user_id => unix ts da última presença (sorted set do OnlineStatusTracker): uma leitura no
   # Redis por requisição, sem rastreamento novo.

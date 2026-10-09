@@ -12,9 +12,19 @@ const props = defineProps({
   media: { type: Array, default: () => [] },
   docs: { type: Array, default: () => [] },
   canManage: { type: Boolean, default: false },
+  // Minhas mensagens favoritas desta conversa: { items, state }.
+  starred: { type: Object, default: () => ({ items: [], state: 'idle' }) },
 });
 
-defineEmits(['close', 'manage', 'search', 'toggleMute', 'favorite']);
+defineEmits([
+  'close',
+  'manage',
+  'search',
+  'toggleMute',
+  'favorite',
+  'openStarred',
+  'retryStarred',
+]);
 
 const { t } = useI18n();
 const PRESENCES = ['online', 'busy', 'offline'];
@@ -80,6 +90,33 @@ const visibleMembers = computed(() => {
   if (!q) return members.value;
   return members.value.filter(m => (m.name || '').toLowerCase().includes(q));
 });
+
+// Mensagens favoritas: busca acima de 8.
+const starQuery = ref('');
+watch(
+  () => props.conversation.id,
+  () => {
+    starQuery.value = '';
+  }
+);
+const starPreview = m =>
+  m.content ||
+  `📎 ${(m.attachments || []).map(a => a.filename).join(', ') || t('INTERNAL_CHAT.ATTACHMENT')}`;
+const visibleStarred = computed(() => {
+  const q = starQuery.value.trim().toLowerCase();
+  const items = props.starred.items || [];
+  if (!q) return items;
+  return items.filter(m =>
+    `${m.user?.name || ''} ${starPreview(m)}`.toLowerCase().includes(q)
+  );
+});
+const starDate = ts =>
+  ts
+    ? new Date(ts * 1000).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+      })
+    : '';
 
 // Avisos automáticos (só sala de time): o servidor diz o que está ligado e se eu posso mudar.
 const ALERT_EVENTS = ['lead_parado', 'meta_batida'];
@@ -214,6 +251,89 @@ const toggleAlert = async (event, value) => {
           <span class="i-lucide-settings-2" />
           {{ t('INTERNAL_CHAT.MANAGE.TITLE') }}
         </button>
+      </div>
+
+      <!-- Mensagens favoritas (só suas) -->
+      <div class="px-3 pb-3">
+        <p
+          class="flex items-center gap-1.5 px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-n-slate-10"
+        >
+          <span class="flex-shrink-0 i-ph-star-fill size-3.5 text-n-amber-9" />
+          {{ t('INTERNAL_CHAT.STARRED.TITLE') }}
+          <span v-if="starred.items.length" class="font-normal">
+            {{ starred.items.length }}
+          </span>
+        </p>
+        <p
+          v-if="starred.state === 'loading' && !starred.items.length"
+          class="flex items-center justify-center gap-2 px-3 py-4 mb-0 text-xs rounded-2xl bg-n-alpha-1 text-n-slate-11"
+        >
+          <span class="i-lucide-loader-circle animate-spin" />
+          {{ t('INTERNAL_CHAT.LOADING') }}
+        </p>
+        <div
+          v-else-if="starred.state === 'error' && !starred.items.length"
+          class="flex flex-col items-center gap-2 px-3 py-4 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-11"
+        >
+          {{ t('INTERNAL_CHAT.STARRED.ERROR') }}
+          <button
+            type="button"
+            class="px-3 py-1 font-semibold rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
+            @click="$emit('retryStarred')"
+          >
+            {{ t('INTERNAL_CHAT.RETRY') }}
+          </button>
+        </div>
+        <p
+          v-else-if="!starred.items.length"
+          class="px-3 py-4 mb-0 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
+        >
+          {{ t('INTERNAL_CHAT.STARRED.EMPTY') }}
+        </p>
+        <template v-else>
+          <div v-if="starred.items.length > 8" class="relative px-1 mb-1.5">
+            <span
+              class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-4 top-1/2 text-n-slate-10"
+            />
+            <input
+              v-model="starQuery"
+              type="text"
+              :placeholder="t('INTERNAL_CHAT.STARRED.SEARCH')"
+              :aria-label="t('INTERNAL_CHAT.STARRED.SEARCH')"
+              class="reset-base w-full h-9 pl-9 pr-3 text-sm border border-transparent outline-none rounded-xl bg-n-alpha-1 focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+            />
+          </div>
+          <p
+            v-if="!visibleStarred.length"
+            class="px-3 py-4 mb-0 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
+          >
+            {{ t('INTERNAL_CHAT.NO_RESULTS') }}
+          </p>
+          <div v-else class="overflow-hidden rounded-2xl bg-n-alpha-1">
+            <button
+              v-for="m in visibleStarred"
+              :key="m.id"
+              v-tooltip.left="t('INTERNAL_CHAT.STARRED.OPEN')"
+              type="button"
+              class="flex flex-col w-full gap-0.5 px-3 py-2 text-left border-b last:border-b-0 border-n-weak hover:bg-n-alpha-2 focus-visible:bg-n-alpha-2 focus-visible:outline-none"
+              @click="$emit('openStarred', m.id)"
+            >
+              <span class="flex items-center justify-between gap-2 text-xs">
+                <span class="font-semibold truncate text-n-slate-12">
+                  {{ m.user?.name }}
+                </span>
+                <span class="flex-shrink-0 tabular-nums text-n-slate-10">
+                  {{ starDate(m.created_at) }}
+                </span>
+              </span>
+              <span
+                class="text-[13px] leading-snug line-clamp-2 text-n-slate-11"
+              >
+                {{ starPreview(m) }}
+              </span>
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- Mídia e documentos da conversa -->
