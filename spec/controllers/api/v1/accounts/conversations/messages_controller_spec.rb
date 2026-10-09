@@ -774,6 +774,35 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(Waha::OutboundSpecialMessageService).to have_received(:new)
       end
     end
+
+    # MIDIA-01: o video grande sai direto pelo WAHA, sem webhook do app — o retry padrao nunca reenviaria.
+    context 'when retrying a WAHA video sent as a document' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:waha_inbox) { create(:channel_api, account: account).inbox.tap { |ib| ib.update!(waha_session_name: 'default') } }
+      let(:waha_conversation) { create(:conversation, account: account, inbox: waha_inbox) }
+      let(:message) do
+        msg = create(:message, account: account, conversation: waha_conversation, inbox: waha_inbox, message_type: :outgoing,
+                               status: :failed, source_id: 'velho', content_attributes: { external_error: 'Session not found' })
+        video = msg.attachments.new(account_id: account.id, file_type: :video)
+        video.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'tour.mp4', content_type: 'video/mp4', identify: false)
+        video.save!
+        video.file.blob.update_column(:byte_size, 20.megabytes) # rubocop:disable Rails/SkipsModelValidations
+        msg
+      end
+
+      before { create(:inbox_member, inbox: waha_inbox, user: agent) }
+
+      it 'clears the error and the source_id and sends it again through the job' do
+        expect do
+          post "/api/v1/accounts/#{account.id}/conversations/#{waha_conversation.display_id}/messages/#{message.id}/retry",
+               headers: agent.create_new_auth_token, as: :json
+        end.to have_enqueued_job(Waha::EnviarDocumentoJob).with(message.id)
+
+        expect(response).to have_http_status(:success)
+        expect(message.reload).to have_attributes(status: 'sent', source_id: nil)
+        expect(message.content_attributes['external_error']).to be_nil
+      end
+    end
   end
 
   describe 'PATCH /api/v1/accounts/{account.id}/conversations/:conversation_id/messages/:id' do

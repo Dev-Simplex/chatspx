@@ -36,7 +36,7 @@ class WebhookListener < BaseListener
     # WAHA: location/contact attachments não são suportados pelo WAHA Chatwoot App.
     # Despachamos via REST direto e ainda assim entregamos os webhooks de account.
     if waha_direct_case?(message, inbox)
-      Waha::OutboundSpecialMessageService.new(message).perform
+      enviar_direto_ao_waha(message)
       deliver_account_webhooks(payload, inbox.account)
       return
     end
@@ -171,6 +171,13 @@ class WebhookListener < BaseListener
 
     attachment = message.attachments.first
     %w[location contact].include?(attachment&.file_type.to_s) || attachment&.vai_como_documento?
+  end
+
+  # O video grande (MIDIA-01) demora o download do WAHA: vai para um job proprio, fora da fila critical.
+  def enviar_direto_ao_waha(message)
+    return Waha::EnviarDocumentoJob.perform_later(message.id) if message.attachments.first&.vai_como_documento?
+
+    Waha::OutboundSpecialMessageService.new(message).perform
   end
 
   def waha_interactive_message?(message)
