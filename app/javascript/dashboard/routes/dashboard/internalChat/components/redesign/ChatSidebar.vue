@@ -795,7 +795,7 @@ defineExpose({ openCompose, focusSearch });
         <div
           v-for="c in archivedFiltered"
           :key="`arch-${c.id}`"
-          class="relative flex items-center group/arch"
+          class="flex items-center gap-1 pr-1"
         >
           <ConversationListItem
             class="flex-1 min-w-0"
@@ -807,7 +807,7 @@ defineExpose({ openCompose, focusSearch });
           <button
             v-tooltip="t('INTERNAL_CHAT.ARCHIVE.OFF')"
             type="button"
-            class="absolute inline-flex items-center justify-center -translate-y-1/2 border rounded-full shadow-sm right-2 top-1/2 size-8 bg-n-solid-1 dark:bg-n-solid-3 border-n-weak text-n-slate-11 hover:text-n-slate-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+            class="inline-flex items-center justify-center flex-shrink-0 border rounded-full shadow-sm size-8 bg-n-solid-1 dark:bg-n-solid-3 border-n-weak text-n-slate-11 hover:text-n-slate-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
             :aria-label="t('INTERNAL_CHAT.ARCHIVE.OFF')"
             @click="emit('unarchive', c.id)"
           >
