@@ -18,8 +18,16 @@ describe('AudioPlayer do chat interno', () => {
     expect(speed().text()).toBe('2×');
     await speed().trigger('click');
     expect(speed().text()).toBe('1×');
-    localStorage.setItem('internal_chat_audio_rate', '2');
-    expect(mountPlayer().findAll('button').at(-1).text()).toBe('2×');
+  });
+
+  it('a velocidade vale para todos os áudios da tela', async () => {
+    const one = mountPlayer();
+    const other = mountPlayer();
+    await one.findAll('button').at(-1).trigger('click');
+    expect(other.findAll('button').at(-1).text()).toBe('1,5×');
+    // volta ao normal para não vazar para os outros testes
+    await one.findAll('button').at(-1).trigger('click');
+    await one.findAll('button').at(-1).trigger('click');
   });
 
   it('áudio recebido mostra "não ouvido" até tocar', async () => {

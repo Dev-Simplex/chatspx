@@ -1,4 +1,6 @@
 <script>
+import { ref } from 'vue';
+
 // Um áudio por vez na tela: dar play num pausa o que estava tocando.
 let activeAudio = null;
 
@@ -26,10 +28,12 @@ const storedRate = () => {
   const rate = Number(readStored(RATE_KEY, 1));
   return RATES.includes(rate) ? rate : 1;
 };
+// Uma velocidade para todos os players da tela: mudar num muda em todos.
+const sharedRate = ref(storedRate());
 </script>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue';
+import { computed, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -52,14 +56,17 @@ const current = ref(0);
 const fixingDuration = ref(false);
 
 // ── Velocidade 1× / 1,5× / 2× ────────────────────────────────────────────
-const rate = ref(storedRate());
+const rate = sharedRate;
 const rateLabel = computed(() => `${String(rate.value).replace('.', ',')}×`);
 const cycleRate = () => {
   const next = RATES[(RATES.indexOf(rate.value) + 1) % RATES.length];
   rate.value = next;
   store(RATE_KEY, next);
-  if (audioRef.value) audioRef.value.playbackRate = next;
 };
+// Vale também para o áudio que já está tocando.
+watch(rate, value => {
+  if (audioRef.value) audioRef.value.playbackRate = value;
+});
 
 // ── Ouvido / não ouvido ──────────────────────────────────────────────────
 const heard = ref(
@@ -125,8 +132,6 @@ const toggle = () => {
   }
   if (activeAudio && activeAudio !== audio) activeAudio.pause();
   activeAudio = audio;
-  // A velocidade pode ter mudado em outro áudio desde o último play.
-  rate.value = storedRate();
   audio.playbackRate = rate.value;
   status.value = 'loading';
   audio.play().catch(() => {
