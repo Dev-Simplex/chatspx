@@ -9,9 +9,11 @@ App "Captador" em Configurações → Integrações. Especificação completa: `
    - `captador_url`: endereço base, por exemplo `https://captador.spx.ia.br`. O hook só aceita `https://`. O fork só chama (painel e eventos) hosts da variável `CAPTADOR_HOSTS_PERMITIDOS` (lista separada por vírgula; padrão `captador.spx.ia.br`), na porta 443, sem seguir redirecionamento e nunca para IP interno. Fora disso, o painel mostra "O Captador não respondeu" e os eventos não saem;
    - `instance_key`: chave dada pela tela Conexões do Captador (`[A-Za-z0-9_-]`);
    - `shared_secret`: no mínimo 32 caracteres, gerado no Captador. Fica cifrado no JSONB e é somente escrita: a API devolve apenas `shared_secret_configured`; na edição, vazio mantém o atual;
-   - `allowed_inbox_ids`: CSV das caixas liberadas; vazio libera nenhuma;
+   - `allowed_inbox_ids`: CSV das caixas liberadas; vazio libera nenhuma. Vale para abrir conversa e para os eventos das conversas sem carimbo (ver Eventos);
    - `allow_login`: marcar só na conta de login.
 3. Ao criar o hook, o `Crm::SetupJob` cria a label `captador` e os atributos `cnpj` e `captador_lead_id` (contato) e `captador_lead_id` (conversa).
+
+Os passos 1 e 2 também podem ser feitos pelo próprio Captador, de uma vez, pela rota de ativação da Frota (ver Frota).
 
 Sem migração: tudo vive em `accounts.settings`, `integrations_hooks.settings` e no Redis.
 
@@ -98,7 +100,13 @@ Só no hook com `allow_login`. Não cria token nem sessão no ChatSPX e não dev
 
 ## Eventos (ChatSPX → Captador)
 
-`Spx::CaptadorListener` → `WebhookJob` → `POST <captador_url>/webhooks/chatspx/<instance_key>`, com `X-Chatwoot-Delivery`, `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` (`sha256=` + HMAC de `"<ts>.<corpo>"` com o `shared_secret`). Eventos continuam em v1 nesta fase; o Captador deduplica também assinatura + timestamp. São 5 tentativas quando o destino não recebeu. Antes da fila, o fork resolve o host e recusa qualquer IP interno. Só conversas com `custom_attributes.captador_lead_id`.
+`Spx::CaptadorListener` → `WebhookJob` → `POST <captador_url>/webhooks/chatspx/<instance_key>`, com `X-Chatwoot-Delivery`, `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` (`sha256=` + HMAC de `"<ts>.<corpo>"` com o `shared_secret`). Eventos continuam em v1 nesta fase; o Captador deduplica também assinatura + timestamp. São 5 tentativas quando o destino não recebeu. Antes da fila, o fork resolve o host e recusa qualquer IP interno.
+
+Quais conversas geram evento (sempre com a chave da conta ligada e o hook ativo):
+- **com o carimbo** `custom_attributes.captador_lead_id`: todas, de qualquer caixa;
+- **sem o carimbo** (aberta direto no ChatSPX, ou nova depois de resolvida): só as de caixa listada em `allowed_inbox_ids`. Lista vazia libera nenhuma, a mesma regra do `POST leads` e do catálogo. O Captador liga a conversa ao lead pelo telefone do contato, que vem em `conversation.meta.sender.phone_number` (E.164 ou `null`), com a caixa em `conversation.inbox_id` (nos eventos de conversa, `meta.sender` e `inbox_id` ficam na raiz).
+
+Os filtros por evento da tabela abaixo valem para os dois casos. Nota privada nunca sai, e o payload da conversa só traz mensagens públicas. `conversation_created` não é enviado: o Captador liga pela primeira `message_created`.
 
 | `event` | Quando | Payload |
 |---|---|---|
@@ -186,3 +194,62 @@ O proxy do fork:
   - 404 ou `lead: null`: "Esse contato não veio do Captador";
   - outro 4xx no mover: o painel mostra o `detail` no aviso, e o proxy repassa o status e o corpo como vieram;
   - 401, 5xx, queda ou mais de 3 s: o proxy responde 502 `captador_unavailable` e o painel mostra "O Captador não respondeu agora", com "Tentar de novo".
+
+## Frota (Captador → ChatSPX, por instalação)
+
+Serve para o Captador listar as contas de cada instalação e ligar a integração numa delas, sem passar pelo Super Admin e por Integrações.
+
+**Autenticação:** `Authorization: Bearer <CAPTADOR_FROTA_TOKEN>`.
+- O token é aleatório, um por instalação, com no mínimo 32 caracteres, e fica no `.env` dela. A comparação é em tempo constante.
+- Sem a variável, ou com menos de 32 caracteres, as duas rotas respondem `404`, como se não existissem.
+- Token errado ou ausente: `401` sem corpo.
+- Sem sessão de usuário e sem CSRF. O Rack::Attack limita a 30 pedidos por minuto por IP (`captador_frota/ip`).
+- O token vale para a instalação inteira. O `shared_secret` de cada hook continua assinando o resto deste contrato.
+
+### `GET /spx/captador/v1/frota/contas`
+
+Todas as contas da instalação, em ordem de id. `servidor` é o host do `FRONTEND_URL`. Nunca sai o `shared_secret` nem token algum.
+
+```json
+200 { "servidor": "chat.simplexsolucoes.com.br",
+      "contas": [
+        { "id": 3, "nome": "Simplex", "status": "active", "criada_em": "2025-04-02T13:10:00Z", "usuarios": 12,
+          "caixas": [ { "id": 2, "nome": "Comercial", "canal": "Channel::Whatsapp" } ],
+          "admins": [ { "nome": "Maria", "email": "maria@…" } ],
+          "captador": { "integracao_habilitada": true,
+                        "hook": { "id": 7, "status": "enabled", "captador_url": "https://captador.spx.ia.br",
+                                  "instance_key": "inst-1", "allowed_inbox_ids": [2], "allow_login": true } } } ] }
+```
+
+- `status`: `active` ou `suspended`.
+- `usuarios`: quantos usuários a conta tem, de qualquer papel.
+- `caixas`: todas, de qualquer canal. O hook só aceita `Channel::Whatsapp` e `Channel::Api`.
+- `captador.integracao_habilitada` é a chave `accounts.settings.captador_integration`. `captador.hook` é `null` se a conta nunca teve o hook.
+
+### `POST /spx/captador/v1/frota/contas/:id/ativar`
+
+```json
+{ "captador_url": "https://captador.spx.ia.br", "instance_key": "inst-1", "shared_secret": "…(32 ou mais)",
+  "allowed_inbox_ids": [2, 5], "allow_login": true }
+200 → o mesmo objeto de conta do GET, sem segredo
+```
+
+- Faz os passos 1 e 2 de "Ligar numa conta" numa transação: liga a chave da conta e cria o hook `captador` habilitado, ou atualiza o que já existe (a conta tem no máximo um).
+- É idempotente: repetir o pedido deixa a conta no mesmo estado.
+- Os campos passam pelo mesmo schema do `apps.yml` que a tela de Integrações usa: `captador_url` só `https://`, `instance_key` `[A-Za-z0-9_-]`, `shared_secret` com 32 ou mais caracteres e `allow_login` booleano.
+- `allowed_inbox_ids` aceita uma lista de ids ou `"todas"`. `[]` libera nenhuma.
+  - `"todas"` vira as caixas `Channel::Whatsapp` e `Channel::Api` da conta naquele momento.
+  - Caixa criada depois não entra sozinha: é preciso ativar de novo.
+- Campo ausente mantém o valor atual do hook.
+  - Num hook que já existe, `shared_secret` ausente ou vazio mantém o segredo atual.
+  - Hook novo exige `captador_url`, `instance_key` e `shared_secret`.
+- Hook novo dispara o `Crm::SetupJob` (label `captador` e atributos), como na tela.
+
+| HTTP | `error_code` | Quando |
+|---|---|---|
+| 404 | — | conta inexistente (ou a variável não está definida) |
+| 422 | `configuracao_invalida` (+ `meta.erros`) | campo fora do schema; caixa de outra conta ou de outro canal; `allowed_inbox_ids` que não é lista nem `"todas"`; `shared_secret` que começa com o prefixo de valor cifrado. Nada é gravado. |
+
+**Auditoria:**
+- Cada ativação grava um registro em `audits`: `auditable_type` `Integrations::Hook`, `comment` `captador.frota.ativar`, o IP em `remote_address` e o estado do hook sem o segredo. A mudança na conta também gera o registro automático de sempre.
+- No `production.log` fica a linha `[Captador][frota] ativar conta=… hook=… caixas=… allow_login=… ip=… agente=…`.

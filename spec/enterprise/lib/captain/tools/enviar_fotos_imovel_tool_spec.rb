@@ -26,6 +26,8 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
     allow(tool).to receive(:fetch_detalhes).and_return(detalhes)
     allow(Down).to receive(:download) { StringIO.new('bytes-de-imagem') }
     allow(tool).to receive(:sleep)
+    # O carrossel confere cada foto com HEAD antes de montar os cards.
+    stub_request(:head, %r{\Ahttps://cdn\.example\.com/}).to_return(status: 200, headers: { 'Content-Type' => 'image/jpeg' })
   end
 
   context 'when the channel delivers interactive payloads (WhatsApp Cloud)' do
@@ -276,6 +278,68 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       tool.perform(tool_context, codigo: '9434')
 
       expect(conversation.reload.custom_attributes).not_to include('fotos_ultimo_envio_at')
+    end
+  end
+
+  # Conv 43132 (Tozi, conta 6): 1 das 9 fotos vinha do Vista como binary/octet-stream e a Meta
+  # recusou o carrossel INTEIRO (131053) — o cliente não recebeu nenhuma foto.
+  describe 'checking each photo before building the carousel' do
+    let(:channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                validate_provider_config: false, sync_templates: false)
+    end
+    let(:conversation) { create(:conversation, account: account, inbox: channel.inbox) }
+    let(:detalhes) do
+      fotos = (1..9).to_h { |i| [i.to_s, { 'Foto' => "https://cdn.example.com/#{i}.jpg", 'Destaque' => 'Nao' }] }
+      { 'Codigo' => '9434', 'ImoCodigo' => '9391', 'Status' => 'VENDA', 'Categoria' => 'Casa', 'Foto' => fotos }
+    end
+    let(:cards) { outgoing.first.content_attributes['interactive_payload']['action']['cards'] }
+
+    def foto_recusada(numero)
+      stub_request(:head, "https://cdn.example.com/#{numero}.jpg")
+        .to_return(status: 200, headers: { 'Content-Type' => 'binary/octet-stream' })
+    end
+
+    it 'leaves out the photo the Meta would refuse and renumbers the cards' do
+      foto_recusada(3)
+
+      expect(tool.perform(tool_context, codigo: '9434')).to include('carrossel com 8 fotos')
+
+      expect(cards.size).to eq(8)
+      expect(cards.pluck('card_index')).to eq((0..7).to_a)
+      expect(cards.map { |c| c['header']['image']['link'] }).not_to include('https://cdn.example.com/3.jpg')
+      expect(cards.last['body']['text']).to start_with('Foto 8 de 8')
+      expect(conversation.reload.custom_attributes['fotos_offset_9434']).to eq(9)
+    end
+
+    it 'treats a photo that times out as refused' do
+      stub_request(:head, 'https://cdn.example.com/5.jpg').to_timeout
+
+      tool.perform(tool_context, codigo: '9434')
+
+      expect(cards.size).to eq(8)
+      expect(cards.map { |c| c['header']['image']['link'] }).not_to include('https://cdn.example.com/5.jpg')
+    end
+
+    it 'sends the single valid photo on its own when the carousel would have one card' do
+      (2..9).each { |n| foto_recusada(n) }
+
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('só 1 foto')
+      expect(outgoing.count).to eq(1)
+      expect(outgoing.first.content_attributes['interactive_payload']).to be_nil
+      expect(outgoing.first.attachments.size).to eq(1)
+    end
+
+    it 'sends nothing and tells the model so when no photo passes' do
+      (1..9).each { |n| foto_recusada(n) }
+
+      retorno = tool.perform(tool_context, codigo: '9434')
+
+      expect(retorno).to include('NÃO diga que enviou')
+      expect(outgoing.count).to eq(0)
+      expect(conversation.reload.custom_attributes).not_to include('fotos_offset_9434')
     end
   end
 end

@@ -72,8 +72,7 @@ const aviso = feature => {
 };
 
 const alternar = async feature => {
-  // Interruptor travado não emite nada: ligar uma feature sem bit estoura no banco (RangeError), e o
-  // backend recusa. Barrar aqui evita a viagem e a mensagem de erro sem propósito.
+  // Interruptor indisponível não emite requisição.
   if (!feature.available) return;
 
   salvando.value = feature.name;

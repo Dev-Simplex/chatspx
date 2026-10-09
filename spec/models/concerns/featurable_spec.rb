@@ -1,8 +1,8 @@
 require 'rails_helper'
 
 # O mecanismo de feature de CONTA não tinha spec próprio até 28/08/2026, apesar de governar o que
-# cada cliente enxerga. Estes exemplos travam as três coisas que se descobriu doer na prática:
-# o default vir do BANCO e não do YAML, o bitmask estar estourado, e `enable_features!` falhar calado.
+# cada cliente enxerga. Estes exemplos travam o default vindo do banco, a segunda coluna de bits
+# e o fato de `enable_features!` falhar calado quando uma validação reprova.
 RSpec.describe Featurable do
   let(:account) { create(:account) }
 
@@ -34,26 +34,20 @@ RSpec.describe Featurable do
     end
   end
 
-  # `accounts.feature_flags` é bigint (63 bits úteis) e a POSIÇÃO no config/features.yml define o bit.
-  # Com 65 entradas, as duas últimas pedem 2^63 e 2^64 e NÃO CABEM. Este exemplo é o que impede
-  # alguém de "só ligar todas" e derrubar a conta.
-  describe 'o bitmask esta estourado' do
-    let(:catalogo) { YAML.safe_load(Rails.root.join('config/features.yml').read) }
+  describe 'features em duas colunas de bits' do
+    it 'mantem os primeiros 63 bits e grava os seguintes na coluna extra' do
+      account.enable_features!('captain_tasks', 'conversation_required_attributes', 'advanced_assignment')
 
-    it 'as features alem da posicao 63 nao cabem no bigint' do
-      alem = catalogo.each_with_index.select { |_f, i| (1 << i) > ((2**63) - 1) }.map { |f, _| f['name'] }
-
-      expect(alem).to contain_exactly('conversation_required_attributes', 'advanced_assignment')
+      expect(account.reload.enabled_features.keys).to include('captain_tasks', 'conversation_required_attributes', 'advanced_assignment')
+      expect(account.feature_flags_extra).to eq(3)
     end
 
-    it 'ligar uma delas estoura, entao a tela precisa BLOQUEAR e nao so avisar' do
-      expect { account.enable_features!('advanced_assignment') }.to raise_error(RangeError)
-    end
+    it 'desliga uma feature extra sem apagar as outras' do
+      account.enable_features!('conversation_required_attributes', 'advanced_assignment')
+      account.disable_features!('advanced_assignment')
 
-    it 'a ultima que ainda cabe continua funcionando' do
-      account.enable_features!('captain_tasks')
-
-      expect(account.reload.feature_enabled?('captain_tasks')).to be(true)
+      expect(account.reload.feature_enabled?('conversation_required_attributes')).to be(true)
+      expect(account.feature_enabled?('advanced_assignment')).to be(false)
     end
   end
 

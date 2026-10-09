@@ -11,6 +11,15 @@ RSpec.describe Account, type: :model do
     it { is_expected.to have_many(:custom_roles).dependent(:destroy_async) }
   end
 
+  it 'salva as flags da segunda coluna pelo formulario do Super Admin' do
+    account = create(:account, custom_attributes: { plan_name: 'Enterprise' })
+
+    account.update!(selected_feature_flags: %i[feature_assignment_v2 feature_conversation_required_attributes feature_advanced_assignment])
+
+    expect(account.reload.enabled_features.keys).to include('assignment_v2', 'conversation_required_attributes', 'advanced_assignment')
+    expect(account.feature_flags_extra).to eq(3)
+  end
+
   describe 'sla_policies' do
     let!(:account) { create(:account) }
     let!(:sla_policy) { create(:sla_policy, account: account) }
@@ -126,6 +135,27 @@ RSpec.describe Account, type: :model do
         expect(account.captain_monthly_limit).to eq(
           { documents: ChatwootApp.max_limit, responses: ChatwootApp.max_limit }.with_indifferent_access
         )
+      end
+
+      # Self-hosted: nada zera o contador vitalício, então só limite explícito na conta vira teto.
+      it 'nao esgota as respostas mesmo com uso acima do teto padrao' do
+        account.update!(custom_attributes: { captain_responses_usage: ChatwootApp.max_limit + 50_000 })
+
+        responses = account.usage_limits[:captain][:responses]
+        expect(responses[:consumed]).to eq(ChatwootApp.max_limit + 50_000)
+        expect(responses[:current_available]).to eq(ChatwootApp.max_limit)
+      end
+
+      it 'bloqueia quando a conta tem limite explicito zero' do
+        account.update!(limits: { captain_responses: 0 })
+
+        expect(account.usage_limits[:captain][:responses][:current_available]).to eq(0)
+      end
+
+      it 'desconta o uso do limite explicito da conta' do
+        account.update!(limits: { captain_responses: 500 }, custom_attributes: { captain_responses_usage: 200 })
+
+        expect(account.usage_limits[:captain][:responses][:current_available]).to eq(300)
       end
     end
 

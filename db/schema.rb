@@ -79,6 +79,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_08_120000) do
     t.string "domain", limit: 100
     t.string "support_email", limit: 100
     t.bigint "feature_flags", default: 0, null: false
+    t.bigint "feature_flags_extra", default: 0, null: false
     t.integer "auto_resolve_duration"
     t.jsonb "limits", default: {}
     t.jsonb "custom_attributes", default: {}
@@ -338,10 +339,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_08_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "canonical_phone"
+    t.bigint "message_id"
+    t.datetime "delivered_at"
+    t.datetime "read_at"
+    t.datetime "replied_at"
+    t.datetime "failed_at"
+    t.jsonb "pricing", default: {}, null: false
     t.index ["account_id", "canonical_phone"], name: "index_campaign_recipients_on_account_id_and_canonical_phone"
     t.index ["account_id", "phone_number"], name: "index_campaign_recipients_on_account_id_and_phone_number"
     t.index ["campaign_id", "status"], name: "index_campaign_recipients_on_campaign_id_and_status"
+    t.index ["contact_id", "sent_at"], name: "index_campaign_recipients_on_contact_id_and_sent_at"
     t.index ["conversation_id"], name: "index_campaign_recipients_on_conversation_id"
+    t.index ["message_id"], name: "index_campaign_recipients_on_message_id"
   end
 
   create_table "campaigns", force: :cascade do |t|

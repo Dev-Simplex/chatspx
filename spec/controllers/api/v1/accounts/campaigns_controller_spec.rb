@@ -362,4 +362,140 @@ RSpec.describe 'Campaigns API', type: :request do
       expect(campaign.template_language).to eq('en')
     end
   end
+
+  # Os números da campanha vêm do DESTINATÁRIO. A conversa guarda só a campanha de origem: quem
+  # recebeu duas campanhas sumia da segunda e a resposta de meses antes contava na primeira.
+  describe 'GET /api/v1/accounts/{account.id}/campaigns/:id/stats (funil por destinatário)' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:contact) { create(:contact, account: account) }
+    let(:origem) { create(:campaign, account: account, inbox: inbox) }
+    let(:segunda) { create(:campaign, account: account, inbox: inbox) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact, campaign: origem) }
+
+    def recipient(campaign, **attrs)
+      CampaignRecipient.create!(campaign: campaign, account: account, contact: contact, conversation: conversation,
+                                phone_number: '+5566999990000', **attrs)
+    end
+
+    def stats(campaign)
+      get "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/stats",
+          headers: administrator.create_new_auth_token, as: :json
+      JSON.parse(response.body, symbolize_names: true)
+    end
+
+    it 'conta cada campanha pelos seus destinatários, com o contato nas duas' do
+      recipient(origem, status: :delivered, sent_at: 10.days.ago, delivered_at: 10.days.ago)
+      recipient(segunda, status: :replied, sent_at: 1.hour.ago, read_at: 50.minutes.ago, replied_at: 30.minutes.ago,
+                         pricing: { 'billable' => true, 'category' => 'marketing' })
+      recipient(segunda, status: :failed, sent_at: 1.hour.ago, external_error: '131026: Message undeliverable')
+      recipient(segunda, status: :pending)
+
+      expect(stats(segunda)).to include(total: 2, reached: 1, delivered: 1, read: 1, replied: 1, failed: 1,
+                                        delivery_rate: 50.0, failures: [{ code: '131026', count: 1 }],
+                                        cost: { billable: 1, by_category: { marketing: 1 } })
+      expect(stats(origem)).to include(total: 1, reached: 1, delivered: 1, read: 0, replied: 0, failed: 0)
+    end
+
+    it 'cai no agregado por conversa quando a campanha não tem destinatários' do
+      template = { 'template_params' => { 'name' => 'antigo' } }
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :outgoing, status: :read,
+                       additional_attributes: template)
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :outgoing, status: :failed,
+                       external_error: '131049: Ecosystem engagement', additional_attributes: template)
+
+      expect(stats(origem)).to include(total: 1, reached: 1, read: 1, failed: 1, failures: [{ code: '131049', count: 1 }])
+    end
+  end
+
+  describe 'GET /api/v1/accounts/{account.id}/campaigns/:id/undelivered' do
+    let(:administrator) { create(:user, account: account, role: :administrator) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:campaign) { create(:campaign, account: account, inbox: inbox) }
+    let(:contact) { create(:contact, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
+
+    def recipient(status, phone, **attrs)
+      CampaignRecipient.create!(campaign: campaign, account: account, phone_number: phone, status: status, **attrs)
+    end
+
+    def undelivered(params = {}, format: nil, user: administrator)
+      path = "/api/v1/accounts/#{account.id}/campaigns/#{campaign.display_id}/undelivered"
+      get format ? "#{path}.#{format}" : path, params: params, headers: user.create_new_auth_token
+    end
+
+    def payload
+      JSON.parse(response.body, symbolize_names: true)
+    end
+
+    before do
+      recipient(:failed, '+5566900000001', name: 'Ana', external_error: '131026: Message undeliverable',
+                                           conversation: conversation, contact: contact, failed_at: Time.current)
+      recipient(:skipped, '+5566900000002', name: 'Bia', external_error: 'atendimento_ativo')
+      recipient(:cancelled, '+5566900000003')
+      recipient(:sent, '+5566900000004')
+      recipient(:replied, '+5566900000005')
+      recipient(:pending, '+5566900000006')
+    end
+
+    it 'lists only who did not receive, with the reason and the conversation' do
+      undelivered
+
+      expect(response).to have_http_status(:success)
+      expect(payload[:meta]).to include(total: 3, page: 1)
+      ana = payload[:payload].find { |row| row[:name] == 'Ana' }
+      expect(ana).to include(status: 'failed', reason_code: '131026', error: '131026: Message undeliverable',
+                             conversation_id: conversation.display_id, contact_id: contact.id)
+      expect(ana[:reason]).to be_present
+      expect(payload[:payload].pluck(:status)).to contain_exactly('failed', 'skipped', 'cancelled')
+    end
+
+    it 'filters failed versus blocked' do
+      undelivered({ type: 'blocked' })
+      expect(payload[:payload].pluck(:reason_code)).to contain_exactly('atendimento_ativo', 'cancelado')
+
+      undelivered({ type: 'failed' })
+      expect(payload[:payload].pluck(:phone_number)).to eq(['+5566900000001'])
+    end
+
+    it 'paginates' do
+      30.times { |i| recipient(:failed, format('+55669100%05d', i)) }
+
+      undelivered({ page: 2 })
+
+      expect(payload[:meta]).to include(total: 33, page: 2, per_page: 25)
+      expect(payload[:payload].size).to eq(8)
+    end
+
+    it 'does not leak recipients from another account' do
+      other = create(:account)
+      other_campaign = create(:campaign, account: other, inbox: create(:inbox, account: other))
+      CampaignRecipient.create!(campaign: other_campaign, account: other, phone_number: '+5566900000099', status: :failed)
+
+      undelivered
+      expect(payload[:payload].pluck(:phone_number)).not_to include('+5566900000099')
+
+      get "/api/v1/accounts/#{other.id}/campaigns/#{other_campaign.display_id}/undelivered",
+          headers: administrator.create_new_auth_token
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'is admin only, like the rest of the campaign' do
+      undelivered(user: agent)
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'exports the whole list as CSV with ; for Excel' do
+      undelivered({ type: 'failed' }, format: 'csv')
+
+      expect(response).to have_http_status(:success)
+      expect(response.headers['Content-Type']).to include('text/csv')
+      lines = response.body.delete_prefix("\uFEFF").lines.map(&:chomp)
+      expect(lines.first.split(';').size).to eq(7)
+      expect(lines.size).to eq(2)
+      expect(lines.second).to include('Ana', '131026: Message undeliverable', "/conversations/#{conversation.display_id}")
+    end
+  end
 end

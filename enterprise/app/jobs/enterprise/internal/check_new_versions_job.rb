@@ -1,5 +1,7 @@
 module Enterprise::Internal::CheckNewVersionsJob
   def perform
+    return if ENV['SPX_ENTERPRISE_OVERRIDE'] == 'true' || ENV['SPX_HML_ENTERPRISE_SANDBOX'] == 'true'
+
     super
     update_plan_info
     reconcile_premium_config_and_features

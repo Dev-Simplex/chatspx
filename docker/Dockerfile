@@ -28,6 +28,7 @@ RUN apk update && apk add --no-cache \
   openssl \
   tar \
   build-base \
+  ffmpeg \
   tzdata \
   postgresql-dev \
   postgresql-client \
@@ -122,6 +123,7 @@ ENV BUNDLE_PATH="/gems"
 
 RUN apk update && apk add --no-cache \
   build-base \
+  ffmpeg \
   openssl \
   tzdata \
   postgresql-client \

@@ -95,7 +95,9 @@ const formattedPhone = computed(() => {
 const savedContact = computed(() =>
   phoneNumber.value ? savedContactFor(phoneNumber.value) : null
 );
-const shownName = computed(() => savedContact.value?.name || contactName.value);
+const shownName = computed(
+  () => savedContact.value?.name || contactName.value
+);
 const displayName = computed(() => shownName.value || formattedPhone.value);
 
 // Only show the phone as a secondary line when it isn't already the title.
@@ -152,7 +154,7 @@ async function filterContactByNumber(searchCandidate) {
   return contacts.shift();
 }
 
-async function findOrCreateContact() {
+async function resolveContact() {
   let contact = isSaved.value
     ? { id: savedContactId.value || savedContact.value?.id }
     : await filterContactByNumber(e164.value);
@@ -163,18 +165,6 @@ async function findOrCreateContact() {
   }
   savedContactId.value = contact.id;
   return contact;
-}
-
-// SUP-1415: dois cliques seguidos não podem buscar e criar duas vezes (ficha duplicada).
-// Enquanto a primeira busca/criação não termina, a segunda reaproveita a mesma.
-let resolvingContact = null;
-function resolveContact() {
-  resolvingContact =
-    resolvingContact ||
-    findOrCreateContact().finally(() => {
-      resolvingContact = null;
-    });
-  return resolvingContact;
 }
 
 function openContactProfile(contactId) {

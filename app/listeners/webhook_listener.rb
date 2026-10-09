@@ -27,6 +27,9 @@ class WebhookListener < BaseListener
     inbox = message.inbox
 
     return unless message.webhook_sendable?
+    # Video .MOV ainda virando .mp4: a ponte da WAHA baixa o arquivo assim que recebe o webhook, entao ele
+    # sai depois, ja com o .mp4 (Webhooks::MessageCreatedAposMp4Job).
+    return Webhooks::MessageCreatedAposMp4Job.set(wait: SendReplyJob::MP4_RETRY_WAIT).perform_later(message.id) if message.aguardando_mp4?
 
     payload = message.webhook_data.merge(event: __method__.to_s)
 

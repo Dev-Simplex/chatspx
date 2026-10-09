@@ -14,6 +14,8 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   BATCH = 3
   SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
   MAX_POR_IMOVEL = 9 # teto de fotos por imóvel no WhatsApp (3 lotes) — evita dilúvio; pra ver TODAS, a IA oferece o link da galeria
+  HEAD_TIMEOUT = 3 # segundos por foto na conferência do carrossel
+  TIPOS_FOTO_CARROSSEL = %w[image/jpeg image/png].freeze # o que a Meta aceita no header de imagem do card
 
   # Freio anti-rajada. O que precisa ser freado é a IA despejar imóveis que NINGUÉM pediu —
   # não o cliente pedir três de uma vez. A régua, então, é o TURNO: quantos imóveis distintos
@@ -205,7 +207,10 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   # Obs.: card 'type' => 'cta_url' mesmo com quick_reply é o formato do exemplo oficial da
   # doc (validado ao vivo) — não trocar sem re-testar.
   def send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite)
-    urls = fotos[sent, limite - sent] || []
+    candidatas = fotos[sent, limite - sent] || []
+    urls = candidatas.select { |url| foto_aceita_pela_meta?(url) }
+    return send_fotos_sem_carrossel(conversation, urls, codigo, key, sent + candidatas.size) if urls.size < 2
+
     total = urls.size
     card_action = card_action_for(dados, codigo)
     cards = urls.each_with_index.map do |url, i|
@@ -232,11 +237,38 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       } }
     )
 
-    conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => sent + total))
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => sent + candidatas.size))
 
     "Enviei um carrossel com #{total} fotos do imóvel #{codigo}, com botões de interesse e visita. " \
       'Se o cliente quiser ver TODAS as fotos, ofereça o link do imóvel (galeria completa no site). ' \
       'NÃO reenvie as mesmas fotos — avance a conversa.'
+  end
+
+  # A Meta baixa a foto de cada card pela URL e, se UMA vier com Content-Type que ela não aceita,
+  # recusa o carrossel INTEIRO (131053 "Media upload error") e o cliente não recebe nenhuma.
+  # Caso real: Tozi, conv 43132 — 8 fotos image/jpeg e 1 servida pelo Vista como
+  # binary/octet-stream. Conferir antes com HEAD e deixar de fora a que seria recusada.
+  # Falha de rede ou timeout conta como reprovada: é a mesma foto que a Meta não conseguiria baixar.
+  def foto_aceita_pela_meta?(url)
+    resp = HTTParty.head(url, timeout: HEAD_TIMEOUT)
+    resp.success? && TIPOS_FOTO_CARROSSEL.include?(resp.headers['content-type'].to_s.split(';').first.to_s.strip.downcase)
+  rescue StandardError
+    false
+  end
+
+  # Sobrou menos de 2 fotos aceitas — o carrossel não existe com 1 card. Com 1, vai pelo envio
+  # avulso de sempre. Com nenhuma, o offset NÃO avança e o retorno diz à IA que nada saiu,
+  # para ela não garantir ao cliente que mandou.
+  def send_fotos_sem_carrossel(conversation, urls, codigo, key, novo_sent)
+    if urls.empty?
+      return "Não consegui enviar as fotos do imóvel #{codigo}: o site não entregou as imagens num formato que o WhatsApp aceita. " \
+             "NÃO diga que enviou. Ofereça ao cliente o link do imóvel#{link_galeria(conversation, codigo)} para ver as fotos no site."
+    end
+
+    send_photo(conversation, urls.first, codigo)
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => novo_sent))
+    "Enviei só 1 foto do imóvel #{codigo} — as outras não puderam ser enviadas por aqui. " \
+      "Se o cliente quiser ver mais, ofereça o link do imóvel#{link_galeria(conversation, codigo)}. Avance a conversa."
   end
 
   def card_action_for(dados, codigo)

@@ -7,6 +7,7 @@ import StatsCard from 'dashboard/components-next/agents/StatsCard.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import DispatchPanel from 'dashboard/components-next/Campaigns/DispatchPanel.vue';
 import DispatchSettings from 'dashboard/components-next/Campaigns/DispatchSettings.vue';
+import UndeliveredRecipients from 'dashboard/components-next/Campaigns/UndeliveredRecipients.vue';
 import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
@@ -280,6 +281,8 @@ onBeforeUnmount(stopPolling);
             </table>
           </div>
         </div>
+
+        <UndeliveredRecipients class="mb-6" :campaign-id="campaignId" />
 
         <div
           class="p-4 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2"

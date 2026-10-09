@@ -5,7 +5,10 @@ module Enterprise::Account
 
   # Auto-sync advanced_assignment with assignment_v2 when features are bulk-updated via admin UI
   def selected_feature_flags=(features)
-    super
+    flags = Array(features).filter_map { |feature| feature.to_sym if feature.present? }
+    extra = flags & Featurable::EXTRA_FEATURES.values
+    self.selected_feature_flags_extra = extra
+    super(flags - extra)
     sync_assignment_features
   end
 

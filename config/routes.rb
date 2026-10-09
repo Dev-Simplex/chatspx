@@ -177,6 +177,7 @@ Rails.application.routes.draw do
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
+              get :undelivered
               post :audience_preview
               post :recipients
               post :start
@@ -997,6 +998,9 @@ Rails.application.routes.draw do
       post 'v1/leads',   to: 'leads#create'
       get  'v1/catalogo', to: 'catalogo#show'
       get  'v1/conversas', to: 'conversas#index'
+      # Frota: token da instalação (CAPTADOR_FROTA_TOKEN), não o segredo do hook. Ver Spx::Captador::FrotaController.
+      get  'v1/frota/contas',            to: 'frota#index'
+      post 'v1/frota/contas/:id/ativar', to: 'frota#ativar'
     end
   end
 
