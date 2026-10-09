@@ -130,6 +130,13 @@ const groupFaces = computed(() => {
       </span>
       <span class="flex items-start justify-between gap-2 mt-0.5">
         <span
+          v-if="conversation.typingText"
+          class="flex-1 text-[13px] italic font-medium leading-snug truncate text-n-teal-11"
+        >
+          {{ conversation.typingText }}
+        </span>
+        <span
+          v-else
           class="flex-1 text-[13px] leading-snug line-clamp-2 break-words"
           :class="unread ? 'text-n-slate-12' : 'text-n-slate-11'"
         >

@@ -1,6 +1,10 @@
 import InternalChatAPI from '../../api/internalChat';
 
 let refetchInFlight = false;
+// "Digitando…" some sozinho se o aviso de parar se perder: um relógio por
+// pessoa e conversa, renovado a cada novo "digitando".
+const TYPING_TTL = 5000;
+const typingTimers = {};
 // Uma leitura por rajada: com a conversa aberta, cada mensagem recebida pedia um
 // POST /read. Agora espera a rajada acalmar e marca uma vez só.
 let markReadTimer = null;
@@ -306,6 +310,15 @@ export const actions = {
   ) => {
     const channelId = payload.internal_channel_id;
     const message = payload.message;
+    // A mensagem chegou: quem a escreveu parou de digitar.
+    if (message.user?.id) {
+      clearTimeout(typingTimers[`${channelId}-${message.user.id}`]);
+      commit('SET_TYPING', {
+        channelId,
+        userId: message.user.id,
+        typing: false,
+      });
+    }
     if ($state.messagesByChannel[channelId]) {
       commit('APPEND_MESSAGE', { channelId, message });
     }
@@ -422,6 +435,8 @@ export const actions = {
     { commit },
     { internal_channel_id: channelId, user, typing }
   ) => {
+    const key = `${channelId}-${user.id}`;
+    clearTimeout(typingTimers[key]);
     commit('SET_TYPING', {
       channelId,
       userId: user.id,
@@ -429,11 +444,10 @@ export const actions = {
       typing,
     });
     if (typing) {
-      // Safety net: auto-clear if the "stopped typing" event is ever lost.
-      setTimeout(
+      typingTimers[key] = setTimeout(
         () =>
           commit('SET_TYPING', { channelId, userId: user.id, typing: false }),
-        5000
+        TYPING_TTL
       );
     }
   },

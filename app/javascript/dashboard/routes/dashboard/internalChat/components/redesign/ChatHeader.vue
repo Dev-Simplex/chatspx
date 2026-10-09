@@ -113,6 +113,14 @@ const pick = () => {
           />
         </span>
         <span
+          v-if="conversation.typingText"
+          class="text-xs italic font-medium leading-tight truncate mt-0.5 text-n-teal-11"
+          aria-live="polite"
+        >
+          {{ conversation.typingText }}
+        </span>
+        <span
+          v-else
           class="text-xs leading-tight truncate mt-0.5"
           :class="online ? 'text-n-teal-11 font-medium' : 'text-n-slate-11'"
         >

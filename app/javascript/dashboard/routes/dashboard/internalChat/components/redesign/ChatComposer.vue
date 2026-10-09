@@ -5,6 +5,7 @@ import {
   watch,
   nextTick,
   onMounted,
+  onBeforeUnmount,
   defineAsyncComponent,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -25,9 +26,11 @@ const props = defineProps({
   initialDraft: { type: String, default: '' },
   // Quem pode ser @mencionado: [{ id, name, avatar_url }] (vazio = sem menção).
   mentionCandidates: { type: Array, default: () => [] },
+  // Conversa deste campo: o "digitando…" vai para ela (mesmo ao desmontar).
+  channelId: { type: [Number, String], default: null },
 });
 
-const emit = defineEmits(['send', 'cancelReply', 'draftChange']);
+const emit = defineEmits(['send', 'cancelReply', 'draftChange', 'typing']);
 const { t } = useI18n();
 
 const EmojiInput = defineAsyncComponent(
@@ -120,9 +123,39 @@ const onEsc = event => {
   mentionQuery.value = null;
 };
 
+// ── "Digitando…" ──────────────────────────────────────────────────────────
+// Avisa no máximo a cada 3 s enquanto há teclas; 4 s parado (ou enviar,
+// apagar tudo, trocar de conversa) avisa que parou. Quem recebe apaga
+// sozinho depois de 5 s sem novo aviso.
+const TYPING_EVERY = 3000;
+const TYPING_IDLE = 4000;
+let typingSentAt = 0;
+let typingIdleTimer = null;
+const stopTyping = () => {
+  clearTimeout(typingIdleTimer);
+  if (!typingSentAt) return;
+  typingSentAt = 0;
+  emit('typing', { channelId: props.channelId, typing: false });
+};
+const notifyTyping = () => {
+  if (!draft.value.trim()) {
+    stopTyping();
+    return;
+  }
+  const now = Date.now();
+  if (now - typingSentAt > TYPING_EVERY) {
+    typingSentAt = now;
+    emit('typing', { channelId: props.channelId, typing: true });
+  }
+  clearTimeout(typingIdleTimer);
+  typingIdleTimer = setTimeout(stopTyping, TYPING_IDLE);
+};
+onBeforeUnmount(stopTyping);
+
 const onInput = () => {
   autoResize();
   updateMentionQuery();
+  notifyTyping();
 };
 
 // ── Respostas prontas (picker "/") ────────────────────────────────────────────
@@ -214,6 +247,7 @@ const send = () => {
     mentionedUserIds: mentionedIdsIn(content),
   });
   mentionQuery.value = null;
+  stopTyping();
   draft.value = '';
   attachedFiles.value = [];
   showEmoji.value = false;

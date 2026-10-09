@@ -149,6 +149,27 @@ const previewOf = ch => {
   return lm.content || `📎 ${t('INTERNAL_CHAT.ATTACHMENT')}`;
 };
 
+// "Misya está digitando…" / "Misya e Emily estão digitando…" (primeiro nome).
+const typingTextFor = channelId => {
+  const names = store.getters['internalChat/getTypingNames'](channelId).map(
+    n => (n || '').split(' ')[0]
+  );
+  if (!names.length) return '';
+  if (names.length === 1)
+    return t('INTERNAL_CHAT.TYPING_ONE', { name: names[0] });
+  if (names.length === 2)
+    return t('INTERNAL_CHAT.TYPING_TWO', { a: names[0], b: names[1] });
+  return t('INTERNAL_CHAT.TYPING_MORE', {
+    a: names[0],
+    b: names[1],
+    count: names.length - 2,
+  });
+};
+const onTyping = ({ channelId, typing }) => {
+  if (channelId == null) return;
+  store.dispatch('internalChat/sendTyping', { channelId, typing });
+};
+
 // Traduz o canal do store para a forma que os componentes do redesign esperam.
 const mapChannel = ch => {
   const isDm = ch.channel_type === 'direct';
@@ -169,6 +190,7 @@ const mapChannel = ch => {
     time: rowTime(lm?.created_at),
     lastAt: lm?.created_at || 0,
     unreadCount: ch.unread_count || 0,
+    typingText: typingTextFor(ch.id),
     favorited: favorites.value.has(ch.id),
     muted: mutedIds.value.includes(ch.id),
     lastMessage: {
@@ -936,6 +958,8 @@ onBeforeUnmount(() => {
             :replying-to="replyingTo"
             :initial-draft="drafts[activeId] || ''"
             :mention-candidates="mentionCandidates"
+            :channel-id="activeId"
+            @typing="onTyping"
             @send="onSend"
             @draft-change="onDraftChange"
             @cancel-reply="onCancelReply"

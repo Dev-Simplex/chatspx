@@ -363,6 +363,8 @@
       "ERROR": "Could not forward. Check your connection and try again.",
       "DONE": "Message forwarded to {count} conversation(s).",
       "PREVIEW_CONVERSATION": "Customer conversation #{id}"
-    }
+    },
+    "TYPING_TWO": "{a} and {b} are typing…",
+    "TYPING_MORE": "{a}, {b} and {count} more are typing…"
   }
 }

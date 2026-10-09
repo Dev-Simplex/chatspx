@@ -363,6 +363,8 @@
       "ERROR": "Não deu para encaminhar. Confira a internet e tente de novo.",
       "DONE": "Mensagem encaminhada para {count} conversa(s).",
       "PREVIEW_CONVERSATION": "Conversa de cliente #{id}"
-    }
+    },
+    "TYPING_TWO": "{a} e {b} estão digitando…",
+    "TYPING_MORE": "{a}, {b} e mais {count} estão digitando…"
   }
 }
