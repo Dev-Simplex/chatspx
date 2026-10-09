@@ -41,9 +41,7 @@ const getRatingCount = value => {
 </script>
 
 <template>
-  <div
-    class="shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 px-6 py-5"
-  >
+  <div class="rounded-xl border border-n-weak bg-n-solid-2 px-6 py-5">
     <span class="text-sm font-medium text-n-slate-11">
       {{ $t('CSAT_REPORTS.METRIC.RATING_DISTRIBUTION') }}
     </span>

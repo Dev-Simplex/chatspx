@@ -12,6 +12,7 @@ import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import OverviewReportFilters from './OverviewReportFilters.vue';
+import ReportHeaderFilters from './ReportHeaderFilters.vue';
 import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
 const emit = defineEmits(['filterChange']);
@@ -302,50 +303,51 @@ onMounted(() => {
 </script>
 
 <template>
-  <OverviewReportFilters
-    :disabled="isLoading"
-    @filter-change="onFilterChange"
-  />
+  <ReportHeaderFilters>
+    <div class="flex flex-col gap-3">
+      <OverviewReportFilters
+        :disabled="isLoading"
+        @filter-change="onFilterChange"
+      />
 
-  <!-- Filtros de recorte: time e inbox -->
-  <div class="flex flex-wrap items-center gap-4 -mt-2">
-    <label class="flex items-center gap-2 text-sm text-n-slate-11">
-      {{ $t('ASSIGNMENT_REPORTS.FILTER.TEAM') }}
-      <select
-        v-model="teamId"
-        class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
-        @change="onScopeChange"
-      >
-        <option value="">
-          {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_TEAMS') }}
-        </option>
-        <option v-for="team in teams" :key="team.id" :value="team.id">
-          {{ team.name }}
-        </option>
-      </select>
-    </label>
-    <label class="flex items-center gap-2 text-sm text-n-slate-11">
-      {{ $t('ASSIGNMENT_REPORTS.FILTER.INBOX') }}
-      <select
-        v-model="inboxId"
-        class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
-        @change="onScopeChange"
-      >
-        <option value="">
-          {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_INBOXES') }}
-        </option>
-        <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
-          {{ inbox.name }}
-        </option>
-      </select>
-    </label>
-  </div>
+      <!-- Filtros de recorte: time e inbox -->
+      <div class="flex flex-wrap items-center gap-4">
+        <label class="flex items-center gap-2 text-sm text-n-slate-11">
+          {{ $t('ASSIGNMENT_REPORTS.FILTER.TEAM') }}
+          <select
+            v-model="teamId"
+            class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
+            @change="onScopeChange"
+          >
+            <option value="">
+              {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_TEAMS') }}
+            </option>
+            <option v-for="team in teams" :key="team.id" :value="team.id">
+              {{ team.name }}
+            </option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2 text-sm text-n-slate-11">
+          {{ $t('ASSIGNMENT_REPORTS.FILTER.INBOX') }}
+          <select
+            v-model="inboxId"
+            class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
+            @change="onScopeChange"
+          >
+            <option value="">
+              {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_INBOXES') }}
+            </option>
+            <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
+              {{ inbox.name }}
+            </option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </ReportHeaderFilters>
 
   <!-- Resumo do período (TL;DR em linguagem simples) -->
-  <div
-    v-if="hasData"
-    class="p-4 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
-  >
+  <div v-if="hasData" class="p-4 rounded-xl border border-n-weak bg-n-solid-2">
     <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.SUMMARY.TITLE') }}
     </p>
@@ -382,7 +384,7 @@ onMounted(() => {
 
   <!-- Tabela (ou estado vazio) -->
   <div
-    class="relative flex-1 px-2 py-2 mt-5 overflow-auto shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+    class="relative flex-1 px-2 py-2 overflow-auto rounded-xl border border-n-weak bg-n-solid-2"
   >
     <Table v-if="hasData" :table="table" />
     <div
@@ -417,7 +419,7 @@ onMounted(() => {
   <!-- Matriz: quem atribuiu pra quem -->
   <div
     v-if="hasMatrix"
-    class="p-4 mt-4 outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+    class="p-4 rounded-xl border border-n-weak bg-n-solid-2"
   >
     <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.MATRIX.TITLE') }}
@@ -478,10 +480,7 @@ onMounted(() => {
   </div>
 
   <!-- Legenda: o que significa cada coluna -->
-  <div
-    v-if="hasData"
-    class="p-4 mt-4 outline-1 outline outline-n-container rounded-xl bg-n-solid-1"
-  >
+  <div v-if="hasData" class="p-4 rounded-xl border border-n-weak bg-n-solid-2">
     <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.LEGEND.TITLE') }}
     </p>

@@ -42,7 +42,7 @@ const hitRateSignal = computed(() =>
 <template>
   <section
     v-if="!isLoading && noOfConversations > 0"
-    class="rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+    class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
   >
     <h3 class="text-base font-semibold text-n-slate-12">
       {{ $t('REPORT.PLAIN_SUMMARY.TITLE') }}
@@ -67,26 +67,24 @@ const hitRateSignal = computed(() =>
       {{ $t('SLA_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
     </p>
   </section>
-  <div
-    class="flex sm:flex-row flex-col w-full gap-4 sm:gap-12 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
-  >
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
     <SLAMetricCard
+      icon="i-lucide-alarm-clock-check"
       :label="$t('SLA_REPORTS.METRICS.HIT_RATE.LABEL')"
       :value="hitRateLabel"
       :tool-tip="$t('SLA_REPORTS.METRICS.HIT_RATE.TOOLTIP')"
       :is-loading="isLoading"
       :signal="hitRateSignal"
     />
-
-    <div class="w-full sm:w-px bg-n-container/60" />
     <SLAMetricCard
+      icon="i-lucide-alarm-clock-off"
       :label="$t('SLA_REPORTS.METRICS.NO_OF_MISSES.LABEL')"
       :value="noOfBreaches"
       :tool-tip="$t('SLA_REPORTS.METRICS.NO_OF_MISSES.TOOLTIP')"
       :is-loading="isLoading"
     />
-    <div class="w-full sm:w-px bg-n-container/60" />
     <SLAMetricCard
+      icon="i-lucide-messages-square"
       :label="$t('SLA_REPORTS.METRICS.NO_OF_CONVERSATIONS.LABEL')"
       :value="noOfConversations"
       :tool-tip="$t('SLA_REPORTS.METRICS.NO_OF_CONVERSATIONS.TOOLTIP')"

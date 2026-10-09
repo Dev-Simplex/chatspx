@@ -25,7 +25,7 @@ const inboxId = ref(readInboxScope());
       />
     </div>
   </ReportHeader>
-  <div class="flex flex-col gap-6 pb-6">
+  <div class="flex flex-col gap-4">
     <StatsLiveReportsContainer :inbox-id="inboxId" />
     <ConversationHeatmapContainer :scope-inbox-id="inboxId" />
     <ResolutionHeatmapContainer :scope-inbox-id="inboxId" />

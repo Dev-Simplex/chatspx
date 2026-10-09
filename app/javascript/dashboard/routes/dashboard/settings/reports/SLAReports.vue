@@ -95,9 +95,11 @@ export default {
         @click="downloadReports"
       />
     </div>
+    <template #filters>
+      <SLAReportFilters @filter-change="onFilterChange" />
+    </template>
   </ReportHeader>
-  <div class="flex flex-col flex-1 gap-6">
-    <SLAReportFilters @filter-change="onFilterChange" />
+  <div class="flex flex-col flex-1 gap-4">
     <ReportNarrativeSummary :signals="slaMetrics.signals || []" />
     <SLAMetrics
       :hit-rate="slaMetrics.hitRate"

@@ -1,5 +1,6 @@
 <script setup>
 import OverviewReportFilters from './OverviewReportFilters.vue';
+import ReportHeaderFilters from './ReportHeaderFilters.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { formatDuration } from 'dashboard/helper/reportFormat';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -324,15 +325,17 @@ defineExpose({ downloadReports });
 </script>
 
 <template>
-  <OverviewReportFilters
-    :disabled="isLoading"
-    :show-inbox-scope="type !== 'inbox'"
-    @filter-change="onFilterChange"
-  />
+  <ReportHeaderFilters>
+    <OverviewReportFilters
+      :disabled="isLoading"
+      :show-inbox-scope="type !== 'inbox'"
+      @filter-change="onFilterChange"
+    />
+  </ReportHeaderFilters>
   <ReportEntityPlainSummary :type="type" :rows="plainRows" />
   <ReportNarrativeSummary :signals="aggregatedSignals" />
   <div
-    class="relative flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+    class="relative flex-1 overflow-auto px-2 py-2 rounded-xl border border-n-weak bg-n-solid-2"
   >
     <Table :table="table" />
     <Transition

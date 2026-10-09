@@ -223,14 +223,16 @@ export default {
         @click="downloadReports"
       />
     </div>
+    <template #filters>
+      <ReportFilters
+        v-if="filterItemsList"
+        :filter-type="filterType"
+        :selected-item="selectedFilter"
+        @filter-change="onFilterChange"
+      />
+    </template>
   </ReportHeader>
 
-  <ReportFilters
-    v-if="filterItemsList"
-    :filter-type="filterType"
-    :selected-item="selectedFilter"
-    @filter-change="onFilterChange"
-  />
   <ReportPlainSummary :drilldown-filters="drilldownFilters" />
   <SpeedInsightsPanel
     v-if="type !== 'label'"
