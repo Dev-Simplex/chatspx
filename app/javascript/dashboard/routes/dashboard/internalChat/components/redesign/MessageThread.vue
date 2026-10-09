@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MessageBubble from './MessageBubble.vue';
 
@@ -75,7 +75,24 @@ const onScroll = () => {
 };
 
 // Ao abrir/trocar de conversa (remontagem via :key) já mostra o fim da thread.
-onMounted(() => nextTick(() => scrollToBottom(false)));
+// Conteúdo que cresce depois (prévia de link, imagem carregando) mantém quem
+// estava no fim colado no fim.
+const content = ref(null);
+let resizeObserver = null;
+onMounted(() => {
+  nextTick(() => scrollToBottom(false));
+  if (typeof ResizeObserver === 'undefined') return;
+  resizeObserver = new ResizeObserver(() => {
+    if (atBottom.value) scrollToBottom(false);
+  });
+  if (content.value) resizeObserver.observe(content.value);
+});
+// A lista só existe depois de carregar: passa a observar quando aparece.
+watch(content, (el, old) => {
+  if (old) resizeObserver?.unobserve(old);
+  if (el) resizeObserver?.observe(el);
+});
+onBeforeUnmount(() => resizeObserver?.disconnect());
 
 // Mensagens antigas entraram em cima → mantém o que estava na tela parado.
 // Mensagem nova embaixo → desce suave acompanhando o balão.
@@ -167,7 +184,7 @@ watch(
         </p>
       </div>
 
-      <template v-else>
+      <div v-else ref="content">
         <!-- Topo: carregando antigas / botão / início da conversa -->
         <div class="flex justify-center pb-3">
           <span
@@ -239,7 +256,7 @@ watch(
             @scroll-to="scrollToMessage"
           />
         </div>
-      </template>
+      </div>
     </div>
 
     <!-- Ir para o fim (com quantas chegaram enquanto estava lá em cima) -->
