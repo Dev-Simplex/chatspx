@@ -1,7 +1,7 @@
 // Linguagem visual dos Relatorios (protótipo 2.0): cartao de vidro sobre o papel de parede do SPX,
 // cantos de 22px, aro claro em cima e sombra larga; titulo de secao forte com subtitulo curto.
 export const GLASS_CARD =
-  'rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]';
+  'relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]';
 
 export const SECTION_TITLE =
   'm-0 text-[15px] font-extrabold tracking-[-0.015em] text-n-slate-12';

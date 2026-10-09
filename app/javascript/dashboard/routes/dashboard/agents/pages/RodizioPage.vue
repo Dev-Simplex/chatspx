@@ -509,7 +509,7 @@ const irParaPolitica = () =>
     :class="REPORTS_WALLPAPER"
   >
     <header
-      class="flex flex-wrap items-start justify-between gap-4 p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+      class="flex flex-wrap items-start justify-between gap-4 p-5 relative z-40 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
     >
       <div class="min-w-0">
         <p
@@ -614,7 +614,7 @@ const irParaPolitica = () =>
     <template v-else>
       <section
         v-if="resumo.recebidos"
-        class="rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
+        class="relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
       >
         <h2
           class="m-0 text-[15px] font-extrabold tracking-[-0.015em] text-n-slate-12"
@@ -668,7 +668,7 @@ const irParaPolitica = () =>
       </section>
       <section class="flex flex-wrap gap-3">
         <div
-          class="flex flex-col gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
+          class="flex flex-col gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
         >
           <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
@@ -680,7 +680,7 @@ const irParaPolitica = () =>
           </p>
         </div>
         <div
-          class="flex flex-col gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
+          class="flex flex-col gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
         >
           <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
@@ -702,7 +702,7 @@ const irParaPolitica = () =>
              da tabela, que é a seção que encolhe quando a tela não cabe. Pelo mesmo motivo é
              baixa: título e explicação numa linha só, e três leads visíveis antes de rolar. -->
         <div
-          class="flex flex-col flex-1 min-w-[20rem] gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+          class="flex flex-col flex-1 min-w-[20rem] gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
         >
           <div class="flex flex-wrap items-baseline gap-x-2">
             <h2 class="text-sm font-medium text-n-slate-11">
@@ -760,7 +760,7 @@ const irParaPolitica = () =>
       <!-- O "Por que este?" abre logo abaixo da lista que o chamou, e não no pé da página. -->
       <section
         v-if="detalhe"
-        class="flex flex-col gap-2 p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+        class="flex flex-col gap-2 p-5 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
       >
         <div class="flex items-center justify-between">
           <h2 class="text-base font-medium text-n-slate-12">
@@ -908,7 +908,7 @@ const irParaPolitica = () =>
 
       <section
         v-show="aba === 'consultores'"
-        class="overflow-x-auto rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+        class="overflow-x-auto relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
       >
         <table class="w-full text-sm">
           <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">
