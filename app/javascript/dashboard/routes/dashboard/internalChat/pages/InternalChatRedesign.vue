@@ -947,13 +947,15 @@ onBeforeUnmount(() => {
            seus times e o que dá para fazer, tudo a um clique. -->
       <div v-else class="flex-1 min-h-0 overflow-y-auto">
         <div class="w-full max-w-2xl px-6 pt-12 pb-10 mx-auto">
-          <h2 class="text-3xl font-bold tracking-tight text-n-slate-12">
+          <h2
+            class="text-3xl font-bold tracking-tight text-center text-n-slate-12"
+          >
             {{ greeting }}
           </h2>
-          <p class="mb-0 mt-2 text-[15px] text-n-slate-11">
+          <p class="mb-0 mt-2 text-[15px] text-center text-n-slate-11">
             {{ homeSummary }}
           </p>
-          <div class="flex flex-wrap gap-2 mt-5">
+          <div class="flex flex-wrap justify-center gap-2 mt-5">
             <button
               v-if="unreadConversations.length"
               type="button"
