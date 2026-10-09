@@ -34,6 +34,18 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       expect(response).to have_http_status(:unauthorized)
     end
 
+    it 'tells when each member was last seen (presence ping), nil when never' do
+      create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob)
+      seen_at = 2.hours.ago.to_i
+      Redis::Alfred.zadd(OnlineStatusTracker.presence_key(account.id, 'User'), seen_at, bob.id)
+
+      get "/api/v1/accounts/#{account.id}/internal_channels", headers: alice.create_new_auth_token
+
+      members = response.parsed_body.first['members'].index_by { |m| m['id'] }
+      expect(members[bob.id]['last_seen_at']).to eq(seen_at)
+      expect(members[alice.id]['last_seen_at']).to be_nil
+    end
+
     it 'lists only the channels the user belongs to' do
       mine = create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob)
       create(:internal_channel, :with_two_members, account: account) # not mine

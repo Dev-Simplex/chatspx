@@ -127,6 +127,31 @@ const presenceOf = userId =>
 const counterpart = ch =>
   (ch?.members || []).find(m => m.id !== currentUserId.value);
 
+// "Visto por último": o servidor manda a última presença de cada membro; quem
+// sai do ar enquanto a tela está aberta ganha a hora em que saiu.
+const seenNow = ref({});
+const presenceById = computed(() =>
+  Object.fromEntries(
+    (store.getters['agents/getAgents'] || []).map(a => [
+      a.id,
+      a.availability_status,
+    ])
+  )
+);
+watch(presenceById, (next, prev) => {
+  const left = Object.keys(prev || {}).filter(
+    id => prev[id] && prev[id] !== 'offline' && next[id] === 'offline'
+  );
+  if (!left.length) return;
+  const now = Math.floor(Date.now() / 1000);
+  seenNow.value = {
+    ...seenNow.value,
+    ...Object.fromEntries(left.map(id => [id, now])),
+  };
+});
+const lastSeenOf = member =>
+  Math.max(member?.last_seen_at || 0, seenNow.value[member?.id] || 0) || null;
+
 const isSameDay = (a, b) => a.toDateString() === b.toDateString();
 const yesterdayDate = () => {
   const d = new Date();
@@ -187,6 +212,7 @@ const mapChannel = ch => {
     avatarSrc: isDm ? other?.avatar_url || '' : '',
     iconName: isDm ? null : 'i-lucide-users',
     presence: isDm ? presenceOf(other?.id) : null,
+    lastSeenAt: isDm ? lastSeenOf(other) : null,
     time: rowTime(lm?.created_at),
     lastAt: lm?.created_at || 0,
     unreadCount: ch.unread_count || 0,
@@ -203,6 +229,7 @@ const mapChannel = ch => {
     members: (ch.members || []).map(m => ({
       ...m,
       presence: presenceOf(m.id),
+      lastSeenAt: lastSeenOf(m),
     })),
     // Somente-leitura quando o usuário não é membro do canal (auditoria admin
     // ou grupo de time aberto por um admin que não está na equipe).

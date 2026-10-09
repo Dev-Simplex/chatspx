@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { useEscClose } from './useEscClose';
+import { lastSeenText } from './lastSeen';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
@@ -46,6 +47,8 @@ const statusText = computed(() => {
     return t('INTERNAL_CHAT.HEADER.MEMBERS_ONLINE', params);
   }
   const presence = props.conversation.presence || 'offline';
+  if (presence === 'offline')
+    return lastSeenText(t, props.conversation.lastSeenAt);
   return t(`INTERNAL_CHAT.PRESENCE.${presence.toUpperCase()}`);
 });
 // Só dá para "sair" de grupos ad-hoc; grupos de time são dirigidos pela equipe.

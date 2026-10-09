@@ -365,6 +365,11 @@
       "PREVIEW_CONVERSATION": "Conversa de cliente #{id}"
     },
     "TYPING_TWO": "{a} e {b} estão digitando…",
-    "TYPING_MORE": "{a}, {b} e mais {count} estão digitando…"
+    "TYPING_MORE": "{a}, {b} e mais {count} estão digitando…",
+    "LAST_SEEN": {
+      "TODAY": "visto por último hoje às {time}",
+      "YESTERDAY": "visto por último ontem às {time}",
+      "DATE": "visto por último em {date} às {time}"
+    }
   }
 }

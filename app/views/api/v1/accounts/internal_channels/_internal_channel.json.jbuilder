@@ -9,6 +9,8 @@ json.members channel.members do |m|
   json.name m.user&.name
   json.avatar_url m.user.try(:avatar_url)
   json.last_read_at m.last_read_at&.to_i
+  # "Visto por último": última vez que o app da pessoa avisou presença (o mesmo sinal do online).
+  json.last_seen_at internal_chat_last_seen[m.user_id]
 end
 
 # On the list (index) the controller precomputes these in 2 grouped queries; on

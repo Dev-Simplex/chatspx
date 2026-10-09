@@ -365,6 +365,11 @@
       "PREVIEW_CONVERSATION": "Customer conversation #{id}"
     },
     "TYPING_TWO": "{a} and {b} are typing…",
-    "TYPING_MORE": "{a}, {b} and {count} more are typing…"
+    "TYPING_MORE": "{a}, {b} and {count} more are typing…",
+    "LAST_SEEN": {
+      "TODAY": "last seen today at {time}",
+      "YESTERDAY": "last seen yesterday at {time}",
+      "DATE": "last seen on {date} at {time}"
+    }
   }
 }

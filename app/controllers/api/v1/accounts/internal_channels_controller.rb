@@ -7,6 +7,7 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
 
   before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave]
   before_action :check_authorization
+  helper_method :internal_chat_last_seen
 
   RESULTS_LIMIT = 50
   MIN_QUERY_LENGTH = 2
@@ -114,6 +115,14 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
   end
 
   private
+
+  # user_id => unix ts da última presença (sorted set do OnlineStatusTracker): uma leitura no
+  # Redis por requisição, sem rastreamento novo.
+  def internal_chat_last_seen
+    @internal_chat_last_seen ||= Redis::Alfred.zrangebyscore(
+      OnlineStatusTracker.presence_key(Current.account.id, 'User'), '-inf', '+inf', with_scores: true
+    ).to_h { |user_id, score| [user_id.to_i, score.to_i] }
+  end
 
   # Branch by params: a DM (user_id), a team channel (team_id) or a group (name + member_ids).
   def build_channel

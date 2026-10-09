@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import AutoAlertsAPI from 'dashboard/api/internalChatAutoAlerts';
+import { lastSeenText } from './lastSeen';
 
 const props = defineProps({
   conversation: { type: Object, required: true },
@@ -37,7 +38,10 @@ const headerStatus = computed(() => {
   if (props.conversation.isGroup) {
     return t('INTERNAL_CHAT.HEADER.MEMBERS_ONLINE', params);
   }
-  return labelFor(props.conversation.presence); // DM → presença do colega
+  // DM → presença do colega; fora do ar, quando foi visto por último.
+  if ((props.conversation.presence || 'offline') === 'offline')
+    return lastSeenText(t, props.conversation.lastSeenAt);
+  return labelFor(props.conversation.presence);
 });
 
 // Grupo de time pode ter muita gente: acima de 8, busca por nome.
@@ -61,7 +65,10 @@ const members = computed(() =>
         isMe: m.id === props.currentUserId,
         status: presence, // dot no Avatar
         online: presence === 'online',
-        label: labelFor(presence),
+        label:
+          presence === 'offline'
+            ? lastSeenText(t, m.lastSeenAt)
+            : labelFor(presence),
         rank: RANK[presence] ?? 2,
       };
     })
