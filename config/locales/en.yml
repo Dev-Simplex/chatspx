@@ -146,6 +146,7 @@ en:
         invalid: Invalid email
       phone_number:
         invalid: should be in e164 format
+        taken: This phone number is already in use by another contact.
       whatsapp_validation:
         not_registered: This phone number is not registered on WhatsApp.
         unavailable: Unable to validate the WhatsApp number right now. Please try again.

@@ -158,13 +158,12 @@ const onCreateContact = async contact => {
   } catch (error) {
     const i18nPrefix = 'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION';
     if (error instanceof DuplicateContactException) {
-      if (Array.isArray(error.data) && error.data.includes('email')) {
-        useAlert(t(`${i18nPrefix}.EMAIL_ADDRESS_DUPLICATE`));
-      } else if (
+      if (
         Array.isArray(error.data) &&
-        error.data.includes('phone_number')
+        (error.data.includes('email') || error.data.includes('phone_number'))
       ) {
-        useAlert(t(`${i18nPrefix}.PHONE_NUMBER_DUPLICATE`));
+        // Aviso fixo no formulário, dizendo de quem é o número/e-mail (não um toast que some).
+        createNewContactDialogRef.value?.showDuplicate(error.data);
       } else {
         useAlert(t(`${i18nPrefix}.ERROR_MESSAGE`));
       }

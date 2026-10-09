@@ -324,7 +324,10 @@
           "EMAIL_ADDRESS_DUPLICATE": "This email address is in use for another contact.",
           "PHONE_NUMBER_DUPLICATE": "This phone number is in use for another contact.",
           "SUCCESS_MESSAGE": "Contact saved successfully",
-          "ERROR_MESSAGE": "Unable to save contact. Please try again later."
+          "ERROR_MESSAGE": "Unable to save contact. Please try again later.",
+          "DUPLICATE_PHONE_OWNER": "This number is already saved as “{name}”. Open that contact instead of creating another.",
+          "DUPLICATE_EMAIL_OWNER": "This email is already saved as “{name}”. Open that contact instead of creating another.",
+          "OPEN_EXISTING": "Open contact"
         },
         "BLOCK_SUCCESS_MESSAGE": "This contact is blocked successfully",
         "BLOCK_ERROR_MESSAGE": "Unable to block contact. Please try again later.",
@@ -660,7 +663,10 @@
       "SEARCH_EMPTY": "No attendance found for “{termo}”",
       "SEARCH_CLEAR": "Clear search"
     },
-    "LOAD_MORE": "Load more"
+    "LOAD_MORE": "Load more",
+    "FORM": {
+      "EMAIL_INVALID": "Invalid email. E.g.: name{'@'}company.com"
+    }
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Assign Labels",
