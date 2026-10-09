@@ -47,7 +47,7 @@ const trendClass = computed(
 <template>
   <div
     data-test-id="reportMetricContainer"
-    class="flex flex-col gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2 min-w-0"
+    class="flex flex-col gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-0"
     :class="{
       'grayscale pointer-events-none opacity-30': disabled,
     }"
@@ -70,7 +70,7 @@ const trendClass = computed(
     </h3>
     <h4
       data-test-id="reportMetricValue"
-      class="m-0 text-3xl font-semibold tracking-tight text-n-slate-12 tabular-nums"
+      class="m-0 text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
     >
       {{ value }}
     </h4>

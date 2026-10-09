@@ -5,6 +5,8 @@ import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
+import ReportTabs from 'dashboard/components-next/reports/ui/ReportTabs.vue';
+import { REPORTS_WALLPAPER } from 'dashboard/components-next/reports/ui/styles';
 import { duracao, instante } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
@@ -503,10 +505,11 @@ const irParaPolitica = () =>
        ela e o proprio filho do <main> do Dashboard (flex row, overflow-hidden), e sem
        isso encolheria para a largura do conteudo e nao rolaria. -->
   <div
-    class="flex flex-col w-full h-full gap-4 px-6 pt-6 pb-12 overflow-y-auto bg-n-surface-1"
+    class="flex flex-col w-full h-full gap-4 px-6 pt-6 pb-12 overflow-y-auto bg-n-surface-1 bg-repeat"
+    :class="REPORTS_WALLPAPER"
   >
     <header
-      class="flex flex-wrap items-start justify-between gap-4 p-5 rounded-2xl border border-n-weak bg-n-solid-2"
+      class="flex flex-wrap items-start justify-between gap-4 p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
     >
       <div class="min-w-0">
         <p
@@ -514,7 +517,9 @@ const irParaPolitica = () =>
         >
           {{ currentAccount?.name }}
         </p>
-        <h1 class="m-0 text-3xl font-semibold tracking-tight text-n-slate-12">
+        <h1
+          class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
+        >
           {{ t('AGENTS_RODIZIO.TITLE') }}
         </h1>
         <p class="mt-1 text-sm text-n-slate-11">
@@ -523,6 +528,7 @@ const irParaPolitica = () =>
             {{ periodoLegivel }}
           </span>
         </p>
+        <ReportTabs class="mt-2" />
       </div>
       <div class="flex items-center gap-2">
         <!-- `mb-0` mata o `mb-4` que a regra global de `select` traz pelo `field-base`: com ela a
@@ -608,9 +614,11 @@ const irParaPolitica = () =>
     <template v-else>
       <section
         v-if="resumo.recebidos"
-        class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
+        class="rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
       >
-        <h2 class="text-base font-semibold text-n-slate-12">
+        <h2
+          class="m-0 text-[15px] font-extrabold tracking-[-0.015em] text-n-slate-12"
+        >
           {{ t('AGENTS_RODIZIO.PLAIN_SUMMARY.TITLE') }}
         </h2>
         <ul
@@ -660,25 +668,25 @@ const irParaPolitica = () =>
       </section>
       <section class="flex flex-wrap gap-3">
         <div
-          class="flex flex-col gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2 min-w-[10rem]"
+          class="flex flex-col gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
         >
           <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
           <p
-            class="m-0 text-3xl font-semibold tracking-tight tabular-nums text-n-slate-12"
+            class="m-0 text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
           >
             {{ totais.recebidos || 0 }}
           </p>
         </div>
         <div
-          class="flex flex-col gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2 min-w-[10rem]"
+          class="flex flex-col gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
         >
           <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
           <p
-            class="m-0 text-3xl font-semibold tracking-tight tabular-nums text-n-slate-12"
+            class="m-0 text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
           >
             {{ parados.total }}
           </p>
@@ -694,7 +702,7 @@ const irParaPolitica = () =>
              da tabela, que é a seção que encolhe quando a tela não cabe. Pelo mesmo motivo é
              baixa: título e explicação numa linha só, e três leads visíveis antes de rolar. -->
         <div
-          class="flex flex-col flex-1 min-w-[20rem] gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2"
+          class="flex flex-col flex-1 min-w-[20rem] gap-1 p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
         >
           <div class="flex flex-wrap items-baseline gap-x-2">
             <h2 class="text-sm font-medium text-n-slate-11">
@@ -752,7 +760,7 @@ const irParaPolitica = () =>
       <!-- O "Por que este?" abre logo abaixo da lista que o chamou, e não no pé da página. -->
       <section
         v-if="detalhe"
-        class="flex flex-col gap-2 p-5 rounded-xl border border-n-weak bg-n-solid-2"
+        class="flex flex-col gap-2 p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
       >
         <div class="flex items-center justify-between">
           <h2 class="text-base font-medium text-n-slate-12">
@@ -900,7 +908,7 @@ const irParaPolitica = () =>
 
       <section
         v-show="aba === 'consultores'"
-        class="overflow-x-auto rounded-xl border border-n-weak bg-n-solid-2"
+        class="overflow-x-auto rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
       >
         <table class="w-full text-sm">
           <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">

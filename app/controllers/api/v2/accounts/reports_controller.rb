@@ -36,6 +36,14 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     end
   end
 
+  # Um numero aberto por grupo (CSAT por agente, NPS por time, SLA por politica/time) para o painel.
+  def breakdown
+    builder = V2::Reports::BreakdownBuilder.new(Current.account, params.permit(:kind, :since, :until, :inbox_id))
+    return head :unprocessable_entity unless builder.supported?
+
+    render json: builder.build
+  end
+
   def agents
     @report_data = generate_agents_report
     generate_csv('agents_report', 'api/v2/accounts/reports/agents')

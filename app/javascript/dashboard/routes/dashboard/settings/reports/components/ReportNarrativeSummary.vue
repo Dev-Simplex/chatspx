@@ -22,7 +22,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 <template>
   <section
     v-if="hasSignals"
-    class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
+    class="rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
   >
     <span class="text-sm font-medium text-n-slate-11">
       {{ t('REPORT.NARRATIVE.EYEBROW') }}
@@ -30,7 +30,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
     <div class="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2">
       <div
         v-if="narrative.highlight"
-        class="rounded-xl border border-n-teal-6 bg-n-teal-2/60 p-4"
+        class="rounded-[18px] border border-n-teal-6 bg-n-teal-2/60 p-4"
       >
         <div class="flex items-center gap-2">
           <span class="text-lg">{{ ICONS.highlight }}</span>
@@ -48,7 +48,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 
       <div
         v-if="narrative.attention"
-        class="rounded-xl border border-n-amber-6 bg-n-amber-2/60 p-4"
+        class="rounded-[18px] border border-n-amber-6 bg-n-amber-2/60 p-4"
       >
         <div class="flex items-center gap-2">
           <span class="text-lg">{{ ICONS.attention }}</span>
@@ -74,7 +74,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 
       <div
         v-else-if="narrative.allGood"
-        class="rounded-xl border border-n-teal-6 bg-n-teal-2/60 p-4 flex items-center gap-2"
+        class="rounded-[18px] border border-n-teal-6 bg-n-teal-2/60 p-4 flex items-center gap-2"
       >
         <span class="text-lg">{{ ICONS.allGood }}</span>
         <p class="text-sm font-medium text-n-slate-12">

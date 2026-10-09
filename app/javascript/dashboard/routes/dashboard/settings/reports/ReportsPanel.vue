@@ -8,6 +8,7 @@ import getUnixTime from 'date-fns/getUnixTime';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import InboxScopeFilter from './components/Filters/InboxScopeFilter.vue';
 import { readInboxScope, writeInboxScope } from './helpers/inboxScope';
+import ReportTabs from 'dashboard/components-next/reports/ui/ReportTabs.vue';
 import PanelOverview from 'dashboard/components-next/reports/panel/PanelOverview.vue';
 
 // Entrada de Relatorios: o painel com abas. A Visao geral e montada aqui; as outras abas
@@ -43,31 +44,6 @@ const period = computed(() => {
   };
 });
 
-const tabs = computed(() => [
-  { key: 'overview', label: t('REPORTS_PANEL.TABS.OVERVIEW'), active: true },
-  {
-    key: 'agents',
-    label: t('REPORTS_PANEL.TABS.AGENTS'),
-    to: { name: 'agent_reports_index' },
-  },
-  {
-    key: 'nps',
-    label: t('REPORTS_PANEL.TABS.NPS'),
-    to: { name: 'nps_reports' },
-  },
-  {
-    key: 'sla',
-    label: t('REPORTS_PANEL.TABS.SLA'),
-    to: { name: 'sla_reports' },
-  },
-  { key: 'ai', label: t('REPORTS_PANEL.TABS.AI'), to: { name: 'bot_reports' } },
-  {
-    key: 'inboxes',
-    label: t('REPORTS_PANEL.TABS.INBOXES_LABELS'),
-    to: { name: 'inbox_reports_index' },
-  },
-]);
-
 const pdfFilters = computed(() => ({
   since: period.value.since,
   until: period.value.until,
@@ -78,7 +54,7 @@ const pdfFilters = computed(() => ({
 <template>
   <div class="flex flex-col gap-4 pt-6">
     <header
-      class="flex flex-col gap-4 p-5 rounded-2xl border border-n-weak bg-n-solid-2"
+      class="flex flex-col gap-4 p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
@@ -87,7 +63,9 @@ const pdfFilters = computed(() => ({
           >
             {{ account?.name }}
           </p>
-          <h1 class="m-0 text-3xl font-semibold tracking-tight text-n-slate-12">
+          <h1
+            class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
+          >
             {{ t('REPORTS_PANEL.TITLE') }}
           </h1>
         </div>
@@ -117,24 +95,7 @@ const pdfFilters = computed(() => ({
           <DownloadPdfButton report-type="overview" :filters="pdfFilters" />
         </div>
       </div>
-      <nav class="flex gap-1 overflow-x-auto -mb-1 pb-1">
-        <template v-for="tab in tabs" :key="tab.key">
-          <span
-            v-if="tab.active"
-            class="px-3 py-1.5 text-sm font-semibold rounded-lg whitespace-nowrap bg-n-alpha-2 text-n-slate-12"
-            aria-current="page"
-          >
-            {{ tab.label }}
-          </span>
-          <router-link
-            v-else
-            :to="tab.to"
-            class="px-3 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap text-n-slate-11 no-underline hover:bg-n-alpha-1 hover:text-n-slate-12"
-          >
-            {{ tab.label }}
-          </router-link>
-        </template>
-      </nav>
+      <ReportTabs />
     </header>
 
     <PanelOverview :period="period" :inbox-id="inboxId" />

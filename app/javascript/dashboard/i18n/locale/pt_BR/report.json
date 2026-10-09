@@ -1092,5 +1092,100 @@
       "OPEN": "Abrir o funil"
     },
     "LOAD_FAILED": "Não deu para carregar uma parte do relatório. Tente de novo em instantes."
+  },
+  "REPORTS_UI": {
+    "TABS_LABEL": "Assuntos dos relatórios",
+    "AGENTS": {
+      "CSAT_TITLE": "CSAT por agente",
+      "CSAT_SUB": "clientes satisfeitos na pesquisa",
+      "CSAT_EMPTY": "Ninguém respondeu a pesquisa no período.",
+      "CSAT_GOAL": "Linha tracejada: meta de {goal}.",
+      "RANKING_TITLE": "Ranking de agentes",
+      "RANKING_SUB": "quem mais resolveu no período",
+      "RANKING_EMPTY": "Nenhum agente resolveu conversas no período.",
+      "RESOLVED": "resolvidas",
+      "RANK_SUB": "{n} conversas | 1 conversa | {n} conversas",
+      "RANK_CSAT": "CSAT {pct}",
+      "FRT_TITLE": "1ª resposta por agente",
+      "FRT_SUB": "quanto o cliente esperou, em média",
+      "FRT_EMPTY": "Nenhum agente respondeu no período.",
+      "FRT_GOAL": "Linha tracejada: meta de {goal}."
+    },
+    "ROTATION": {
+      "TITLE": "Distribuição e rodízio",
+      "SUB": "quem recebeu as conversas novas de cada time, no período",
+      "ADJUST": "Ajustar o rodízio",
+      "DISTRIBUTED": "nenhuma distribuída | 1 distribuída | {n} distribuídas",
+      "EMPTY": "Nenhuma conversa distribuída pelo rodízio no período."
+    },
+    "NPS": {
+      "TITLE": "NPS",
+      "SUB": "quanto os clientes indicariam a empresa · nenhuma resposta | quanto os clientes indicariam a empresa · 1 resposta | quanto os clientes indicariam a empresa · {n} respostas",
+      "DELTA_UP": "+{n} no período",
+      "DELTA_DOWN": "−{n} no período",
+      "PROMOTERS": "Promotores",
+      "PASSIVES": "Neutros",
+      "DETRACTORS": "Detratores",
+      "PROMOTERS_HINT": "nota 9 e 10",
+      "PASSIVES_HINT": "nota 7 e 8",
+      "DETRACTORS_HINT": "nota 0 a 6",
+      "SCORES": "Notas de 0 a 10",
+      "EMPTY": "Nenhum cliente respondeu no período.",
+      "COMMENTS_TITLE": "Comentários recentes",
+      "COMMENTS_SUB": "o que o cliente escreveu depois da nota",
+      "COMMENTS_EMPTY": "Nenhum comentário neste filtro.",
+      "ALL": "Todos",
+      "BY_TEAM_TITLE": "NPS por time",
+      "BY_TEAM_SUB": "a nota de cada time, de −100 a 100",
+      "BY_TEAM_EMPTY": "Nenhum time com respostas no período.",
+      "RESPONSES": "nenhuma resp. | 1 resp. | {n} resp.",
+      "QUOTE": "“{text}”"
+    },
+    "SLA": {
+      "TITLE": "SLA cumprido por política",
+      "SUB": "conversas atendidas dentro do prazo combinado",
+      "OF_TOTAL": "{ok} de {total} conversas",
+      "POLICY": "Política",
+      "MET": "Cumprido",
+      "MISSED": "Estourou",
+      "EMPTY": "Nenhuma conversa com prazo no período.",
+      "BREACHES_TITLE": "O que estourou",
+      "BREACHES_SUB": "as mais recentes que passaram do prazo",
+      "BREACHES_COUNT": "nenhuma conversa | 1 conversa | {n} conversas",
+      "BREACHES_EMPTY": "Nenhuma conversa passou do prazo no período.",
+      "BY_TEAM": "Cumprido por time"
+    },
+    "INBOXES": {
+      "TITLE": "Volume por caixa",
+      "SUB": "conversas que chegaram em cada número ou canal",
+      "EMPTY": "Nenhuma conversa no período.",
+      "FRT_TITLE": "1ª resposta por caixa",
+      "FRT_SUB": "quanto o cliente esperou, em média"
+    },
+    "LABELS": {
+      "TITLE": "Etiquetas mais usadas",
+      "SUB": "conversas com cada etiqueta, no período",
+      "EMPTY": "Nenhuma conversa com etiqueta no período.",
+      "RESOLUTION_TITLE": "Tempo para resolver por etiqueta",
+      "RESOLUTION_SUB": "quanto levou, em média, do começo ao fim"
+    },
+    "TEAMS": {
+      "VOLUME_TITLE": "Conversas por time",
+      "VOLUME_SUB": "quantas chegaram e quantas foram resolvidas",
+      "RESOLVED_OF": "{resolved} de {total} resolvidas",
+      "FRT_TITLE": "1ª resposta por time",
+      "FRT_SUB": "quanto o cliente esperou, em média",
+      "EMPTY": "Nenhum time com conversas no período."
+    },
+    "CHANNELS": {
+      "WHATSAPP": "WhatsApp",
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook",
+      "SITE": "Site",
+      "EMAIL": "E-mail",
+      "TELEGRAM": "Telegram",
+      "API": "API",
+      "OTHER": "Outros"
+    }
   }
 }

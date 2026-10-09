@@ -344,11 +344,13 @@ watch(teams, () => loadTeams().catch(() => {}));
 
     <section class="grid grid-cols-1 gap-4 lg:grid-cols-12">
       <div
-        class="flex flex-col p-5 rounded-xl border border-n-weak bg-n-solid-2 min-w-0 lg:col-span-8"
+        class="flex flex-col p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-0 lg:col-span-8"
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 class="m-0 text-base font-semibold text-n-slate-12">
+            <h2
+              class="m-0 text-[15px] font-extrabold tracking-[-0.015em] text-n-slate-12"
+            >
               {{ t('REPORTS_PANEL.VOLUME.TITLE') }}
             </h2>
             <p class="mt-0.5 mb-0 text-sm text-n-slate-11">
