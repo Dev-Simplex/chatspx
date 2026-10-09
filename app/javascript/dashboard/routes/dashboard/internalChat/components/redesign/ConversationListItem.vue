@@ -92,6 +92,7 @@ const groupFaces = computed(() => {
           <span
             class="text-[15px] truncate text-n-slate-12"
             :class="unread ? 'font-bold' : 'font-semibold'"
+            :title="conversation.name"
           >
             {{ conversation.name }}
           </span>

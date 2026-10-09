@@ -40,6 +40,15 @@ const headerStatus = computed(() => {
   return labelFor(props.conversation.presence); // DM → presença do colega
 });
 
+// Grupo de time pode ter muita gente: acima de 8, busca por nome.
+const MEMBER_SEARCH_MIN = 8;
+const memberQuery = ref('');
+watch(
+  () => props.conversation.id,
+  () => {
+    memberQuery.value = '';
+  }
+);
 const RANK = { online: 0, busy: 1, offline: 2 };
 const members = computed(() =>
   (props.conversation.members || [])
@@ -59,6 +68,11 @@ const members = computed(() =>
     // quem está online primeiro; você por último
     .sort((a, b) => a.isMe - b.isMe || a.rank - b.rank)
 );
+const visibleMembers = computed(() => {
+  const q = memberQuery.value.trim().toLowerCase();
+  if (!q) return members.value;
+  return members.value.filter(m => (m.name || '').toLowerCase().includes(q));
+});
 
 // Avisos automáticos (só sala de time): o servidor diz o que está ligado e se eu posso mudar.
 const ALERT_EVENTS = ['lead_parado', 'meta_batida'];
@@ -232,7 +246,10 @@ const toggleAlert = async (event, value) => {
             class="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-n-alpha-1"
           >
             <span class="text-lg i-lucide-file-text text-n-slate-10" />
-            <span class="flex-1 text-sm truncate text-n-slate-12">
+            <span
+              class="flex-1 text-sm truncate text-n-slate-12"
+              :title="a.filename"
+            >
               {{ a.filename }}
             </span>
             <span class="i-lucide-download text-n-slate-10" />
@@ -330,9 +347,30 @@ const toggleAlert = async (event, value) => {
             t('INTERNAL_CHAT.HEADER.PARTICIPANTS', { count: members.length })
           }}
         </p>
-        <div class="overflow-hidden rounded-2xl bg-n-alpha-1">
+        <div
+          v-if="members.length > MEMBER_SEARCH_MIN"
+          class="relative px-1 mb-1.5"
+        >
+          <span
+            class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-4 top-1/2 text-n-slate-10"
+          />
+          <input
+            v-model="memberQuery"
+            type="text"
+            :placeholder="t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')"
+            :aria-label="t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')"
+            class="reset-base w-full h-9 pl-9 pr-3 text-sm border border-transparent outline-none rounded-xl bg-n-alpha-1 focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+          />
+        </div>
+        <p
+          v-if="!visibleMembers.length"
+          class="px-3 py-4 mb-0 text-xs text-center rounded-2xl bg-n-alpha-1 text-n-slate-10"
+        >
+          {{ t('INTERNAL_CHAT.LIST.NO_PEOPLE_MATCH') }}
+        </p>
+        <div v-else class="overflow-hidden rounded-2xl bg-n-alpha-1">
           <div
-            v-for="m in members"
+            v-for="m in visibleMembers"
             :key="m.id"
             class="flex items-center gap-3 px-3 py-2 border-b last:border-b-0 border-n-weak"
           >
@@ -344,7 +382,10 @@ const toggleAlert = async (event, value) => {
               rounded-full
             />
             <span class="flex-1 min-w-0">
-              <span class="block text-sm truncate text-n-slate-12">
+              <span
+                class="block text-sm truncate text-n-slate-12"
+                :title="m.name"
+              >
                 {{ m.name }}
               </span>
               <span

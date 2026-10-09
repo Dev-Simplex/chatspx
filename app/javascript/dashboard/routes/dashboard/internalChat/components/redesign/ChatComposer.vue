@@ -301,7 +301,9 @@ const onEnter = () => {
         class="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 text-xs rounded-full bg-n-alpha-2 text-n-slate-12"
       >
         <span class="i-lucide-paperclip text-n-slate-10" />
-        <span class="max-w-[160px] truncate">{{ file.name }}</span>
+        <span class="max-w-[160px] truncate" :title="file.name">
+          {{ file.name }}
+        </span>
         <button
           v-tooltip="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           type="button"

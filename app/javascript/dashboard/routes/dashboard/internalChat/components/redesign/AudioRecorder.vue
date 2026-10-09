@@ -114,9 +114,9 @@ onBeforeUnmount(() => {
     class="relative z-20 flex items-center gap-2 px-2 py-1 border shadow-sm rounded-3xl bg-wa-composer-input border-n-weak"
   >
     <button
+      v-tooltip="t('INTERNAL_CHAT.AUDIO.DISCARD')"
       type="button"
       class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-n-ruby-11 hover:bg-n-alpha-2"
-      :title="t('INTERNAL_CHAT.AUDIO.DISCARD')"
       :aria-label="t('INTERNAL_CHAT.AUDIO.DISCARD')"
       @click="emit('cancel')"
     >
@@ -151,9 +151,9 @@ onBeforeUnmount(() => {
 
     <button
       v-if="phase === 'recording'"
+      v-tooltip="t('INTERNAL_CHAT.AUDIO.STOP')"
       type="button"
       class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110"
-      :title="t('INTERNAL_CHAT.AUDIO.STOP')"
       :aria-label="t('INTERNAL_CHAT.AUDIO.STOP')"
       @click="stop"
     >
@@ -161,9 +161,9 @@ onBeforeUnmount(() => {
     </button>
     <button
       v-else-if="phase === 'review'"
+      v-tooltip="t('INTERNAL_CHAT.AUDIO.SEND')"
       type="button"
       class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110"
-      :title="t('INTERNAL_CHAT.AUDIO.SEND')"
       :aria-label="t('INTERNAL_CHAT.AUDIO.SEND')"
       @click="emit('send', file)"
     >

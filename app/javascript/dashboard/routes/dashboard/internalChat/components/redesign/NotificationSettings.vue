@@ -15,7 +15,7 @@ const TONES = [
   { value: 'dingdong.wav', label: 'Ding-dong' },
   { value: 'marimba.wav', label: 'Marimba' },
   { value: 'soft.wav', label: 'Suave' },
-  { value: 'chime.mp3', label: 'Chime' },
+  { value: 'chime.mp3', label: 'Sino' },
 ];
 
 const soundOn = computed(
@@ -52,11 +52,7 @@ const playPreview = () => {
 
 <template>
   <div class="p-2">
-    <p
-      class="px-2 pt-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
-    >
-      {{ t('INTERNAL_CHAT.NOTIFICATIONS.TITLE') }}
-    </p>
+    <!-- O título e o X ficam no cabeçalho do popover (ChatSidebar). -->
     <p class="px-2 pb-2 text-xs text-n-slate-11">
       {{ t('INTERNAL_CHAT.NOTIFICATIONS.SUBTITLE') }}
     </p>
@@ -109,6 +105,7 @@ const playPreview = () => {
       <div class="flex items-center gap-2">
         <select
           v-model="tone"
+          :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.TONE')"
           class="reset-base flex-1 h-10 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
           :disabled="!soundOn"
         >
@@ -117,9 +114,9 @@ const playPreview = () => {
           </option>
         </select>
         <button
+          v-tooltip="t('INTERNAL_CHAT.NOTIFICATIONS.PREVIEW')"
           type="button"
           class="inline-flex items-center justify-center flex-shrink-0 w-10 h-10 min-h-0 rounded-lg text-n-slate-11 ring-1 ring-inset ring-n-weak hover:bg-n-alpha-2 hover:text-n-slate-12 disabled:opacity-40"
-          v-tooltip="t('INTERNAL_CHAT.NOTIFICATIONS.PREVIEW')"
           :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.PREVIEW')"
           :disabled="!soundOn"
           @click="playPreview"
@@ -127,6 +124,9 @@ const playPreview = () => {
           <span class="text-lg i-lucide-volume-2" />
         </button>
       </div>
+      <p v-if="!soundOn" class="mt-1.5 mb-0 text-[11px] text-n-slate-10">
+        {{ t('INTERNAL_CHAT.NOTIFICATIONS.TONE_NEEDS_SOUND') }}
+      </p>
     </div>
   </div>
 </template>

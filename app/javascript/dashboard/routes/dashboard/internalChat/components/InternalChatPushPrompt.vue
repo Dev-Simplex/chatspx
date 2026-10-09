@@ -87,7 +87,7 @@ const enable = async () => {
 <template>
   <div
     v-if="state"
-    class="absolute z-20 p-4 border shadow-lg bottom-4 inset-x-4 rounded-2xl bg-n-solid-2 border-n-weak"
+    class="flex-shrink-0 p-4 m-3 border shadow-lg rounded-2xl bg-n-solid-2 border-n-weak"
     role="status"
   >
     <div class="flex items-start gap-3">
@@ -148,6 +148,7 @@ const enable = async () => {
         </div>
       </div>
       <button
+        v-tooltip="t('INTERNAL_CHAT.PUSH_PROMPT.CLOSE')"
         type="button"
         class="p-1 -mt-1 -mr-1 rounded-full text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
         :aria-label="t('INTERNAL_CHAT.PUSH_PROMPT.CLOSE')"

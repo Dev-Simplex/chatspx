@@ -666,7 +666,9 @@ const iReacted = emoji =>
               :class="message.mine ? 'bg-white/15' : 'bg-n-alpha-2'"
             >
               <span class="flex-shrink-0 i-lucide-file-text size-5" />
-              <span class="flex-1 min-w-0 truncate">{{ att.filename }}</span>
+              <span class="flex-1 min-w-0 truncate" :title="att.filename">
+                {{ att.filename }}
+              </span>
               <span class="flex-shrink-0 i-lucide-download size-4 opacity-80" />
             </a>
           </template>

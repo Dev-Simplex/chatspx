@@ -260,6 +260,9 @@ const hasMore = computed(() =>
 );
 const loadingMessages = ref(false);
 const loadingOlder = ref(false);
+// Falhou ao carregar a conversa aberta: a thread diz e oferece tentar de novo
+// (antes caía em "Nenhuma mensagem ainda", como se a conversa fosse vazia).
+const messagesError = ref(false);
 
 const dayLabelFor = ts => {
   const d = new Date(ts * 1000);
@@ -436,8 +439,11 @@ const onSelect = async id => {
   unreadOnOpen.value = { channelId: id, count: opened?.unread_count || 0 };
   store.commit('internalChat/CLEAR_UNREAD', id);
   loadingMessages.value = !store.getters['internalChat/getMessages'](id).length;
+  messagesError.value = false;
   try {
     await store.dispatch('internalChat/fetchMessages', id);
+  } catch {
+    if (activeId.value === id) messagesError.value = true;
   } finally {
     if (activeId.value === id) loadingMessages.value = false;
   }
@@ -775,11 +781,13 @@ onBeforeUnmount(() => {
   <div class="flex w-full h-full bg-n-background">
     <!-- Sidebar -->
     <div
-      class="relative w-full h-full md:w-[320px] xl:w-[380px] md:flex-shrink-0 md:border-r md:border-n-weak"
-      :class="mobileView === 'thread' ? 'hidden md:block' : 'block'"
+      class="relative flex-col w-full h-full md:w-[320px] xl:w-[380px] md:flex-shrink-0 md:border-r md:border-n-weak"
+      :class="mobileView === 'thread' ? 'hidden md:flex' : 'flex'"
     >
+      <!-- O convite de push fica embaixo da lista (não por cima dela). -->
       <ChatSidebar
         ref="chatSidebarRef"
+        class="flex-1 min-h-0"
         :conversations="conversationList"
         :active-id="activeId"
         :agents="agents"
@@ -858,6 +866,7 @@ onBeforeUnmount(() => {
             :items="visibleMessages"
             :current-user-id="currentUserId"
             :loading="loadingMessages"
+            :load-error="messagesError"
             :loading-older="loadingOlder"
             :has-more="hasMore && !(searchOpen && searchQuery.trim())"
             :searching="searchOpen && Boolean(searchQuery.trim())"
@@ -868,6 +877,7 @@ onBeforeUnmount(() => {
             @delete="onDelete"
             @reply="onReply"
             @retry="onRetry"
+            @reload="onSelect(activeId)"
           />
 
           <div
@@ -938,6 +948,7 @@ onBeforeUnmount(() => {
         <ManageChannelDialog
           :show="showManage"
           :channel="activeRaw"
+          :current-user-id="currentUserId"
           @close="showManage = false"
           @ask-leave="onLeave"
         />

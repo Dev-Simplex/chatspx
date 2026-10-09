@@ -7,6 +7,7 @@ const props = defineProps({
   items: { type: Array, default: () => [] },
   currentUserId: { type: [Number, String], default: null },
   loading: { type: Boolean, default: false },
+  loadError: { type: Boolean, default: false },
   loadingOlder: { type: Boolean, default: false },
   hasMore: { type: Boolean, default: false },
   searching: { type: Boolean, default: false },
@@ -20,6 +21,7 @@ const emit = defineEmits([
   'reply',
   'retry',
   'loadOlder',
+  'reload',
 ]);
 
 const { t } = useI18n();
@@ -90,6 +92,24 @@ watch(
     >
       <span class="i-lucide-loader-circle animate-spin" />
       {{ t('INTERNAL_CHAT.THREAD.LOADING') }}
+    </div>
+
+    <!-- Não carregou: diz e oferece tentar de novo -->
+    <div
+      v-else-if="loadError && !items.length"
+      class="flex flex-col items-center justify-center h-full gap-3 text-center"
+    >
+      <span class="text-2xl i-lucide-wifi-off text-n-ruby-11" />
+      <p class="mb-0 text-sm text-n-slate-12">
+        {{ t('INTERNAL_CHAT.THREAD.LOAD_ERROR') }}
+      </p>
+      <button
+        type="button"
+        class="px-4 py-1.5 text-xs font-semibold rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
+        @click="emit('reload')"
+      >
+        {{ t('INTERNAL_CHAT.RETRY') }}
+      </button>
     </div>
 
     <!-- Conversa sem mensagens (ou busca sem resultado) -->

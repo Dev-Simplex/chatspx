@@ -39,16 +39,26 @@ const search = ref('');
 // O campo de busca continua filtrando os nomes localmente; além disso, quando o
 // termo tem ≥2 chars, consulta o servidor por mensagens que contenham o texto.
 const searchResults = useMapGetter('internalChat/getSearchResults');
+const uiFlags = useMapGetter('internalChat/getUIFlags');
 const showMessageResults = computed(() => search.value.trim().length >= 2);
+// Entre a digitação e a resposta do servidor a lista diz "Buscando…" (antes
+// mostrava "Nenhuma mensagem encontrada" e depois os resultados apareciam).
+const searchPending = ref(false);
+const isSearchingMessages = computed(
+  () => searchPending.value || uiFlags.value.isSearching
+);
 let searchTimer = null;
 const onSearchInput = () => {
   clearTimeout(searchTimer);
   const q = search.value.trim();
   if (q.length < 2) {
+    searchPending.value = false;
     store.dispatch('internalChat/searchMessages', '');
     return;
   }
+  searchPending.value = true;
   searchTimer = setTimeout(() => {
+    searchPending.value = false;
     store.dispatch('internalChat/searchMessages', q);
   }, 300);
 };
@@ -82,6 +92,9 @@ const matchesName = (name, q) =>
   (name || '').toLowerCase().includes(q.trim().toLowerCase());
 const composeAgents = computed(() =>
   props.agents.filter(a => matchesName(a.name, peopleQuery.value))
+);
+const composeTeams = computed(() =>
+  props.teams.filter(team => matchesName(team.name, peopleQuery.value))
 );
 
 const FILTERS = computed(() => [
@@ -177,11 +190,11 @@ const showOnlineStrip = computed(
     !search.value.trim()
 );
 
+// Fechar o popover não perde o grupo que estava sendo montado (nome e marcados
+// continuam ao reabrir); só zera depois de criar.
 const openCompose = (mode = 'dm') => {
   showCompose.value = true;
   composeMode.value = mode;
-  groupName.value = '';
-  groupMemberIds.value = [];
   peopleQuery.value = '';
   // Já dá para digitar o nome da pessoa.
   nextTick(() => peopleSearchRef.value?.focus());
@@ -234,6 +247,8 @@ const createGroup = () => {
     name: groupName.value.trim(),
     memberIds: [...groupMemberIds.value],
   });
+  groupName.value = '';
+  groupMemberIds.value = [];
   closeCompose();
 };
 
@@ -278,9 +293,9 @@ defineExpose({ openCompose, focusSearch });
           {{ t('INTERNAL_CHAT.TITLE') }}
         </h1>
       </div>
-      <div class="flex items-center gap-1">
+      <div class="relative flex items-center gap-1">
         <!-- Configurações de notificação -->
-        <div class="relative">
+        <div>
           <button
             v-tooltip="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
             type="button"
@@ -294,14 +309,30 @@ defineExpose({ openCompose, focusSearch });
           <template v-if="showSettings">
             <div class="fixed inset-0 z-10" @click="showSettings = false" />
             <div
+              role="dialog"
+              :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
               class="absolute right-0 z-20 mt-2 overflow-hidden border shadow-xl top-full w-72 rounded-2xl bg-n-solid-1 border-n-weak"
             >
+              <div class="flex items-center justify-between gap-2 px-4 pt-3">
+                <h3 class="mb-0 text-sm font-semibold text-n-slate-12">
+                  {{ t('INTERNAL_CHAT.NOTIFICATIONS.TITLE') }}
+                </h3>
+                <button
+                  v-tooltip="t('INTERNAL_CHAT.CLOSE')"
+                  type="button"
+                  class="inline-flex items-center justify-center -me-2 rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+                  :aria-label="t('INTERNAL_CHAT.CLOSE')"
+                  @click="showSettings = false"
+                >
+                  <span class="i-lucide-x size-4" />
+                </button>
+              </div>
               <NotificationSettings />
             </div>
           </template>
         </div>
         <!-- Nova conversa -->
-        <div class="relative">
+        <div>
           <button
             v-tooltip="t('INTERNAL_CHAT.EMPTY_STATE.NEW_SHORTCUT')"
             type="button"
@@ -314,8 +345,24 @@ defineExpose({ openCompose, focusSearch });
           <template v-if="showCompose">
             <div class="fixed inset-0 z-10" @click="closeCompose" />
             <div
+              role="dialog"
+              :aria-label="t('INTERNAL_CHAT.EMPTY_STATE.NEW')"
               class="absolute right-0 z-20 mt-2 overflow-hidden border shadow-xl top-full w-72 rounded-2xl bg-n-solid-1 border-n-weak"
             >
+              <div class="flex items-center justify-between gap-2 px-4 pt-3">
+                <h3 class="mb-0 text-sm font-semibold text-n-slate-12">
+                  {{ t('INTERNAL_CHAT.EMPTY_STATE.NEW') }}
+                </h3>
+                <button
+                  v-tooltip="t('INTERNAL_CHAT.CLOSE')"
+                  type="button"
+                  class="inline-flex items-center justify-center -me-2 rounded-full size-7 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+                  :aria-label="t('INTERNAL_CHAT.CLOSE')"
+                  @click="closeCompose"
+                >
+                  <span class="i-lucide-x size-4" />
+                </button>
+              </div>
               <!-- mode switch -->
               <div
                 class="flex items-center gap-0.5 p-1 m-2 rounded-xl bg-n-alpha-2"
@@ -360,7 +407,7 @@ defineExpose({ openCompose, focusSearch });
               </div>
 
               <!-- Busca de pessoas (DM e grupo): digitar o nome é o caminho -->
-              <div v-if="composeMode !== 'team'" class="px-2 pb-1">
+              <div class="px-2 pb-1">
                 <div class="relative">
                   <span
                     class="absolute -translate-y-1/2 pointer-events-none i-lucide-search left-3 top-1/2 text-n-slate-10"
@@ -369,8 +416,16 @@ defineExpose({ openCompose, focusSearch });
                     ref="peopleSearchRef"
                     v-model="peopleQuery"
                     type="text"
-                    :placeholder="t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')"
-                    :aria-label="t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')"
+                    :placeholder="
+                      composeMode === 'team'
+                        ? t('INTERNAL_CHAT.LIST.TEAM_SEARCH')
+                        : t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')
+                    "
+                    :aria-label="
+                      composeMode === 'team'
+                        ? t('INTERNAL_CHAT.LIST.TEAM_SEARCH')
+                        : t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')
+                    "
                     class="reset-base w-full h-9 pl-9 pr-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-transparent focus:border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
                     @keydown.enter.prevent="onPeopleEnter"
                   />
@@ -411,7 +466,12 @@ defineExpose({ openCompose, focusSearch });
                     "
                     rounded-full
                   />
-                  <span class="text-sm text-n-slate-12">{{ a.name }}</span>
+                  <span
+                    class="text-sm truncate text-n-slate-12"
+                    :title="a.name"
+                  >
+                    {{ a.name }}
+                  </span>
                 </button>
               </div>
 
@@ -497,11 +557,17 @@ defineExpose({ openCompose, focusSearch });
 
               <!-- Grupos de time: um clique abre o grupo pronto do time -->
               <div v-else class="py-1 overflow-y-auto max-h-72">
-                <p class="mb-0 px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
+                <p class="mb-0 px-3 pt-1 pb-1 text-[11px] text-n-slate-10">
                   {{ t('INTERNAL_CHAT.LIST.TEAMS_HINT') }}
                 </p>
+                <p
+                  v-if="!composeTeams.length"
+                  class="mb-0 px-3 py-4 text-xs text-center text-n-slate-10"
+                >
+                  {{ t('INTERNAL_CHAT.LIST.NO_TEAM_MATCH') }}
+                </p>
                 <button
-                  v-for="team in teams"
+                  v-for="team in composeTeams"
                   :key="team.id"
                   type="button"
                   class="flex items-center w-full gap-2.5 px-3 py-2 text-left hover:bg-n-alpha-1"
@@ -775,7 +841,7 @@ defineExpose({ openCompose, focusSearch });
             {{ t('INTERNAL_CHAT.LIST.MESSAGES') }}
           </p>
           <button
-            v-for="r in searchResults"
+            v-for="r in isSearchingMessages ? [] : searchResults"
             :key="`msg-${r.id}`"
             type="button"
             class="flex flex-col w-full gap-0.5 px-4 py-2 text-left rounded-2xl hover:bg-n-alpha-1 transition-colors"
@@ -798,7 +864,14 @@ defineExpose({ openCompose, focusSearch });
             </span>
           </button>
           <p
-            v-if="!searchResults.length"
+            v-if="isSearchingMessages"
+            class="flex items-center justify-center gap-2 px-4 py-6 mb-0 text-sm text-n-slate-11"
+          >
+            <span class="i-lucide-loader-circle animate-spin" />
+            {{ t('INTERNAL_CHAT.SEARCHING') }}
+          </p>
+          <p
+            v-else-if="!searchResults.length"
             class="mb-0 px-4 py-6 text-sm text-center text-n-slate-10"
           >
             {{ t('INTERNAL_CHAT.NO_RESULTS') }}
