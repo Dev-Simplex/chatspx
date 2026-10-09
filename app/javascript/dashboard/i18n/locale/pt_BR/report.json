@@ -1186,6 +1186,27 @@
       "TELEGRAM": "Telegram",
       "API": "API",
       "OTHER": "Outros"
+    },
+    "PERIOD": {
+      "TODAY": "Hoje",
+      "LAST_7": "7 dias",
+      "LAST_30": "30 dias",
+      "CUSTOM": "Personalizado",
+      "FROM": "De",
+      "TO": "Até",
+      "APPLY": "Aplicar",
+      "LABEL": "Período"
+    },
+    "FILTERS": {
+      "BUTTON": "Filtros",
+      "TITLE": "Filtros",
+      "INBOX": "Caixa",
+      "TEAM": "Time",
+      "AGENT": "Atendente",
+      "CLEAR": "Limpar",
+      "CLOSE": "Fechar",
+      "EMPTY": "Nada para escolher.",
+      "HINT": "Uma opção por grupo. O número é quantas conversas chegaram no período."
     }
   }
 }

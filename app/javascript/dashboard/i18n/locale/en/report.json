@@ -1186,6 +1186,27 @@
       "TELEGRAM": "Telegram",
       "API": "API",
       "OTHER": "Other"
+    },
+    "PERIOD": {
+      "TODAY": "Today",
+      "LAST_7": "7 days",
+      "LAST_30": "30 days",
+      "CUSTOM": "Custom",
+      "FROM": "From",
+      "TO": "To",
+      "APPLY": "Apply",
+      "LABEL": "Period"
+    },
+    "FILTERS": {
+      "BUTTON": "Filters",
+      "TITLE": "Filters",
+      "INBOX": "Inbox",
+      "TEAM": "Team",
+      "AGENT": "Agent",
+      "CLEAR": "Clear",
+      "CLOSE": "Close",
+      "EMPTY": "Nothing to choose.",
+      "HINT": "One option per group. The number is how many conversations arrived in the period."
     }
   }
 }
