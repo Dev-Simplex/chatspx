@@ -1092,5 +1092,100 @@
       "OPEN": "Open the funnel"
     },
     "LOAD_FAILED": "Part of the report could not be loaded. Try again in a moment."
+  },
+  "REPORTS_UI": {
+    "TABS_LABEL": "Report topics",
+    "AGENTS": {
+      "CSAT_TITLE": "CSAT per agent",
+      "CSAT_SUB": "satisfied customers in the survey",
+      "CSAT_EMPTY": "Nobody answered the survey in the period.",
+      "CSAT_GOAL": "Dashed line: goal of {goal}.",
+      "RANKING_TITLE": "Agent ranking",
+      "RANKING_SUB": "who resolved the most in the period",
+      "RANKING_EMPTY": "No agent resolved conversations in the period.",
+      "RESOLVED": "resolved",
+      "RANK_SUB": "{n} conversations | 1 conversation | {n} conversations",
+      "RANK_CSAT": "CSAT {pct}",
+      "FRT_TITLE": "First response per agent",
+      "FRT_SUB": "how long the customer waited, on average",
+      "FRT_EMPTY": "No agent replied in the period.",
+      "FRT_GOAL": "Dashed line: goal of {goal}."
+    },
+    "ROTATION": {
+      "TITLE": "Distribution and rotation",
+      "SUB": "who got the new conversations of each team, in the period",
+      "ADJUST": "Adjust the rotation",
+      "DISTRIBUTED": "none distributed | 1 distributed | {n} distributed",
+      "EMPTY": "No conversation distributed by the rotation in the period."
+    },
+    "NPS": {
+      "TITLE": "NPS",
+      "SUB": "how much customers would recommend the company · no answers | how much customers would recommend the company · 1 answer | how much customers would recommend the company · {n} answers",
+      "DELTA_UP": "+{n} in the period",
+      "DELTA_DOWN": "−{n} in the period",
+      "PROMOTERS": "Promoters",
+      "PASSIVES": "Passives",
+      "DETRACTORS": "Detractors",
+      "PROMOTERS_HINT": "score 9 and 10",
+      "PASSIVES_HINT": "score 7 and 8",
+      "DETRACTORS_HINT": "score 0 to 6",
+      "SCORES": "Scores from 0 to 10",
+      "EMPTY": "No customer answered in the period.",
+      "COMMENTS_TITLE": "Recent comments",
+      "COMMENTS_SUB": "what the customer wrote after the score",
+      "COMMENTS_EMPTY": "No comment in this filter.",
+      "ALL": "All",
+      "BY_TEAM_TITLE": "NPS per team",
+      "BY_TEAM_SUB": "each team's score, from −100 to 100",
+      "BY_TEAM_EMPTY": "No team with answers in the period.",
+      "RESPONSES": "no answers | 1 answer | {n} answers",
+      "QUOTE": "“{text}”"
+    },
+    "SLA": {
+      "TITLE": "SLA met per policy",
+      "SUB": "conversations answered within the agreed time",
+      "OF_TOTAL": "{ok} of {total} conversations",
+      "POLICY": "Policy",
+      "MET": "Met",
+      "MISSED": "Breached",
+      "EMPTY": "No conversation with a deadline in the period.",
+      "BREACHES_TITLE": "What was breached",
+      "BREACHES_SUB": "the latest that went past the deadline",
+      "BREACHES_COUNT": "no conversation | 1 conversation | {n} conversations",
+      "BREACHES_EMPTY": "No conversation went past the deadline in the period.",
+      "BY_TEAM": "Met per team"
+    },
+    "INBOXES": {
+      "TITLE": "Volume per inbox",
+      "SUB": "conversations that arrived in each number or channel",
+      "EMPTY": "No conversations in the period.",
+      "FRT_TITLE": "First response per inbox",
+      "FRT_SUB": "how long the customer waited, on average"
+    },
+    "LABELS": {
+      "TITLE": "Most used labels",
+      "SUB": "conversations with each label, in the period",
+      "EMPTY": "No labeled conversation in the period.",
+      "RESOLUTION_TITLE": "Time to resolve per label",
+      "RESOLUTION_SUB": "how long it took, on average, from start to end"
+    },
+    "TEAMS": {
+      "VOLUME_TITLE": "Conversations per team",
+      "VOLUME_SUB": "how many arrived and how many were resolved",
+      "RESOLVED_OF": "{resolved} of {total} resolved",
+      "FRT_TITLE": "First response per team",
+      "FRT_SUB": "how long the customer waited, on average",
+      "EMPTY": "No team with conversations in the period."
+    },
+    "CHANNELS": {
+      "WHATSAPP": "WhatsApp",
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook",
+      "SITE": "Website",
+      "EMAIL": "Email",
+      "TELEGRAM": "Telegram",
+      "API": "API",
+      "OTHER": "Other"
+    }
   }
 }

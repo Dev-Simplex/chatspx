@@ -1,6 +1,7 @@
 <script setup>
 import BackButton from 'dashboard/components/widgets/BackButton.vue';
 import { useMapGetter } from 'dashboard/composables/store';
+import ReportTabs from 'dashboard/components-next/reports/ui/ReportTabs.vue';
 
 // Cabecalho de todas as telas de Relatorios, no padrao do Painel: um cartao com o nome da conta,
 // o titulo, a descricao e as acoes. Os filtros da tela entram no rodape do cartao, pelo slot
@@ -25,7 +26,7 @@ const account = useMapGetter('getCurrentAccount');
 
 <template>
   <section
-    class="flex flex-col gap-4 p-5 mt-6 rounded-2xl border border-n-weak bg-n-solid-2"
+    class="flex flex-col gap-4 p-5 mt-6 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
     <div v-if="hasBackButton">
       <BackButton compact />
@@ -37,7 +38,9 @@ const account = useMapGetter('getCurrentAccount');
         >
           {{ account?.name }}
         </p>
-        <h1 class="m-0 text-3xl font-semibold tracking-tight text-n-slate-12">
+        <h1
+          class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
+        >
           {{ headerTitle }}
         </h1>
         <p
@@ -51,6 +54,7 @@ const account = useMapGetter('getCurrentAccount');
         <slot />
       </div>
     </div>
+    <ReportTabs />
     <div id="report-header-filters" class="empty:hidden">
       <slot name="filters" />
     </div>

@@ -9,6 +9,7 @@ import { generateFileName } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
+import SlaOverviewVisuals from 'dashboard/components-next/reports/sla/SlaOverviewVisuals.vue';
 export default {
   name: 'SLAReports',
   components: {
@@ -19,6 +20,7 @@ export default {
     SLATable,
     SLAReportFilters,
     ReportNarrativeSummary,
+    SlaOverviewVisuals,
   },
   data() {
     return {
@@ -100,6 +102,7 @@ export default {
     </template>
   </ReportHeader>
   <div class="flex flex-col flex-1 gap-4">
+    <SlaOverviewVisuals :filters="activeFilter" />
     <ReportNarrativeSummary :signals="slaMetrics.signals || []" />
     <SLAMetrics
       :hit-rate="slaMetrics.hitRate"

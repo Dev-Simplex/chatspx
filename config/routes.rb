@@ -728,6 +728,7 @@ Rails.application.routes.draw do
               get :summary
               get :bot_summary
               get :drilldown
+              get :breakdown
               get :agents
               get :inboxes
               get :labels

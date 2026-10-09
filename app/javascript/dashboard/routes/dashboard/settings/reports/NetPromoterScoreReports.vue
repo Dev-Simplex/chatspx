@@ -11,10 +11,12 @@ import V4Button from 'dashboard/components-next/button/Button.vue';
 import ReportHeader from './components/ReportHeader.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
+import NpsOverviewVisuals from 'dashboard/components-next/reports/nps/NpsOverviewVisuals.vue';
 
 export default {
   name: 'NetPromoterScoreReports',
   components: {
+    NpsOverviewVisuals,
     NpsMetrics,
     NpsTable,
     ReportFilterSelector,
@@ -146,6 +148,7 @@ export default {
   </ReportHeader>
 
   <div class="flex flex-col gap-4">
+    <NpsOverviewVisuals :filters="requestPayload" />
     <ReportNarrativeSummary :signals="npsSignals" />
     <NpsMetrics :filters="requestPayload" />
     <NpsTable

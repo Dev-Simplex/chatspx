@@ -181,6 +181,13 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  // Um numero aberto por grupo: kind = csat_by_agent | nps_by_team | sla_by_policy | sla_by_team.
+  getBreakdown({ kind, from, to, inboxId } = {}) {
+    return axios.get(`${this.url}/breakdown`, {
+      params: { kind, since: from, until: to, inbox_id: inboxId || undefined },
+    });
+  }
+
   getBotMetrics({ from, to, inboxId } = {}) {
     return axios.get(`${this.url}/bot_metrics`, {
       params: { since: from, until: to, inbox_id: inboxId || undefined },
