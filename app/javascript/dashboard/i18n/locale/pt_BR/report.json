@@ -292,7 +292,7 @@
       "GOOD_TITLE": "Está indo bem.",
       "GOOD_TEXT": "Todos os números estão dentro da meta. Continue assim.",
       "WARN_TITLE": "Quase lá.",
-      "WARN_TEXT": "{label} ficou um pouco fora da meta ({goal}). O resto está bem.",
+      "WARN_TEXT": "Um ponto ficou um pouco fora da meta: {label} (a meta é {goal}). O resto está bem.",
       "BAD_TITLE": "Atenção.",
       "MORE": "E mais {n} ponto precisa de cuidado. | E mais {n} pontos precisam de cuidado.",
       "EMPTY_TITLE": "Ainda não dá para dizer.",

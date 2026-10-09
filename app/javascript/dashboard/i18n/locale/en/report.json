@@ -292,7 +292,7 @@
       "GOOD_TITLE": "Going well.",
       "GOOD_TEXT": "All numbers are within the goal. Keep it up.",
       "WARN_TITLE": "Almost there.",
-      "WARN_TEXT": "{label} is a bit off the goal ({goal}). Everything else is fine.",
+      "WARN_TEXT": "One point is a bit off the goal: {label} (the goal is {goal}). Everything else is fine.",
       "BAD_TITLE": "Attention.",
       "MORE": "And {n} more point needs care. | And {n} more points need care.",
       "EMPTY_TITLE": "Too early to say.",
