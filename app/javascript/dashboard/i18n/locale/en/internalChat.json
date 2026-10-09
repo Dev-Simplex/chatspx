@@ -46,7 +46,8 @@
       "SOUND_HINT": "Play a sound on new messages.",
       "BLOCKED": "Notifications are blocked in your browser. Enable them in the site settings to get desktop alerts.",
       "TONE": "Tone",
-      "PREVIEW": "Play the tone"
+      "PREVIEW": "Play the tone",
+      "TONE_NEEDS_SOUND": "Turn sound on to pick and hear the tone."
     },
     "MENTION_TOAST": "{from} mentioned you in {channel}",
     "TODAY": "Today",
@@ -82,7 +83,19 @@
       "MEMBERS": "Members ({count})",
       "REMOVE": "Remove",
       "ADD": "Add members",
-      "LEAVE": "Leave group"
+      "LEAVE": "Leave group",
+      "NAME_EMPTY": "Give the group a name to save.",
+      "NAME_UNCHANGED": "Change the name to save.",
+      "NAME_PENDING": "Not saved yet — press Enter or Save.",
+      "NAME_DISCARDED": "The new name was not saved. The group kept its name.",
+      "RENAME_ERROR": "Could not rename the group. Try again.",
+      "ADDED": "{name} added to the group.",
+      "REMOVED": "{name} is no longer in the group.",
+      "REMOVE_Q": "Remove {name}? They stop seeing this group.",
+      "REMOVE_NAME": "Remove {name} from the group",
+      "ADD_NAME": "Add {name} to the group",
+      "ALL_IN": "Everyone is already in the group.",
+      "CLOSE": "Close"
     },
     "SHARE": {
       "MENU_ITEM": "Share to internal chat",
@@ -96,7 +109,8 @@
       "ERROR": "Could not share the conversation",
       "DEFAULT_NOTE": "I shared conversation #{id}",
       "SEARCH": "Search person, group or team…",
-      "NO_MATCH": "Nothing with that name."
+      "NO_MATCH": "Nothing with that name.",
+      "PICK_FIRST": "Pick who receives it."
     },
     "AUDIO": {
       "REQUESTING": "Allow the microphone in the browser prompt…",
@@ -182,7 +196,9 @@
       "GROUP_NEEDS_PEOPLE": "Check at least one person.",
       "SECTION_PEOPLE": "People",
       "START_CHAT": "Start conversation",
-      "IN_CONVERSATION": "in"
+      "IN_CONVERSATION": "in",
+      "TEAM_SEARCH": "Type the team name…",
+      "NO_TEAM_MATCH": "No team with that name."
     },
     "THREAD": {
       "LOADING": "Loading messages…",
@@ -194,7 +210,8 @@
       "NO_MATCH": "No message with that text in this conversation.",
       "SEARCH_PLACEHOLDER": "Search this conversation…",
       "CLOSE_SEARCH": "Close search",
-      "NEW_MESSAGES": "New messages"
+      "NEW_MESSAGES": "New messages",
+      "LOAD_ERROR": "Could not load the messages of this conversation."
     },
     "COMPOSER": {
       "PLACEHOLDER_GROUP": "Write a message… ({'@'} to mention)",
@@ -327,6 +344,8 @@
       "BODY": "You stop receiving and seeing this group’s messages. You only come back if someone in the group adds you again.",
       "CONFIRM": "Leave group",
       "DONE": "You left the group {name}."
-    }
+    },
+    "CLOSE": "Close",
+    "SEARCHING": "Searching…"
   }
 }

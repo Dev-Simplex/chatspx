@@ -56,6 +56,12 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Opt-in: X no canto do título (com dica "Fechar"). Para janelas sem botão
+  // de cancelar no rodapé — sem ele a pessoa só sairia por Esc ou clique fora.
+  showCloseButton: {
+    type: Boolean,
+    default: false,
+  },
   width: {
     type: String,
     default: 'lg',
@@ -169,9 +175,21 @@ defineExpose({ open, close });
             class="flex flex-col gap-2"
             :class="{ 'shrink-0': fullHeight }"
           >
-            <h3 class="text-base font-medium leading-6 text-n-slate-12">
-              {{ title }}
-            </h3>
+            <div class="flex items-start justify-between gap-3">
+              <h3 class="text-base font-medium leading-6 text-n-slate-12">
+                {{ title }}
+              </h3>
+              <button
+                v-if="showCloseButton"
+                v-tooltip="t('DIALOG.BUTTONS.CLOSE')"
+                type="button"
+                class="inline-flex items-center justify-center flex-shrink-0 -mt-1 -me-2 rounded-full size-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+                :aria-label="t('DIALOG.BUTTONS.CLOSE')"
+                @click="close"
+              >
+                <span class="i-lucide-x size-5" />
+              </button>
+            </div>
             <slot name="description">
               <p v-if="description" class="mb-0 text-sm text-n-slate-11">
                 {{ description }}

@@ -46,7 +46,8 @@
       "SOUND_HINT": "Toca um som ao receber mensagem.",
       "BLOCKED": "As notificações estão bloqueadas no navegador. Habilite-as nas configurações do site para receber alertas no desktop.",
       "TONE": "Toque",
-      "PREVIEW": "Ouvir o toque"
+      "PREVIEW": "Ouvir o toque",
+      "TONE_NEEDS_SOUND": "Ligue o som para escolher e ouvir o toque."
     },
     "MENTION_TOAST": "{from} mencionou você em {channel}",
     "TODAY": "Hoje",
@@ -82,7 +83,19 @@
       "MEMBERS": "Membros ({count})",
       "REMOVE": "Remover",
       "ADD": "Adicionar membros",
-      "LEAVE": "Sair do grupo"
+      "LEAVE": "Sair do grupo",
+      "NAME_EMPTY": "Dê um nome ao grupo para salvar.",
+      "NAME_UNCHANGED": "Altere o nome para salvar.",
+      "NAME_PENDING": "Ainda não salvo — tecle Enter ou clique em Salvar.",
+      "NAME_DISCARDED": "O novo nome não foi salvo. O grupo continua com o nome de antes.",
+      "RENAME_ERROR": "Não foi possível renomear o grupo. Tente de novo.",
+      "ADDED": "{name} entrou no grupo.",
+      "REMOVED": "{name} não está mais no grupo.",
+      "REMOVE_Q": "Remover {name}? A pessoa deixa de ver este grupo.",
+      "REMOVE_NAME": "Remover {name} do grupo",
+      "ADD_NAME": "Adicionar {name} ao grupo",
+      "ALL_IN": "Todo mundo já está no grupo.",
+      "CLOSE": "Fechar"
     },
     "SHARE": {
       "MENU_ITEM": "Compartilhar no chat interno",
@@ -96,7 +109,8 @@
       "ERROR": "Não foi possível compartilhar a conversa",
       "DEFAULT_NOTE": "Compartilhei a conversa #{id}",
       "SEARCH": "Buscar pessoa, grupo ou time…",
-      "NO_MATCH": "Nada com esse nome."
+      "NO_MATCH": "Nada com esse nome.",
+      "PICK_FIRST": "Escolha para quem enviar."
     },
     "AUDIO": {
       "REQUESTING": "Permita o microfone no aviso do navegador…",
@@ -182,7 +196,9 @@
       "GROUP_NEEDS_PEOPLE": "Marque ao menos uma pessoa.",
       "SECTION_PEOPLE": "Pessoas",
       "START_CHAT": "Começar conversa",
-      "IN_CONVERSATION": "em"
+      "IN_CONVERSATION": "em",
+      "TEAM_SEARCH": "Digite o nome do time…",
+      "NO_TEAM_MATCH": "Nenhum time com esse nome."
     },
     "THREAD": {
       "LOADING": "Carregando mensagens…",
@@ -194,7 +210,8 @@
       "NO_MATCH": "Nenhuma mensagem com esse texto nesta conversa.",
       "SEARCH_PLACEHOLDER": "Buscar nesta conversa…",
       "CLOSE_SEARCH": "Fechar busca",
-      "NEW_MESSAGES": "Mensagens novas"
+      "NEW_MESSAGES": "Mensagens novas",
+      "LOAD_ERROR": "Não foi possível carregar as mensagens desta conversa."
     },
     "COMPOSER": {
       "PLACEHOLDER_GROUP": "Escreva uma mensagem… ({'@'} para mencionar)",
@@ -327,6 +344,8 @@
       "BODY": "Você deixa de receber e de ver as mensagens deste grupo. Só volta se alguém do grupo adicionar você de novo.",
       "CONFIRM": "Sair do grupo",
       "DONE": "Você saiu do grupo {name}."
-    }
+    },
+    "CLOSE": "Fechar",
+    "SEARCHING": "Buscando…"
   }
 }
