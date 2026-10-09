@@ -27,9 +27,40 @@ RSpec.describe Waha::OutboundSpecialMessageService do
     allow(waha_api).to receive(:send_list).and_return('id' => 'list-1')
     allow(waha_api).to receive(:send_poll).and_return('id' => 'poll-1')
     allow(waha_api).to receive(:send_text).and_return('id' => 'txt-1')
+    allow(waha_api).to receive(:send_file).and_return('id' => 'file-1')
   end
 
   describe '#perform' do
+    # MIDIA-01: video acima de 16 MB sai como documento pelo /api/sendFile.
+    context 'with a video over 16MB' do
+      let(:message) do
+        msg = create(:message, conversation: conversation, message_type: :outgoing, inbox: inbox, content: '**Planta** do imovel')
+        attachment = msg.attachments.new(account_id: account.id, file_type: :video)
+        attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'tour.mp4', content_type: 'video/mp4',
+                               identify: false)
+        attachment.save!
+        attachment.file.blob.update_column(:byte_size, 20.megabytes) # rubocop:disable Rails/SkipsModelValidations
+        msg.reload
+      end
+
+      it 'sends it as a document with the WhatsApp-formatted caption and marks it as sent' do
+        expect(described_class.new(message).perform).to be(true)
+
+        expect(waha_api).to have_received(:send_file).with(
+          hash_including(session: 'default', chat_id: '5566999998888@c.us', caption: '*Planta* do imovel',
+                         file: hash_including(filename: 'tour.mp4', mimetype: 'video/mp4'))
+        )
+        expect(message.reload).to have_attributes(status: 'sent', source_id: 'file-1')
+      end
+
+      it 'leaves a 16MB video to the WAHA app (normal video)' do
+        message.attachments.first.file.blob.update_column(:byte_size, 16.megabytes) # rubocop:disable Rails/SkipsModelValidations
+
+        expect(described_class.new(message.reload).perform).to be(false)
+        expect(waha_api).not_to have_received(:send_file)
+      end
+    end
+
     context 'with a location attachment' do
       let(:message) do
         msg = create(:message, conversation: conversation, message_type: :outgoing, inbox: inbox)
