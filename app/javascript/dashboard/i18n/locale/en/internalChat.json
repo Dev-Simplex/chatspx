@@ -34,7 +34,7 @@
     "NO_TEAMS": "You are not part of any team.",
     "CREATE": "Create",
     "CANCEL": "Cancel",
-    "ATTACH": "Attach file",
+    "ATTACH": "Attach",
     "EMOJI": "Emoji",
     "MENTION": "Mention",
     "NOTIFICATIONS": {
@@ -433,6 +433,16 @@
     },
     "REPLY_PRIVATELY": {
       "QUOTE": "↩ {name} in {group}: “{excerpt}”"
+    },
+    "ATTACH_MENU": {
+      "MEDIA": "Photos and videos",
+      "MEDIA_HINT": "Images and videos from your computer",
+      "DOCUMENT": "Document",
+      "DOCUMENT_HINT": "PDF, spreadsheet or any file",
+      "AUDIO": "Record audio",
+      "AUDIO_HINT": "Listen before sending",
+      "CONVERSATION": "Customer conversation",
+      "CONVERSATION_HINT": "Type the number after the #"
     }
   }
 }

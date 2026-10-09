@@ -43,8 +43,13 @@ const textareaRef = ref(null);
 const fileInputRef = ref(null);
 const attachedFiles = ref([]);
 const recording = ref(false);
+const showAttach = ref(false);
+const fileAccept = ref('');
 useEscClose(showEmoji, () => {
   showEmoji.value = false;
+});
+useEscClose(showAttach, () => {
+  showAttach.value = false;
 });
 
 const autoResize = () => {
@@ -201,7 +206,25 @@ const onEmojiSelect = emoji => {
 };
 
 // ── Anexos ──────────────────────────────────────────────────────────────────
-const onPickFile = () => fileInputRef.value?.click();
+// Menu do clipe (como no WhatsApp): escolhe o tipo antes de abrir o seletor de arquivos.
+const toggleAttach = () => {
+  showEmoji.value = false;
+  showAttach.value = !showAttach.value;
+};
+const pickFiles = accept => {
+  showAttach.value = false;
+  fileAccept.value = accept;
+  nextTick(() => fileInputRef.value?.click());
+};
+const quoteCustomerConversation = () => {
+  showAttach.value = false;
+  draft.value = `${draft.value}${draft.value && !draft.value.endsWith(' ') ? ' ' : ''}#`;
+  nextTick(() => {
+    textareaRef.value?.focus();
+    autoResize();
+  });
+};
+
 const onFilesSelected = event => {
   Array.from(event.target.files || []).forEach(file => {
     // Rejeita acima do teto rígido com mensagem clara (senão o backend falha o
@@ -225,8 +248,36 @@ const removeFile = index => attachedFiles.value.splice(index, 1);
 // Grava, deixa ouvir e envia so o audio; o texto digitado continua no campo.
 const startRecording = () => {
   showEmoji.value = false;
+  showAttach.value = false;
   recording.value = true;
 };
+// Opções do menu do clipe.
+const attachOptions = [
+  {
+    key: 'MEDIA',
+    icon: 'i-lucide-image',
+    color: 'bg-n-iris-9',
+    run: () => pickFiles('image/*,video/*'),
+  },
+  {
+    key: 'DOCUMENT',
+    icon: 'i-lucide-file-text',
+    color: 'bg-n-blue-9',
+    run: () => pickFiles(''),
+  },
+  {
+    key: 'AUDIO',
+    icon: 'i-lucide-mic',
+    color: 'bg-n-amber-9',
+    run: () => startRecording(),
+  },
+  {
+    key: 'CONVERSATION',
+    icon: 'i-lucide-hash',
+    color: 'bg-n-teal-9',
+    run: () => quoteCustomerConversation(),
+  },
+];
 const onAudioSend = file => {
   recording.value = false;
   emit('send', {
@@ -363,19 +414,61 @@ const onEnter = () => {
     <!-- Barra de escrita: ações discretas à esquerda, pílula com o texto e o
          botão de enviar redondo, que só ganha cor quando há o que enviar. -->
     <div v-else class="flex items-end gap-1">
-      <button
-        v-tooltip="t('INTERNAL_CHAT.ATTACH')"
-        type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
-        :aria-label="t('INTERNAL_CHAT.ATTACH')"
-        @click="onPickFile"
-      >
-        <span class="text-xl i-lucide-paperclip" />
-      </button>
+      <div class="relative flex-shrink-0">
+        <button
+          v-tooltip="showAttach ? '' : t('INTERNAL_CHAT.ATTACH')"
+          type="button"
+          class="inline-flex items-center justify-center mb-0.5 transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :class="
+            showAttach ? 'bg-n-alpha-2 text-n-teal-11' : 'text-n-slate-11'
+          "
+          :aria-label="t('INTERNAL_CHAT.ATTACH')"
+          :aria-expanded="showAttach"
+          aria-haspopup="menu"
+          @click="toggleAttach"
+        >
+          <span
+            class="text-xl transition-transform duration-200"
+            :class="showAttach ? 'i-lucide-x' : 'i-lucide-paperclip'"
+          />
+        </button>
+        <template v-if="showAttach">
+          <div class="fixed inset-0 z-10" @click="showAttach = false" />
+          <div
+            role="menu"
+            class="absolute left-0 z-30 p-1.5 mb-2 border shadow-xl bottom-full w-64 rounded-2xl bg-n-solid-2 border-n-weak"
+          >
+            <button
+              v-for="opt in attachOptions"
+              :key="opt.key"
+              type="button"
+              role="menuitem"
+              class="flex items-center w-full gap-3 px-2.5 py-2 text-left transition-colors rounded-xl hover:bg-n-alpha-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+              @click="opt.run"
+            >
+              <span
+                class="inline-flex items-center justify-center flex-shrink-0 text-white rounded-full size-9"
+                :class="opt.color"
+              >
+                <span class="size-[18px]" :class="opt.icon" />
+              </span>
+              <span class="min-w-0">
+                <span class="block text-sm font-medium text-n-slate-12">
+                  {{ t(`INTERNAL_CHAT.ATTACH_MENU.${opt.key}`) }}
+                </span>
+                <span class="block text-xs text-n-slate-11">
+                  {{ t(`INTERNAL_CHAT.ATTACH_MENU.${opt.key}_HINT`) }}
+                </span>
+              </span>
+            </button>
+          </div>
+        </template>
+      </div>
       <input
         ref="fileInputRef"
         type="file"
         multiple
+        :accept="fileAccept"
         class="hidden"
         @change="onFilesSelected"
       />
