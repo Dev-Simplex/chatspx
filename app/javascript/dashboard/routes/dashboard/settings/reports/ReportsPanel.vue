@@ -70,7 +70,11 @@ const pdfFilters = computed(() => ({
           </h1>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <InboxScopeFilter v-model="inboxId" @change="writeInboxScope" />
+          <InboxScopeFilter
+            v-model="inboxId"
+            :period="{ since: period.since, until: period.until }"
+            @change="writeInboxScope"
+          />
           <div
             class="flex items-center gap-0.5 p-0.5 rounded-lg bg-n-alpha-2"
             role="radiogroup"

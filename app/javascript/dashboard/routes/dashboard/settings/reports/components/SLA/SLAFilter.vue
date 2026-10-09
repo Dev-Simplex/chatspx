@@ -15,6 +15,12 @@ import {
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import ActiveFilterChip from '../Filters/v3/ActiveFilterChip.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
+import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+
+const props = defineProps({
+  // { since, until } para as contagens do botao Filtros
+  period: { type: Object, default: () => ({}) },
+});
 
 const emit = defineEmits(['filterChange']);
 
@@ -43,9 +49,6 @@ const sla = computed(() => store.getters['sla/getSLA']);
 const filterListMenuItems = computed(() => {
   const filterTypes = [
     { id: '1', name: t('SLA_REPORTS.DROPDOWN.SLA'), type: 'sla' },
-    { id: '2', name: t('SLA_REPORTS.DROPDOWN.INBOXES'), type: 'inboxes' },
-    { id: '3', name: t('SLA_REPORTS.DROPDOWN.AGENTS'), type: 'agents' },
-    { id: '4', name: t('SLA_REPORTS.DROPDOWN.TEAMS'), type: 'teams' },
     { id: '5', name: t('SLA_REPORTS.DROPDOWN.LABELS'), type: 'labels' },
   ];
 
@@ -74,10 +77,10 @@ const filterListMenuItems = computed(() => {
     }));
 });
 
+// Caixa, atendente e time moram no botao Filtros; aqui sobram politica e etiqueta.
+const CHIP_KEYS = ['sla_policy_id', 'label_list'];
 const activeFilters = computed(() => {
-  const activeKeys = Object.keys(appliedFilters.value).filter(
-    key => appliedFilters.value[key]
-  );
+  const activeKeys = CHIP_KEYS.filter(key => appliedFilters.value[key]);
 
   const sources = {
     agents: agents.value,
@@ -104,7 +107,7 @@ const activeFilters = computed(() => {
 });
 
 const hasActiveFilters = computed(() =>
-  Object.values(appliedFilters.value).some(value => value !== null)
+  CHIP_KEYS.some(key => appliedFilters.value[key] !== null)
 );
 
 const isAllFilterSelected = computed(() => !filterListMenuItems.value.length);
@@ -129,6 +132,23 @@ const emitChange = () => {
   updateURLParams();
   emit('filterChange', appliedFilters.value);
 };
+
+const popoverSelection = computed({
+  get: () => ({
+    inbox: appliedFilters.value.inbox_id || null,
+    team: appliedFilters.value.team_id || null,
+    agent: appliedFilters.value.assigned_agent_id || null,
+  }),
+  set: value => {
+    appliedFilters.value = {
+      ...appliedFilters.value,
+      inbox_id: value.inbox,
+      team_id: value.team,
+      assigned_agent_id: value.agent,
+    };
+    emitChange();
+  },
+});
 
 const showDropdown = () => {
   showSubDropdownMenu.value = false;
@@ -171,9 +191,7 @@ const removeFilter = type => {
 
 const clearAllFilters = () => {
   appliedFilters.value = {
-    assigned_agent_id: null,
-    inbox_id: null,
-    team_id: null,
+    ...appliedFilters.value,
     sla_policy_id: null,
     label_list: null,
   };
@@ -202,6 +220,11 @@ onMounted(() => {
   <div
     class="flex flex-col flex-wrap items-start gap-2 md:items-center md:flex-nowrap md:flex-row"
   >
+    <ReportFiltersPopover
+      v-model="popoverSelection"
+      :groups="['inbox', 'team', 'agent']"
+      :period="props.period"
+    />
     <!-- Active filters section -->
     <div v-if="hasActiveFilters" class="flex flex-wrap gap-2 md:flex-nowrap">
       <ActiveFilterChip

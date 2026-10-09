@@ -12,6 +12,7 @@ import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import OverviewReportFilters from './OverviewReportFilters.vue';
+import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
 import ReportHeaderFilters from './ReportHeaderFilters.vue';
 import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
@@ -31,8 +32,6 @@ const isLoading = computed(
   () => uiFlags.value.isFetchingAgentAssignmentReports ?? false
 );
 const reportData = useMapGetter('summaryReports/getAgentAssignmentReports');
-const teams = useMapGetter('teams/getTeams');
-const inboxes = useMapGetter('inboxes/getInboxes');
 
 // A resposta agora é { rows, matrix }.
 const rows = computed(() => reportData.value?.rows || []);
@@ -290,11 +289,16 @@ const onFilterChange = ({ from: f, to: t2, businessHours: bh }) => {
   fetchReports();
 };
 
-// Time/inbox mudou → re-busca com o mesmo período.
-const onScopeChange = () => {
-  emitFilters();
-  fetchReports();
-};
+// Time/inbox mudou (botao Filtros) → re-busca com o mesmo período.
+const scopeSelection = computed({
+  get: () => ({ team: teamId.value || null, inbox: inboxId.value || null }),
+  set: value => {
+    teamId.value = value.team || '';
+    inboxId.value = value.inbox || '';
+    emitFilters();
+    fetchReports();
+  },
+});
 
 onMounted(() => {
   store.dispatch('teams/get');
@@ -307,42 +311,15 @@ onMounted(() => {
     <div class="flex flex-col gap-3">
       <OverviewReportFilters
         :disabled="isLoading"
+        :show-inbox-scope="false"
         @filter-change="onFilterChange"
-      />
-
-      <!-- Filtros de recorte: time e inbox -->
-      <div class="flex flex-wrap items-center gap-4">
-        <label class="flex items-center gap-2 text-sm text-n-slate-11">
-          {{ $t('ASSIGNMENT_REPORTS.FILTER.TEAM') }}
-          <select
-            v-model="teamId"
-            class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
-            @change="onScopeChange"
-          >
-            <option value="">
-              {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_TEAMS') }}
-            </option>
-            <option v-for="team in teams" :key="team.id" :value="team.id">
-              {{ team.name }}
-            </option>
-          </select>
-        </label>
-        <label class="flex items-center gap-2 text-sm text-n-slate-11">
-          {{ $t('ASSIGNMENT_REPORTS.FILTER.INBOX') }}
-          <select
-            v-model="inboxId"
-            class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
-            @change="onScopeChange"
-          >
-            <option value="">
-              {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_INBOXES') }}
-            </option>
-            <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
-              {{ inbox.name }}
-            </option>
-          </select>
-        </label>
-      </div>
+      >
+        <ReportFiltersPopover
+          v-model="scopeSelection"
+          :groups="['team', 'inbox']"
+          :period="{ since: from, until: to }"
+        />
+      </OverviewReportFilters>
     </div>
   </ReportHeaderFilters>
 

@@ -8,7 +8,7 @@ import subDays from 'date-fns/subDays';
 import differenceInDays from 'date-fns/differenceInDays';
 import ActiveFilterChip from './Filters/v3/ActiveFilterChip.vue';
 import InboxScopeFilter from './Filters/InboxScopeFilter.vue';
-import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
+import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import { GROUP_BY_FILTER } from '../constants';
 import { DATE_RANGE_TYPES } from 'dashboard/components/ui/DatePicker/helpers/DatePickerHelper';
@@ -341,7 +341,7 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col w-full gap-3 lg:flex-row items-center">
-    <WootDatePicker
+    <ReportPeriodPicker
       v-model:date-range="customDateRange"
       v-model:range-type="selectedDateRange"
       @date-range-changed="onDateRangeChange"
@@ -367,6 +367,7 @@ onMounted(() => {
       <InboxScopeFilter
         v-if="isInboxScopeVisible"
         v-model="inboxScopeId"
+        :period="{ since: from, until: to }"
         class="shrink-0"
         @change="onInboxScopeChange"
       />

@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 import subDays from 'date-fns/subDays';
-import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
+import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import {
   generateReportURLParams,
@@ -33,6 +33,11 @@ const customDateRange = ref([subDays(new Date(), 6), new Date()]);
 const selectedDateRange = ref(DATE_RANGE_TYPES.LAST_7_DAYS);
 const businessHoursSelected = ref(false);
 const inboxScopeId = ref(null);
+// periodo das contagens do botao Filtros
+const countPeriod = computed(() => ({
+  since: getUnixStartOfDay(customDateRange.value[0]),
+  until: getUnixEndOfDay(customDateRange.value[1]),
+}));
 
 const updateURLParams = () => {
   const params = generateReportURLParams({
@@ -107,7 +112,7 @@ onMounted(() => {
     :class="{ 'pointer-events-none opacity-50': disabled }"
   >
     <div class="flex flex-col flex-wrap items-start gap-2 md:flex-row">
-      <WootDatePicker
+      <ReportPeriodPicker
         v-model:date-range="customDateRange"
         v-model:range-type="selectedDateRange"
         @date-range-changed="onDateRangeChange"
@@ -115,9 +120,12 @@ onMounted(() => {
       <InboxScopeFilter
         v-if="showInboxScope"
         v-model="inboxScopeId"
+        :period="countPeriod"
         class="shrink-0"
         @change="onInboxScopeChange"
       />
+      <!-- filtros proprios da tela (ex.: Atribuicoes pede time e caixa) -->
+      <slot />
     </div>
     <div class="flex items-center">
       <span class="mx-2 text-sm whitespace-nowrap">
