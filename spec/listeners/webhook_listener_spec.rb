@@ -110,6 +110,25 @@ describe WebhookListener do
         listener.message_created(api_event)
       end
 
+      # MIDIA-01: o video grande vai num job proprio (o WAHA baixa ate 100 MB), fora da fila critical.
+      it 'enqueues a video over 16MB to be sent as a document and skips api_inbox_webhook' do
+        channel_api = create(:channel_api, account: account)
+        api_inbox = channel_api.inbox
+        api_inbox.update(waha_session_name: 'simplexteste')
+        api_conversation = create(:conversation, account: account, inbox: api_inbox, assignee: user)
+        api_message = create(:message, message_type: 'outgoing', account: account, inbox: api_inbox, conversation: api_conversation)
+        video = api_message.attachments.new(account_id: account.id, file_type: :video)
+        video.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'tour.mp4', content_type: 'video/mp4', identify: false)
+        video.save!
+        video.file.blob.update_column(:byte_size, 20.megabytes) # rubocop:disable Rails/SkipsModelValidations
+        api_event = Events::Base.new(event_name, Time.zone.now, message: api_message.reload)
+
+        expect(Waha::OutboundSpecialMessageService).not_to receive(:new)
+        expect(WebhookJob).not_to receive(:perform_later).with(channel_api.webhook_url, anything, :api_inbox_webhook, anything)
+
+        expect { listener.message_created(api_event) }.to have_enqueued_job(Waha::EnviarDocumentoJob).with(api_message.id)
+      end
+
       it 'falls through to webhook for plain text messages' do
         channel_api = create(:channel_api, account: account)
         api_inbox = channel_api.inbox
