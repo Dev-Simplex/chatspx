@@ -246,6 +246,9 @@ const plainRows = computed(() =>
 );
 
 const fetchReportsWithRetry = async () => {
+  // Sem periodo ainda (os filtros montam depois, no cabecalho): buscar com since=0 so traz zeros, e se
+  // essa resposta chegasse depois da certa ela apagaria a tabela e o ranking.
+  if (!from.value || !to.value) return;
   const params = {
     since: from.value,
     until: to.value,
