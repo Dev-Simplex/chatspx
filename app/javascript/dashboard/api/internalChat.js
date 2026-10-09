@@ -96,6 +96,13 @@ class InternalChatAPI extends ApiClient {
     );
   }
 
+  forwardMessage(channelId, messageId, { channelIds = [], userIds = [] }) {
+    return axios.post(
+      `${this.url}/${channelId}/internal_messages/${messageId}/forward`,
+      { channel_ids: channelIds, user_ids: userIds }
+    );
+  }
+
   getAgents() {
     return axios.get(`${this.baseUrl()}/agents_for_internal_chat`);
   }

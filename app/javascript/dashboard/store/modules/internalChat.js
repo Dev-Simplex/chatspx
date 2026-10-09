@@ -394,6 +394,21 @@ export const actions = {
     commit('UPDATE_MESSAGE', { channelId, message: data });
   },
 
+  // Encaminhar: o servidor cria uma cópia em cada destino (as cópias chegam
+  // pelo tempo real); DM nova entra na lista pelo refetch.
+  forwardMessage: async (
+    { dispatch },
+    { channelId, messageId, channelIds, userIds }
+  ) => {
+    const { data } = await InternalChatAPI.forwardMessage(
+      channelId,
+      messageId,
+      { channelIds, userIds }
+    );
+    if (userIds?.length) dispatch('fetchChannels');
+    return data.internal_channel_ids || [];
+  },
+
   // "Digitando…" — best-effort; failures are silent (cosmetic feature).
   sendTyping: async (_ctx, { channelId, typing }) => {
     try {

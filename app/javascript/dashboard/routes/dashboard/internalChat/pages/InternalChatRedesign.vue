@@ -25,6 +25,7 @@ import MessageThread from '../components/redesign/MessageThread.vue';
 import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
 import ManageChannelDialog from '../components/ManageChannelDialog.vue';
+import ForwardDialog from '../components/redesign/ForwardDialog.vue';
 import InternalChatPushPrompt from '../components/InternalChatPushPrompt.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
@@ -588,6 +589,31 @@ const onRetry = msg => {
     .catch(() => {});
 };
 
+// ── Encaminhar ─────────────────────────────────────────────────────────────
+const forwarding = ref(null); // { message, sending, failed }
+const onForward = msg => {
+  forwarding.value = { message: msg, sending: false, failed: false };
+};
+const confirmForward = async ({ channelIds, userIds }) => {
+  const state = forwarding.value;
+  if (!state || !activeId.value) return;
+  forwarding.value = { ...state, sending: true, failed: false };
+  try {
+    const ids = await store.dispatch('internalChat/forwardMessage', {
+      channelId: activeId.value,
+      messageId: state.message.id,
+      channelIds,
+      userIds,
+    });
+    forwarding.value = null;
+    useAlert(t('INTERNAL_CHAT.FORWARD.DONE', { count: ids.length }));
+  } catch {
+    if (forwarding.value) {
+      forwarding.value = { ...forwarding.value, sending: false, failed: true };
+    }
+  }
+};
+
 const onCreateDm = async agentId => {
   const channel = await store
     .dispatch('internalChat/createDm', agentId)
@@ -730,7 +756,8 @@ const SHORTCUTS = {
   KeyK: () => stepConversation(1),
 };
 const onKeydown = event => {
-  if (showManage.value) return; // a janela de gerenciar cuida do próprio Esc
+  // a janela de gerenciar/encaminhar cuida do próprio Esc
+  if (showManage.value || forwarding.value) return;
   if (event.key === 'Escape') {
     if (onEscape()) event.preventDefault();
     return;
@@ -877,6 +904,7 @@ onBeforeUnmount(() => {
             @delete="onDelete"
             @reply="onReply"
             @retry="onRetry"
+            @forward="onForward"
             @reload="onSelect(activeId)"
           />
 
@@ -944,6 +972,18 @@ onBeforeUnmount(() => {
             />
           </div>
         </template>
+
+        <ForwardDialog
+          v-if="forwarding"
+          :message="forwarding.message"
+          :conversations="conversationList"
+          :agents="agents"
+          :current-user-id="currentUserId"
+          :sending="forwarding.sending"
+          :failed="forwarding.failed"
+          @close="forwarding = null"
+          @forward="confirmForward"
+        />
 
         <ManageChannelDialog
           :show="showManage"

@@ -238,7 +238,10 @@
       "READ_LABEL": "Lida",
       "DELIVERED_HINT": "Chegou no chat. Ainda não foi lida.",
       "READ_HINT": "O colega já leu esta mensagem.",
-      "MENTIONED_YOU": "mencionou você"
+      "MENTIONED_YOU": "mencionou você",
+      "FORWARD": "Encaminhar",
+      "FORWARDED": "Encaminhada",
+      "FORWARDED_HINT": "Esta mensagem veio de outra conversa."
     },
     "SHARED": {
       "OPEN": "Abrir",
@@ -346,6 +349,20 @@
       "DONE": "Você saiu do grupo {name}."
     },
     "CLOSE": "Fechar",
-    "SEARCHING": "Buscando…"
+    "SEARCHING": "Buscando…",
+    "FORWARD": {
+      "TITLE": "Encaminhar mensagem",
+      "SEARCH": "Buscar pessoa, grupo ou time…",
+      "CONVERSATIONS": "Conversas",
+      "PEOPLE": "Pessoas",
+      "NO_MATCH": "Nada com esse nome.",
+      "PICK_FIRST": "Escolha para quem encaminhar.",
+      "SENDING": "Encaminhando…",
+      "SELECTED": "{count} escolhida(s)",
+      "CONFIRM": "Encaminhar",
+      "ERROR": "Não deu para encaminhar. Confira a internet e tente de novo.",
+      "DONE": "Mensagem encaminhada para {count} conversa(s).",
+      "PREVIEW_CONVERSATION": "Conversa de cliente #{id}"
+    }
   }
 }

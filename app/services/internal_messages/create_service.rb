@@ -12,7 +12,7 @@
 # mean invasive, broad-impact changes to core. Real-time delivery covers the need.
 class InternalMessages::CreateService
   def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], # rubocop:disable Metrics/ParameterLists
-                 reply_to_id: nil, shared_conversation_display_id: nil, echo_id: nil)
+                 reply_to_id: nil, shared_conversation_display_id: nil, echo_id: nil, content_attributes: {})
     @channel = channel
     @user = user
     @content = content
@@ -21,13 +21,14 @@ class InternalMessages::CreateService
     @reply_to_id = reply_to_id
     @shared_conversation_display_id = shared_conversation_display_id
     @echo_id = echo_id
+    @content_attributes = content_attributes
   end
 
   def perform
     message = @channel.messages.new(
       user: @user, content: @content.to_s,
       mentioned_user_ids: valid_mentions, reply_to_id: valid_reply_to_id,
-      shared_conversation_id: shared_conversation&.id
+      shared_conversation_id: shared_conversation&.id, content_attributes: @content_attributes
     )
     message.echo_id = @echo_id
     attach!(message)

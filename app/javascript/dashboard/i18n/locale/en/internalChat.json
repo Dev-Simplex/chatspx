@@ -238,7 +238,10 @@
       "READ_LABEL": "Read",
       "DELIVERED_HINT": "Arrived in the chat. Not read yet.",
       "READ_HINT": "Your colleague has read this message.",
-      "MENTIONED_YOU": "mentioned you"
+      "MENTIONED_YOU": "mentioned you",
+      "FORWARD": "Forward",
+      "FORWARDED": "Forwarded",
+      "FORWARDED_HINT": "This message was forwarded from another conversation."
     },
     "SHARED": {
       "OPEN": "Open",
@@ -346,6 +349,20 @@
       "DONE": "You left the group {name}."
     },
     "CLOSE": "Close",
-    "SEARCHING": "Searching…"
+    "SEARCHING": "Searching…",
+    "FORWARD": {
+      "TITLE": "Forward message",
+      "SEARCH": "Search person, group or team…",
+      "CONVERSATIONS": "Conversations",
+      "PEOPLE": "People",
+      "NO_MATCH": "Nothing with that name.",
+      "PICK_FIRST": "Pick who to forward to.",
+      "SENDING": "Forwarding…",
+      "SELECTED": "{count} selected",
+      "CONFIRM": "Forward",
+      "ERROR": "Could not forward. Check your connection and try again.",
+      "DONE": "Message forwarded to {count} conversation(s).",
+      "PREVIEW_CONVERSATION": "Customer conversation #{id}"
+    }
   }
 }

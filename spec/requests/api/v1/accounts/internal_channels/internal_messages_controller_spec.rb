@@ -185,4 +185,53 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
       expect(response.parsed_body['reactions']).to eq('👍' => [bob.id])
     end
   end
+
+  describe 'POST /internal_messages/:id/forward' do
+    let(:message) { create(:internal_message, internal_channel: channel, user: bob, content: 'repassa isso') }
+    let(:carol) { create(:user, account: account, role: :agent) }
+    let(:group) { create(:internal_channel, :group_chat, account: account) }
+    let(:url) { "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}/forward" }
+
+    before { create(:internal_channel_member, internal_channel: group, user: alice) }
+
+    it 'copies the message to a group I belong to and to a new DM, with the forwarded seal' do
+      post url, params: { channel_ids: [group.id], user_ids: [carol.id] }, headers: alice.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      copies = InternalMessage.where(user: alice, content: 'repassa isso')
+      expect(copies.count).to eq(2)
+      expect(copies.map { |m| m.content_attributes['forwarded'] }).to all(be(true))
+      dm = copies.map(&:internal_channel).find(&:direct?)
+      expect(dm.users).to contain_exactly(alice, carol)
+    end
+
+    it 'keeps the attachment (same file) on the copy' do
+      message.attachments.attach(io: StringIO.new('pdf'), filename: 'proposta.pdf', content_type: 'application/pdf')
+      message.save!
+
+      post url, params: { channel_ids: [group.id] }, headers: alice.create_new_auth_token
+
+      copy = group.messages.last
+      expect(copy.attachments.first.blob).to eq(message.attachments.first.blob)
+    end
+
+    it 'ignores channels I am not a member of' do
+      other_group = create(:internal_channel, :group_chat, account: account)
+
+      post url, params: { channel_ids: [other_group.id] }, headers: alice.create_new_auth_token
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(other_group.messages).to be_empty
+    end
+
+    it 'forbids forwarding from a conversation I do not belong to (admin audit is read-only)' do
+      admin = create(:user, account: account, role: :administrator)
+      create(:internal_channel_member, internal_channel: group, user: admin)
+
+      post url, params: { channel_ids: [group.id] }, headers: admin.create_new_auth_token
+
+      expect(response).to have_http_status(:forbidden)
+      expect(group.messages).to be_empty
+    end
+  end
 end

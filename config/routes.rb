@@ -241,7 +241,10 @@ Rails.application.routes.draw do
               post :leave
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
-              member { post :react }
+              member do
+                post :react
+                post :forward
+              end
             end
             resource :auto_alerts, only: [:show, :update], module: :internal_channels
           end

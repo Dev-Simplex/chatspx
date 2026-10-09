@@ -29,6 +29,7 @@ const emit = defineEmits([
   'reply',
   'retry',
   'scrollTo',
+  'forward',
 ]);
 
 const { t } = useI18n();
@@ -141,6 +142,19 @@ const cancelLongPress = () => clearTimeout(longPressTimer);
 const onReply = () => {
   closeAll();
   emit('reply', props.message);
+};
+
+// Só mensagem que já chegou ao servidor pode ser encaminhada (o balão
+// otimista ainda não tem id de verdade).
+const persisted = computed(
+  () => !['progress', 'failed'].includes(props.message.status)
+);
+const forwarded = computed(() =>
+  Boolean(props.message.contentAttributes?.forwarded)
+);
+const onForward = () => {
+  closeAll();
+  emit('forward', props.message);
 };
 
 const copyContent = async () => {
@@ -455,6 +469,15 @@ const iReacted = emoji =>
               @click.stop="toggleReactionPicker"
             />
             <MenuItem
+              v-if="persisted"
+              :option="{
+                icon: 'i-lucide-forward',
+                label: t('INTERNAL_CHAT.BUBBLE.FORWARD'),
+              }"
+              variant="icon"
+              @click.stop="onForward"
+            />
+            <MenuItem
               v-if="message.content"
               :option="{
                 icon: 'clipboard',
@@ -526,6 +549,17 @@ const iReacted = emoji =>
             {{ t('INTERNAL_CHAT.DELETE') }}
           </button>
         </div>
+
+        <!-- Selo de mensagem encaminhada (como no WhatsApp) -->
+        <span
+          v-if="forwarded"
+          v-tooltip="t('INTERNAL_CHAT.BUBBLE.FORWARDED_HINT')"
+          class="flex items-center gap-1 mb-0.5 text-xs italic opacity-80"
+          :class="jumbo ? 'not-italic text-n-slate-11' : ''"
+        >
+          <span class="flex-shrink-0 i-lucide-forward size-3.5" />
+          {{ t('INTERNAL_CHAT.BUBBLE.FORWARDED') }}
+        </span>
 
         <!-- Citação da mensagem respondida -->
         <button

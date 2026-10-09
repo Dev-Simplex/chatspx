@@ -8,7 +8,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   before_action :fetch_channel
   before_action :authorize_channel
-  before_action :fetch_message, only: [:update, :destroy, :react]
+  before_action :fetch_message, only: [:update, :destroy, :react, :forward]
 
   PAGE_SIZE = 30
 
@@ -74,6 +74,21 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
     @message.toggle_reaction!(emoji, Current.user.id)
     InternalMessages::BroadcastService.updated(@message)
     render :show
+  end
+
+  # Encaminhar: só quem participa da conversa de origem; destinos = canais de que participa e DMs.
+  def forward
+    return render_forbidden unless channel_member?
+    return head(:unprocessable_entity) if @message.deleted? || !@message.message_type_text?
+
+    service = InternalMessages::ForwardService.new(
+      message: @message, user: Current.user, channel_ids: params[:channel_ids], user_ids: params[:user_ids]
+    )
+    return head(:unprocessable_entity) if service.targets.empty?
+
+    messages = service.perform
+    messages.each { |message| InternalMessages::PushJob.perform_later(message.id) }
+    render json: { internal_channel_ids: messages.map(&:internal_channel_id) }
   end
 
   private

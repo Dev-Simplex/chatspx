@@ -113,4 +113,22 @@ describe('MessageBubble do chat interno', () => {
     expect(sent).toContain('i-lucide-check');
     expect(sent).not.toContain('i-lucide-check-check');
   });
+
+  it('mensagem encaminhada mostra o selo', () => {
+    expect(
+      mountBubble({ contentAttributes: { forwarded: true } }).text()
+    ).toContain('Forwarded');
+    expect(mountBubble().text()).not.toContain('Forwarded');
+  });
+
+  it('menu oferece Encaminhar só para mensagem já enviada', async () => {
+    const sent = mountBubble();
+    await sent.find('[aria-label="Message actions"]').trigger('click');
+    expect(document.body.textContent).toContain('Forward');
+    sent.unmount();
+    const pending = mountBubble({ status: 'progress' });
+    await pending.find('[aria-label="Message actions"]').trigger('click');
+    expect(document.body.textContent).not.toContain('Forward');
+    pending.unmount();
+  });
 });
