@@ -234,7 +234,57 @@ export function useReportNarrative() {
     };
   };
 
+  /**
+   * Veredito de uma tela em uma frase, a partir dos signals: 'good' (tudo na meta), 'warn' (algo
+   * quase), 'bad' (algo longe, dito em palavras do dia a dia) ou 'empty' (sem dado para julgar).
+   * Devolve { level, title, text }.
+   */
+  const verdictFor = rawSignals => {
+    const list = (rawSignals || [])
+      .map(normalizeSignal)
+      .filter(signal => signal.metric && signal.level);
+    if (!list.length) {
+      return {
+        level: 'empty',
+        title: t('REPORT.VERDICT.EMPTY_TITLE'),
+        text: t('REPORT.VERDICT.EMPTY_TEXT'),
+      };
+    }
+    const bad = list.filter(signal => signal.level === 'bad');
+    if (bad.length) {
+      const [first] = bad;
+      const more = bad.length - 1;
+      const text = t(`REPORT.VERDICT.BAD.${first.metric.toUpperCase()}`, {
+        goal: goalDisplay(first),
+      });
+      return {
+        level: 'bad',
+        title: t('REPORT.VERDICT.BAD_TITLE'),
+        text: more
+          ? `${text} ${t('REPORT.VERDICT.MORE', { n: more }, more)}`
+          : text,
+      };
+    }
+    const warn = list.find(signal => signal.level === 'warn');
+    if (warn) {
+      return {
+        level: 'warn',
+        title: t('REPORT.VERDICT.WARN_TITLE'),
+        text: t('REPORT.VERDICT.WARN_TEXT', {
+          label: metricLabel(warn),
+          goal: goalDisplay(warn),
+        }),
+      };
+    }
+    return {
+      level: 'good',
+      title: t('REPORT.VERDICT.GOOD_TITLE'),
+      text: t('REPORT.VERDICT.GOOD_TEXT'),
+    };
+  };
+
   return {
+    verdictFor,
     signalForReportKey,
     signalByMetric,
     metricLabel,

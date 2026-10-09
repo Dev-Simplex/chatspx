@@ -17,6 +17,7 @@ import PanelVolumeChart from './PanelVolumeChart.vue';
 import PanelLiveCard from './PanelLiveCard.vue';
 import PanelFirstResponseByTeam from './PanelFirstResponseByTeam.vue';
 import PanelFunnelCard from './PanelFunnelCard.vue';
+import ReportVerdict from 'dashboard/components-next/reports/ui/ReportVerdict.vue';
 import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
 // Aba Visao geral do painel de Relatorios: os numeros do periodo, os atalhos para os outros
@@ -54,6 +55,9 @@ const satisfaction = metrics => {
     (metrics.ratings_count?.[4] || 0) + (metrics.ratings_count?.[5] || 0);
   return (happy / metrics.total_count) * 100;
 };
+
+// "8 de cada 10" e mais facil de imaginar que "83%". Arredonda para baixo: 95% nao vira "10 de 10".
+const outOfTen = pct => (pct >= 100 ? 10 : Math.floor(pct / 10));
 
 const changePct = (current, before) => {
   if (current === null || current === undefined || !before) return null;
@@ -210,11 +214,11 @@ const kpis = computed(() => {
       value:
         csatNow === null
           ? t('REPORTS_PANEL.KPI.NO_DATA')
-          : formatPercent(csatNow),
+          : t('REPORTS_PANEL.KPI.OUT_OF_TEN', { n: outOfTen(csatNow) }),
       caption:
         csatNow === null
           ? t('REPORTS_PANEL.KPI.CSAT_EMPTY')
-          : t('REPORTS_PANEL.KPI.CSAT_SUB'),
+          : t('REPORTS_PANEL.KPI.CSAT_SUB', { pct: formatPercent(csatNow) }),
       change: changePct(csatNow, satisfaction(csatPrevious.value)),
       better: 'higher',
       to: { name: 'csat_reports' },
@@ -249,10 +253,16 @@ const shortcuts = computed(() => {
       icon: 'i-lucide-alarm-clock-check',
       label: t('REPORTS_PANEL.SHORTCUT.SLA'),
       value: total
-        ? formatPercent(parseFloat(sla.value.hit_rate))
+        ? t('REPORTS_PANEL.KPI.OUT_OF_TEN', {
+            n: outOfTen(parseFloat(sla.value.hit_rate)),
+          })
         : t('REPORTS_PANEL.KPI.NO_DATA'),
       caption: total
-        ? t('REPORTS_PANEL.SHORTCUT.SLA_SUB', { n: misses }, misses)
+        ? t(
+            'REPORTS_PANEL.SHORTCUT.SLA_SUB',
+            { n: misses, pct: formatPercent(parseFloat(sla.value.hit_rate)) },
+            misses
+          )
         : t('REPORTS_PANEL.SHORTCUT.SLA_EMPTY'),
       to: { name: 'sla_reports' },
     });
@@ -269,6 +279,13 @@ const shortcuts = computed(() => {
   }
   return list;
 });
+
+const verdictSignals = computed(() => [
+  ...(summary.value?.signals || []),
+  ...(csat.value?.signals || []),
+  ...(nps.value?.signals || []),
+  ...(sla.value?.signals || []),
+]);
 
 const hasVolume = computed(() =>
   volume.value.received.some(value => value > 0)
@@ -294,6 +311,7 @@ watch(teams, () => loadTeams().catch(() => {}));
 
 <template>
   <div class="flex flex-col gap-4">
+    <ReportVerdict v-if="summary" :signals="verdictSignals" />
     <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <template v-for="kpi in kpis" :key="kpi.key">
         <router-link v-if="kpi.to" :to="kpi.to" class="flex no-underline">

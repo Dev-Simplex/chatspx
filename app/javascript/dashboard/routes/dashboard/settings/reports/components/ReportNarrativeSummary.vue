@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
+import ReportVerdict from 'dashboard/components-next/reports/ui/ReportVerdict.vue';
 
 const props = defineProps({
   signals: {
@@ -20,6 +21,11 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 </script>
 
 <template>
+  <!-- A frase de veredito sobe para logo abaixo do cabecalho (ReportHeader); sem signals
+       (carregando ou periodo vazio) ela nao aparece, para nao julgar o que ainda nao chegou. -->
+  <Teleport v-if="hasSignals" defer to="#report-verdict">
+    <ReportVerdict :signals="signals" />
+  </Teleport>
   <section
     v-if="hasSignals"
     class="relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
