@@ -244,6 +244,7 @@ Rails.application.routes.draw do
               member do
                 post :react
                 post :forward
+                get :receipts
               end
             end
             resource :auto_alerts, only: [:show, :update], module: :internal_channels

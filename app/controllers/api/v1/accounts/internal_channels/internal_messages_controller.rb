@@ -8,7 +8,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   before_action :fetch_channel
   before_action :authorize_channel
-  before_action :fetch_message, only: [:update, :destroy, :react, :forward]
+  before_action :fetch_message, only: [:update, :destroy, :react, :forward, :receipts]
 
   PAGE_SIZE = 30
 
@@ -91,7 +91,20 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
     render json: { internal_channel_ids: messages.map(&:internal_channel_id) }
   end
 
+  # "Dados da mensagem": quem já leu (last_read_at depois do envio) e quem ainda não, sem o autor.
+  def receipts
+    read, unread = @message.read_receipts
+    render json: {
+      read: read.sort_by(&:last_read_at).map { |m| receipt_json(m) },
+      unread: unread.sort_by { |m| m.user&.name.to_s }.map { |m| receipt_json(m) }
+    }
+  end
+
   private
+
+  def receipt_json(member)
+    { id: member.user_id, name: member.user&.name, avatar_url: member.user.try(:avatar_url), last_read_at: member.last_read_at&.to_i }
+  end
 
   # Admin alcança qualquer canal (para ler em auditoria); a policy (show?) libera
   # admin para leitura, e channel_member? barra escrita em canais que ele não participa.

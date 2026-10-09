@@ -26,6 +26,7 @@ import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
 import ManageChannelDialog from '../components/ManageChannelDialog.vue';
 import ForwardDialog from '../components/redesign/ForwardDialog.vue';
+import MessageInfoDialog from '../components/redesign/MessageInfoDialog.vue';
 import InternalChatPushPrompt from '../components/InternalChatPushPrompt.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 
@@ -475,6 +476,10 @@ const docItems = computed(() =>
 // Mensagem sendo respondida (barra "respondendo a X" no composer). Fica no pai
 // para que enviar/cancelar/trocar de conversa a limpem de forma consistente.
 const replyingTo = ref(null);
+// Janelas por mensagem: encaminhar ({ message, sending, failed }) e "Dados da
+// mensagem" (grupo: quem leu e quem ainda não).
+const forwarding = ref(null);
+const infoMessage = ref(null);
 
 const onSelect = async id => {
   activeId.value = id;
@@ -483,6 +488,8 @@ const onSelect = async id => {
   searchQuery.value = '';
   showInfo.value = false;
   replyingTo.value = null;
+  infoMessage.value = null;
+  forwarding.value = null;
   // Guarda quantas eram novas (para o divisor "Mensagens novas") e zera o selo
   // na hora; o servidor confirma no fetchMessages.
   const opened = rawChannelList.value.find(c => c.id === id);
@@ -639,7 +646,6 @@ const onRetry = msg => {
 };
 
 // ── Encaminhar ─────────────────────────────────────────────────────────────
-const forwarding = ref(null); // { message, sending, failed }
 const onForward = msg => {
   forwarding.value = { message: msg, sending: false, failed: false };
 };
@@ -806,7 +812,7 @@ const SHORTCUTS = {
 };
 const onKeydown = event => {
   // a janela de gerenciar/encaminhar cuida do próprio Esc
-  if (showManage.value || forwarding.value) return;
+  if (showManage.value || forwarding.value || infoMessage.value) return;
   if (event.key === 'Escape') {
     if (onEscape()) event.preventDefault();
     return;
@@ -954,6 +960,7 @@ onBeforeUnmount(() => {
             @reply="onReply"
             @retry="onRetry"
             @forward="onForward"
+            @info="infoMessage = $event"
             @reload="onSelect(activeId)"
           />
 
@@ -1034,6 +1041,13 @@ onBeforeUnmount(() => {
           :failed="forwarding.failed"
           @close="forwarding = null"
           @forward="confirmForward"
+        />
+
+        <MessageInfoDialog
+          v-if="infoMessage"
+          :channel-id="activeId"
+          :message="infoMessage"
+          @close="infoMessage = null"
         />
 
         <ManageChannelDialog

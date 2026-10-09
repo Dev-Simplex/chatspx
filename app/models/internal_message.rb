@@ -75,6 +75,12 @@ class InternalMessage < ApplicationRecord
     edited_at.present?
   end
 
+  # "Dados da mensagem": os outros membros divididos em [já leram, ainda não leram] pelo last_read_at.
+  def read_receipts
+    others = internal_channel.members.includes(user: { avatar_attachment: :blob }).reject { |m| m.user_id == user_id }
+    others.partition { |m| m.last_read_at.present? && m.last_read_at >= created_at }
+  end
+
   def mentions?(user)
     Array(mentioned_user_ids).map(&:to_i).include?(user.id)
   end

@@ -103,6 +103,12 @@ class InternalChatAPI extends ApiClient {
     );
   }
 
+  getReceipts(channelId, messageId) {
+    return axios.get(
+      `${this.url}/${channelId}/internal_messages/${messageId}/receipts`
+    );
+  }
+
   getAgents() {
     return axios.get(`${this.baseUrl()}/agents_for_internal_chat`);
   }

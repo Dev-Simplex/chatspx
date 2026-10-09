@@ -234,4 +234,43 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
       expect(group.messages).to be_empty
     end
   end
+
+  describe 'GET /internal_messages/:id/receipts' do
+    let(:group) { create(:internal_channel, :group_chat, account: account) }
+    let(:carol) { create(:user, account: account, role: :agent, name: 'Carol') }
+    let(:message) { create(:internal_message, internal_channel: group, user: alice, content: 'reunião às 15h') }
+    let(:url) { "/api/v1/accounts/#{account.id}/internal_channels/#{group.id}/internal_messages/#{message.id}/receipts" }
+
+    before do
+      create(:internal_channel_member, internal_channel: group, user: alice, last_read_at: 1.minute.from_now)
+      create(:internal_channel_member, internal_channel: group, user: bob)
+      create(:internal_channel_member, internal_channel: group, user: carol)
+    end
+
+    it 'splits the other members by last_read_at: read after the message vs not yet' do
+      message
+      group.members.find_by(user: bob).update!(last_read_at: 2.minutes.from_now)
+      group.members.find_by(user: carol).update!(last_read_at: 1.hour.ago)
+
+      get url, headers: alice.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['read'].pluck('id')).to eq([bob.id])
+      expect(response.parsed_body['read'].first['last_read_at']).to be_present
+      expect(response.parsed_body['unread'].pluck('id')).to eq([carol.id])
+    end
+
+    it 'never lists the author' do
+      get url, headers: bob.create_new_auth_token
+
+      ids = response.parsed_body.values.flatten.pluck('id')
+      expect(ids).not_to include(alice.id)
+    end
+
+    it 'is not available to someone outside the conversation' do
+      get url, headers: outsider.create_new_auth_token
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

@@ -30,6 +30,7 @@ const emit = defineEmits([
   'retry',
   'scrollTo',
   'forward',
+  'info',
 ]);
 
 const { t } = useI18n();
@@ -155,6 +156,11 @@ const forwarded = computed(() =>
 const onForward = () => {
   closeAll();
   emit('forward', props.message);
+};
+
+const onInfo = () => {
+  closeAll();
+  emit('info', props.message);
 };
 
 const copyContent = async () => {
@@ -485,6 +491,15 @@ const iReacted = emoji =>
               }"
               variant="icon"
               @click.stop="copyContent"
+            />
+            <MenuItem
+              v-if="message.mine && message.inGroup && persisted"
+              :option="{
+                icon: 'i-lucide-info',
+                label: t('INTERNAL_CHAT.BUBBLE.INFO'),
+              }"
+              variant="icon"
+              @click.stop="onInfo"
             />
             <hr v-if="message.mine" />
             <MenuItem

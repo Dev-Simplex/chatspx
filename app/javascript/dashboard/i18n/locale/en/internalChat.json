@@ -241,7 +241,8 @@
       "MENTIONED_YOU": "mentioned you",
       "FORWARD": "Forward",
       "FORWARDED": "Forwarded",
-      "FORWARDED_HINT": "This message was forwarded from another conversation."
+      "FORWARDED_HINT": "This message was forwarded from another conversation.",
+      "INFO": "Message info"
     },
     "SHARED": {
       "OPEN": "Open",
@@ -370,6 +371,21 @@
       "TODAY": "last seen today at {time}",
       "YESTERDAY": "last seen yesterday at {time}",
       "DATE": "last seen on {date} at {time}"
+    },
+    "WHEN": {
+      "TODAY": "today at {time}",
+      "YESTERDAY": "yesterday at {time}",
+      "DATE": "{date} at {time}"
+    },
+    "MESSAGE_INFO": {
+      "TITLE": "Message info",
+      "SENT_AT": "Sent at {time}",
+      "READ_BY": "Read by ({count})",
+      "NOT_READ": "Not read yet ({count})",
+      "NOBODY_READ": "Nobody has read it yet.",
+      "EVERYONE_READ": "Everyone has read it.",
+      "READ_AT_HINT": "Last time this person opened the conversation",
+      "ERROR": "Could not load who read this message."
     }
   }
 }

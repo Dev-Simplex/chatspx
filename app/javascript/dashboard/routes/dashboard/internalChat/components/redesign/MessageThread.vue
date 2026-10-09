@@ -23,6 +23,7 @@ const emit = defineEmits([
   'loadOlder',
   'reload',
   'forward',
+  'info',
 ]);
 
 const { t } = useI18n();
@@ -204,6 +205,7 @@ watch(
           @reply="emit('reply', $event)"
           @retry="emit('retry', $event)"
           @forward="emit('forward', $event)"
+          @info="emit('info', $event)"
           @scroll-to="scrollToMessage"
         />
       </div>

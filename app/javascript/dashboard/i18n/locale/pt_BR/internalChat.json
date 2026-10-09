@@ -241,7 +241,8 @@
       "MENTIONED_YOU": "mencionou você",
       "FORWARD": "Encaminhar",
       "FORWARDED": "Encaminhada",
-      "FORWARDED_HINT": "Esta mensagem veio de outra conversa."
+      "FORWARDED_HINT": "Esta mensagem veio de outra conversa.",
+      "INFO": "Dados da mensagem"
     },
     "SHARED": {
       "OPEN": "Abrir",
@@ -370,6 +371,21 @@
       "TODAY": "visto por último hoje às {time}",
       "YESTERDAY": "visto por último ontem às {time}",
       "DATE": "visto por último em {date} às {time}"
+    },
+    "WHEN": {
+      "TODAY": "hoje às {time}",
+      "YESTERDAY": "ontem às {time}",
+      "DATE": "{date} às {time}"
+    },
+    "MESSAGE_INFO": {
+      "TITLE": "Dados da mensagem",
+      "SENT_AT": "Enviada às {time}",
+      "READ_BY": "Lida por ({count})",
+      "NOT_READ": "Ainda não leram ({count})",
+      "NOBODY_READ": "Ninguém leu ainda.",
+      "EVERYONE_READ": "Todo mundo já leu.",
+      "READ_AT_HINT": "Última vez que a pessoa abriu a conversa",
+      "ERROR": "Não deu para carregar quem leu esta mensagem."
     }
   }
 }
