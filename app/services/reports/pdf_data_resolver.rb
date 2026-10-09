@@ -69,12 +69,13 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     kpis = nps_kpis(calc, cohort)
 
     {
-      report_type: 'nps', title: 'Relatório de NPS', period: period_meta,
+      report_type: 'nps', title: 'Os clientes indicariam a empresa? (NPS)', period: period_meta,
       overline: 'Experiência do Cliente · Confidencial',
       subtitle: nps_subtitle(kpis),
       base_label: "#{kpis[:total]} avaliações válidas",
       kpis: kpis, headline: nps_headline(kpis),
       verdict: nps_verdict(calc),
+      plain_verdict: nps_plain_verdict(calc),
       distribution: nps_distribution(responded),
       agents: nps_by_agent(responded), detractors: nps_detractor_rows(responded)
     }
@@ -84,7 +85,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return { emoji: '🤔', text: 'Nenhum cliente respondeu a pesquisa de recomendação no período.' } if kpis[:total].to_i.zero?
 
     { emoji: kpis[:nps_score].to_i >= 50 ? '💚' : '🧡',
-      text: "A nota NPS é #{kpis[:nps_score]}: #{kpis[:promoters]} clientes recomendariam a empresa e #{kpis[:detractors]} não recomendariam." }
+      text: "A nota de indicação (NPS) é #{kpis[:nps_score]}: #{kpis[:promoters]} clientes recomendariam a empresa " \
+            "e #{kpis[:detractors]} não recomendariam." }
   end
 
   NPS_DETRACTOR_LIMIT = 10
@@ -116,11 +118,23 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # Subtítulo com tendência em pontos (quando há período anterior comparável).
   def nps_subtitle(kpis)
-    base = "Nota NPS #{kpis[:nps_score]}, com #{kpis[:total]} clientes respondendo no período."
+    base = "Nota de indicação (NPS) #{kpis[:nps_score]}, com #{kpis[:total]} clientes respondendo no período."
     return base if kpis[:delta].nil? || kpis[:delta].zero?
 
     arrow = kpis[:delta].positive? ? '▲' : '▼'
     "#{base} #{arrow} #{kpis[:delta].abs} pontos #{kpis[:delta].positive? ? 'a mais' : 'a menos'} que no período de #{previous_period_label}."
+  end
+
+  # Frase do topo: com poucas respostas a nota ainda nao diz nada, entao a frase avisa isso em vez de julgar.
+  def nps_plain_verdict(calc)
+    return nil if calc.total.zero?
+
+    unless calc.reliable?
+      return { level: :warn, emoji: '😐', title: 'Ainda são poucas respostas.',
+               text: "Só #{calc.total} clientes deram nota. Com tão pouco, ainda não dá para confiar na nota de indicação." }
+    end
+
+    Reports::PdfPlainVerdict.from_entries([Reports::PdfPlainVerdict.entry(:nps, nps_verdict(calc))])
   end
 
   # Veredito neutro quando a amostra é baixa (não pinta vermelho um N=1).
@@ -203,18 +217,23 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   # ======================= CSAT =======================
+  def csat_verdict(kpis)
+    metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Clientes satisfeitos')
+  end
+
   def csat_data
     scope = csat_scope
     total = scope.count
     by_rating = scope.group(:rating).count
     kpis = csat_kpis(total, by_rating)
     {
-      report_type: 'csat', title: 'Relatório de CSAT', period: period_meta,
+      report_type: 'csat', title: 'Satisfação dos clientes (CSAT)', period: period_meta,
       overline: 'Satisfação do Cliente · Confidencial',
       subtitle: "Índice de satisfação de #{br_number(kpis[:satisfaction])}% (notas 4 e 5) sobre #{total} respostas no período.",
       base_label: "#{total} respostas",
       kpis: kpis, headline: csat_headline(kpis), comparison: csat_comparison(kpis),
-      verdict: metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Satisfação'),
+      verdict: csat_verdict(kpis),
+      plain_verdict: (Reports::PdfPlainVerdict.from_entries([Reports::PdfPlainVerdict.entry(:csat, csat_verdict(kpis))]) if total.positive?),
       distribution: csat_distribution(by_rating),
       feedbacks: csat_feedbacks(scope), low_ratings: csat_low_ratings(scope),
       agents: csat_by_agent(scope)
@@ -350,6 +369,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       kpis: bot_kpis(metrics),
       verdict: bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolveu sozinho'),
       verdict_secondary: bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Passou para uma pessoa'),
+      plain_verdict: bot_plain_verdict(metrics),
       timeseries: {
         resolutions: count_series('bot_resolutions_count'),
         handoffs: count_series('bot_handoffs_count')
@@ -376,6 +396,14 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       resolutions: bot_event_count('conversation_bot_resolved'),
       handoffs: bot_event_count('conversation_bot_handoff')
     }
+  end
+
+  def bot_plain_verdict(metrics)
+    resolved = bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolveu sozinho')
+    handed = bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Passou para uma pessoa')
+    Reports::PdfPlainVerdict.from_entries(
+      [Reports::PdfPlainVerdict.entry(:bot_resolution_rate, resolved), Reports::PdfPlainVerdict.entry(:bot_handoff_rate, handed)]
+    )
   end
 
   # Card de veredito de uma taxa do bot. Sem conversas com bot → nil (sem card).
@@ -421,8 +449,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       headline: conversations_headline(summary, comparison),
       kpis: conversations_kpis(summary),
       comparison: comparison,
-      highlight: signals.any? ? conversations_highlight(signals) : nil,
-      attention: signals.any? ? conversations_attention(signals) : nil,
+      **verdict_fields(signals),
       trends: account_trends,
       heatmap: heatmap, heatmap_insight: heatmap_peak_insight(heatmap),
       table: conversations_table(summary),
@@ -580,11 +607,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def conversations_signals(summary)
     rate = conversations_resolution_rate(summary)
     [
-      { label: '1ª resposta', value: summary[:avg_first_response_time].to_f,
+      { label: 'espera pela primeira resposta', value: summary[:avg_first_response_time].to_f,
         human: format_seconds(summary[:avg_first_response_time]), metric: :first_response, kind: :time },
-      { label: 'tempo de resolução', value: summary[:avg_resolution_time].to_f,
+      { label: 'tempo para resolver', value: summary[:avg_resolution_time].to_f,
         human: format_seconds(summary[:avg_resolution_time]), metric: :resolution, kind: :time },
-      { label: 'taxa de resolução', value: rate, human: "#{rate}%", metric: :resolution_rate, kind: :rate }
+      { label: 'conversas resolvidas', value: rate, human: "#{rate}%", metric: :resolution_rate, kind: :rate }
     ].select { |signal| signal_has_data?(signal, summary) }
       .map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
   end
@@ -600,6 +627,15 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return 99.0 if goal.zero?
 
     signal[:kind] == :rate ? goal / [signal[:value], 1].max : signal[:value] / goal
+  end
+
+  # Destaque e Ponto de atencao (cartoes) + a frase de veredito do topo, a partir dos mesmos signals.
+  def verdict_fields(signals)
+    return { highlight: nil, attention: nil, plain_verdict: nil } if signals.empty?
+
+    entries = signals.map { |signal| { metric: signal[:metric], level: signal[:status][:level], goal_human: goal_human_for(signal) } }
+    { highlight: conversations_highlight(signals), attention: conversations_attention(signals),
+      plain_verdict: Reports::PdfPlainVerdict.from_entries(entries) }
   end
 
   def conversations_highlight(signals)
@@ -761,7 +797,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       overline: 'Situação Operacional · Confidencial',
       subtitle: "#{kpis[:open]} conversas abertas neste instante · #{kpis[:unattended]} ainda não atendidas.",
       base_label: "#{kpis[:open]} conversas abertas",
-      headline: overview_headline(kpis), kpis: kpis,
+      kpis: kpis, **overview_verdicts(kpis),
       waiting: overview_waiting,
       traffic_heatmap: weekday_hour_heatmap('conversations_count', **trailing_window),
       resolutions_heatmap: weekday_hour_heatmap('resolutions_count', **trailing_window),
@@ -786,6 +822,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   OVERVIEW_WAITING = 10
 
   # Quem espera resposta ha mais tempo (a mesma lista do numero "nao atendidas" da tela).
+  # Manchete e frase de veredito da Visao geral: as duas julgam quem esta esperando agora.
+  def overview_verdicts(kpis)
+    { headline: overview_headline(kpis), plain_verdict: Reports::PdfPlainVerdict.live(kpis[:unattended]) }
+  end
+
   def overview_waiting
     rows = V2::Reports::LiveDrilldownBuilder.new(overview_scope, metric: 'unattended').page(1)[:payload].first(OVERVIEW_WAITING)
     rows.map { |row| overview_waiting_row(row) }
@@ -824,13 +865,14 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     missed = scope.missed.count
     hit_rate = sla_hit_rate(total, missed)
     {
-      report_type: 'sla', title: 'Relatório de SLA', period: period_meta,
+      report_type: 'sla', title: 'Respondidos no prazo (SLA)', period: period_meta,
       overline: 'Nível de Serviço · Confidencial',
       subtitle: "#{hit_rate} das #{total} conversas com prazo cumpriram o combinado · #{missed} passaram do prazo.",
       base_label: "#{total} conversas com prazo",
       kpis: { total: total, hit_rate: hit_rate, breaches: missed,
               compliance: pct(total - missed, total) },
       verdict: sla_verdict(total, missed, hit_rate),
+      plain_verdict: Reports::PdfPlainVerdict.from_entries([Reports::PdfPlainVerdict.entry(:sla_hit_rate, sla_verdict(total, missed, hit_rate))]),
       by_policy: sla_by_policy(scope),
       breaches_table: sla_breaches_table(scope)
     }
@@ -841,11 +883,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return nil if total.zero?
 
     metric_verdict(metric: :sla_hit_rate, value: pct(total - missed, total),
-                   human: hit_rate, label: 'Cumpriram o prazo')
+                   human: hit_rate, label: 'Respondidos no prazo')
   end
 
   def sla_unavailable
-    { report_type: 'sla', title: 'Relatório de SLA', period: period_meta,
+    { report_type: 'sla', title: 'Respondidos no prazo (SLA)', period: period_meta,
       kpis: {}, by_policy: [], breaches_table: { columns: [], rows: [] },
       unavailable: 'Recurso de SLA não está habilitado nesta conta.' }
   end
@@ -1067,8 +1109,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       base_label: "#{kpis[:conversations]} conversas",
       headline: conversations_headline({ conversations_count: kpis[:conversations] }, comparison),
       kpis: kpis, comparison: comparison,
-      highlight: signals.any? ? conversations_highlight(signals) : nil,
-      attention: signals.any? ? conversations_attention(signals) : nil,
+      **verdict_fields(signals),
       trends: metric_type == 'label' ? {} : account_trends,
       people: summary_people(rows, metric_type),
       table: summary_table(rows, metric_type)

@@ -45,6 +45,16 @@ export default {
     npsSignals() {
       return this.npsMetrics.signals || [];
     },
+    // Com menos respostas que o minimo, a nota ainda nao diz nada: a frase avisa isso (igual ao PDF).
+    npsVerdict() {
+      const { total_count: total, reliable } = this.npsMetrics;
+      if (!total || reliable !== false) return null;
+      return {
+        level: 'warn',
+        title: this.$t('REPORT.VERDICT.NPS_LOW_SAMPLE_TITLE'),
+        text: this.$t('REPORT.VERDICT.NPS_LOW_SAMPLE_TEXT', { n: total }),
+      };
+    },
     requestPayload() {
       return {
         from: this.from,
@@ -149,7 +159,7 @@ export default {
 
   <div class="flex flex-col gap-4">
     <NpsOverviewVisuals :filters="requestPayload" />
-    <ReportNarrativeSummary :signals="npsSignals" />
+    <ReportNarrativeSummary :signals="npsSignals" :verdict="npsVerdict" />
     <NpsMetrics :filters="requestPayload" />
     <NpsTable
       :page-index="pageIndex"
