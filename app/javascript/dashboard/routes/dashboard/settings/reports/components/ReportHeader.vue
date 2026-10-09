@@ -60,4 +60,6 @@ const account = useMapGetter('getCurrentAccount');
       <slot name="filters" />
     </div>
   </section>
+  <!-- veredito da tela (ReportVerdict), enviado pelo Resumo rapido ou pela propria tela -->
+  <div id="report-verdict" class="empty:hidden" />
 </template>

@@ -6,6 +6,7 @@ import ReportContainer from '../ReportContainer.vue';
 import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import ReportHeader from './ReportHeader.vue';
+import ReportVerdict from 'dashboard/components-next/reports/ui/ReportVerdict.vue';
 import SpeedInsightsPanel from './SpeedInsightsPanel.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import ReportPlainSummary from 'dashboard/components-next/reports/ReportPlainSummary.vue';
@@ -13,6 +14,7 @@ import ReportPlainSummary from 'dashboard/components-next/reports/ReportPlainSum
 export default {
   components: {
     ReportHeader,
+    ReportVerdict,
     V4Button,
     DownloadPdfButton,
     ReportFilters,
@@ -61,6 +63,10 @@ export default {
     };
   },
   computed: {
+    // os mesmos signals do resumo do periodo (store getAccountSummary)
+    verdictSignals() {
+      return this.$store.getters.getAccountSummary?.signals || [];
+    },
     // Os mesmos filtros da tela, com a entidade: cada numero abre as conversas dela (ReportDrilldownPanel).
     drilldownFilters() {
       if (!this.selectedFilter?.id) return null;
@@ -232,6 +238,7 @@ export default {
       />
     </template>
   </ReportHeader>
+  <ReportVerdict v-if="verdictSignals.length" :signals="verdictSignals" />
 
   <ReportPlainSummary :drilldown-filters="drilldownFilters" />
   <SpeedInsightsPanel
