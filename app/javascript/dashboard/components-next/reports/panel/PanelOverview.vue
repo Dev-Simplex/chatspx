@@ -283,7 +283,8 @@ const shortcuts = computed(() => {
 const verdictSignals = computed(() => [
   ...(summary.value?.signals || []),
   ...(csat.value?.signals || []),
-  ...(nps.value?.signals || []),
+  // NPS com poucas respostas nao entra no julgamento (a nota ainda nao e confiavel)
+  ...(nps.value?.reliable === false ? [] : nps.value?.signals || []),
   ...(sla.value?.signals || []),
 ]);
 

@@ -311,7 +311,9 @@
       "LIVE_GOOD_TITLE": "Nobody waiting now.",
       "LIVE_GOOD_TEXT": "Every customer who wrote already got a reply.",
       "LIVE_BAD_TITLE": "Customers are waiting.",
-      "LIVE_BAD_TEXT": "{n} customer is waiting for a reply now. | {n} customers are waiting for a reply now."
+      "LIVE_BAD_TEXT": "{n} customer is waiting for a reply now. | {n} customers are waiting for a reply now.",
+      "NPS_LOW_SAMPLE_TITLE": "Too few answers yet.",
+      "NPS_LOW_SAMPLE_TEXT": "Only {n} customers gave a score. With so few, the recommendation score is not reliable yet."
     }
   },
   "AGENT_REPORTS": {

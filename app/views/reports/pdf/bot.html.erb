@@ -25,6 +25,7 @@
   <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
 </div>
 
+<%= render 'reports/pdf/plain_verdict', verdict: @data[:plain_verdict] if @data[:plain_verdict] %>
 <%= render 'reports/pdf/headline', headline: headline %>
 
 <% if conversations.positive? %>

@@ -311,7 +311,9 @@
       "LIVE_GOOD_TITLE": "Ninguém esperando agora.",
       "LIVE_GOOD_TEXT": "Todos os clientes que escreveram já tiveram resposta.",
       "LIVE_BAD_TITLE": "Tem cliente esperando.",
-      "LIVE_BAD_TEXT": "{n} cliente está esperando resposta agora. | {n} clientes estão esperando resposta agora."
+      "LIVE_BAD_TEXT": "{n} cliente está esperando resposta agora. | {n} clientes estão esperando resposta agora.",
+      "NPS_LOW_SAMPLE_TITLE": "Ainda são poucas respostas.",
+      "NPS_LOW_SAMPLE_TEXT": "Só {n} clientes deram nota. Com tão pouco, ainda não dá para confiar na nota de indicação."
     }
   },
   "AGENT_REPORTS": {

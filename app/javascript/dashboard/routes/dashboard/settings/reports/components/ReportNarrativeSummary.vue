@@ -9,6 +9,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // frase de veredito pronta, quando a tela sabe algo que os signals nao dizem (ex.: poucas respostas no NPS)
+  verdict: {
+    type: Object,
+    default: null,
+  },
 });
 
 const { t } = useI18n();
@@ -24,7 +29,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
   <!-- A frase de veredito sobe para logo abaixo do cabecalho (ReportHeader); sem signals
        (carregando ou periodo vazio) ela nao aparece, para nao julgar o que ainda nao chegou. -->
   <Teleport v-if="hasSignals" defer to="#report-verdict">
-    <ReportVerdict :signals="signals" />
+    <ReportVerdict :signals="signals" :verdict="verdict" />
   </Teleport>
   <section
     v-if="hasSignals"

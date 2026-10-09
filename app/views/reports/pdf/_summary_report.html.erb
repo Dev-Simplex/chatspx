@@ -41,6 +41,7 @@
   <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
 </div>
 
+<%= render 'reports/pdf/plain_verdict', verdict: @data[:plain_verdict] if @data[:plain_verdict] %>
 <%= render 'reports/pdf/headline', headline: @data[:headline] if @data[:headline] %>
 
 <%# ============ 1. O QUE ACONTECEU? ============ %>
@@ -64,13 +65,13 @@
     cards = [
       { label: 'Conversas', value: number_with_delimiter(conversations), hero: true,
         meaning: 'quantas pessoas falaram com a equipe', delta: pdf_delta(cmp[:conversations]) },
-      { label: '1ª resposta', value: k[:avg_first_response], small: true, status: (frt_status[:level] if k[:frt_seconds].to_f.positive?),
+      { label: 'Quanto o cliente esperou', value: k[:avg_first_response], small: true, status: (frt_status[:level] if k[:frt_seconds].to_f.positive?),
         meaning: 'quanto o cliente espera pela primeira resposta (média)', delta: pdf_delta(cmp[:first_response]) },
       { label: 'Resolução', value: k[:avg_resolution], small: true, status: (res_status[:level] if k[:resolution_seconds].to_f.positive?),
         meaning: 'quanto tempo até o problema ser resolvido (média)', delta: pdf_delta(cmp[:resolution]) },
     ]
     cards << if show_rate
-               { label: 'Taxa de resolução', value: "#{resolution_rate}%", status: (rate_status[:level] if conversations.positive?),
+               { label: 'Conversas resolvidas', value: "#{resolution_rate}%", status: (rate_status[:level] if conversations.positive?),
                  meaning: 'quantas conversas terminam resolvidas' }
              else
                { label: 'Resolvidas', value: number_with_delimiter(resolved), meaning: 'conversas resolvidas no período',
