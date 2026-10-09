@@ -7,12 +7,15 @@ import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
 import WormLoader from 'dashboard/components-next/upload/WormLoader.vue';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { vaiComoDocumento } from 'shared/helpers/FileHelper';
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   files: { type: Array, default: () => [] },
   caption: { type: String, default: '' },
   sending: { type: Boolean, default: false },
+  // Caixa WhatsApp (oficial ou WAHA): video acima de 16 MB vai como documento.
+  isWhatsapp: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -56,6 +59,10 @@ const isImage = att => getType(att).includes('image');
 const isVideo = att => getType(att).includes('video');
 const isAudio = att => getType(att).includes('audio');
 const isPdf = att => getType(att).includes('pdf');
+
+const activeVaiComoDocumento = computed(
+  () => props.isWhatsapp && vaiComoDocumento(active.value?.resource)
+);
 
 const fileName = att => {
   if (!att) return '';
@@ -303,6 +310,18 @@ onBeforeUnmount(() => {
               </span>
               <span v-if="fileSize(active)" class="text-xs text-wa-text-muted">
                 {{ fileSize(active) }}
+              </span>
+            </div>
+
+            <div
+              v-if="activeVaiComoDocumento"
+              class="absolute top-2 inset-x-4 flex justify-center pointer-events-none"
+            >
+              <span
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-n-amber-3 text-n-amber-11 shadow"
+              >
+                <Icon icon="i-lucide-file" class="size-4 flex-shrink-0" />
+                {{ t('ATTACHMENT_PREVIEW.SENT_AS_DOCUMENT_HINT') }}
               </span>
             </div>
 

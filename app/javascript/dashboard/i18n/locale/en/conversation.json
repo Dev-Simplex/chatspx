@@ -1,5 +1,6 @@
 {
   "CONVERSATION": {
+    "SENT_AS_DOCUMENT": "Sent as a document (over 16 MB)",
     "WHATSAPP_PHONE_REPLY": "Sent directly from WhatsApp on the phone (agent not identified)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
@@ -1259,6 +1260,8 @@
     "ARIA_LABEL": "Drop zone — release to attach files"
   },
   "ATTACHMENT_PREVIEW": {
+    "SENT_AS_DOCUMENT": "Video over 16 MB: will be sent as a document",
+    "SENT_AS_DOCUMENT_HINT": "Videos over 16 MB reach the customer as a file to download, not as a playable video",
     "CAPTION_PLACEHOLDER": "Add a caption...",
     "SEND": "Send",
     "CLOSE": "Close",

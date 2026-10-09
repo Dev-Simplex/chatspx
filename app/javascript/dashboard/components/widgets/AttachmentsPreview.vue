@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { formatBytes } from 'shared/helpers/FileHelper';
+import { formatBytes, vaiComoDocumento } from 'shared/helpers/FileHelper';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'next/icon/Icon.vue';
@@ -11,6 +11,11 @@ const props = defineProps({
   attachments: {
     type: Array,
     default: () => [],
+  },
+  // Caixa WhatsApp (oficial ou WAHA): video acima de 16 MB vai como documento.
+  isWhatsapp: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -54,6 +59,8 @@ const isTypeAudio = file => {
   const type = file.content_type || file.type;
   return type.includes('audio');
 };
+
+const mostraComoDocumento = file => props.isWhatsapp && vaiComoDocumento(file);
 
 const fileName = file => {
   return file.filename || file.name;
@@ -122,11 +129,21 @@ const onRetry = attachment => {
         />
         <Icon v-else icon="i-lucide-file" class="size-5 text-n-slate-11" />
       </div>
-      <div class="max-w-3/5 min-w-[50%] overflow-hidden text-ellipsis">
+      <div
+        class="flex flex-col max-w-3/5 min-w-[50%] overflow-hidden text-ellipsis"
+      >
         <span
           class="h-4 overflow-hidden text-sm font-medium text-ellipsis whitespace-nowrap"
         >
           {{ fileName(attachment.resource) }}
+        </span>
+        <span
+          v-if="mostraComoDocumento(attachment.resource)"
+          class="flex items-center gap-1 text-xs text-n-amber-11 whitespace-nowrap"
+          :title="t('ATTACHMENT_PREVIEW.SENT_AS_DOCUMENT_HINT')"
+        >
+          <Icon icon="i-lucide-file" class="size-3 flex-shrink-0" />
+          {{ t('ATTACHMENT_PREVIEW.SENT_AS_DOCUMENT') }}
         </span>
       </div>
       <div class="w-[30%] justify-center">

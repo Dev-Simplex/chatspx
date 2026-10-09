@@ -169,8 +169,8 @@ class WebhookListener < BaseListener
     # Chatwoot App would otherwise send them as plain text).
     return true if waha_interactive_message?(message)
 
-    file_type = message.attachments.first&.file_type.to_s
-    %w[location contact].include?(file_type)
+    attachment = message.attachments.first
+    %w[location contact].include?(attachment&.file_type.to_s) || attachment&.vai_como_documento?
   end
 
   def waha_interactive_message?(message)
