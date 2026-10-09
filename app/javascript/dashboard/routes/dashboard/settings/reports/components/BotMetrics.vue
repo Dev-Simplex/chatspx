@@ -1,4 +1,5 @@
 <script setup>
+import { formatPercent } from 'dashboard/helper/reportFormat';
 import { ref, computed, watch, onMounted } from 'vue';
 import { I18nT } from 'vue-i18n';
 import ReportMetricCard from './ReportMetricCard.vue';
@@ -28,7 +29,7 @@ const handoffSignal = computed(() =>
 );
 
 const formatToPercent = value => {
-  return value ? `${value}%` : '--';
+  return value ? formatPercent(value) : '--';
 };
 
 const fetchMetrics = () => {
@@ -52,7 +53,7 @@ onMounted(fetchMetrics);
 <template>
   <section
     v-if="Number(String(conversationCount).replace(/\D/g, '')) > 0"
-    class="rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+    class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
   >
     <h3 class="text-base font-semibold text-n-slate-12">
       {{ $t('REPORT.PLAIN_SUMMARY.TITLE') }}
@@ -81,34 +82,32 @@ onMounted(fetchMetrics);
     </p>
   </section>
   <ReportNarrativeSummary :signals="signals" />
-  <div
-    class="flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
-  >
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
     <ReportMetricCard
+      icon="i-lucide-messages-square"
       :label="$t('BOT_REPORTS.METRIC.TOTAL_CONVERSATIONS.LABEL')"
       :info-text="$t('BOT_REPORTS.METRIC.TOTAL_CONVERSATIONS.TOOLTIP')"
       :value="conversationCount"
-      class="flex-1"
     />
     <ReportMetricCard
+      icon="i-lucide-message-square-reply"
       :label="$t('BOT_REPORTS.METRIC.TOTAL_RESPONSES.LABEL')"
       :info-text="$t('BOT_REPORTS.METRIC.TOTAL_RESPONSES.TOOLTIP')"
       :value="messageCount"
-      class="flex-1"
     />
     <ReportMetricCard
+      icon="i-lucide-bot"
       :label="$t('BOT_REPORTS.METRIC.RESOLUTION_RATE.LABEL')"
       :info-text="$t('BOT_REPORTS.METRIC.RESOLUTION_RATE.TOOLTIP')"
       :value="formatToPercent(resolutionRate)"
       :signal="resolutionSignal"
-      class="flex-1"
     />
     <ReportMetricCard
+      icon="i-lucide-user-round-check"
       :label="$t('BOT_REPORTS.METRIC.HANDOFF_RATE.LABEL')"
       :info-text="$t('BOT_REPORTS.METRIC.HANDOFF_RATE.TOOLTIP')"
       :value="formatToPercent(handoffRate)"
       :signal="handoffSignal"
-      class="flex-1"
     />
   </div>
 </template>

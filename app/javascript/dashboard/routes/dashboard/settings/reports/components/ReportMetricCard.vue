@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 
 const props = defineProps({
+  icon: { type: String, default: '' },
   label: {
     type: String,
     required: true,
@@ -46,14 +47,18 @@ const trendClass = computed(
 <template>
   <div
     data-test-id="reportMetricContainer"
-    class="bg-n-solid-1 border border-n-weak rounded-xl p-5"
+    class="flex flex-col gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2 min-w-0"
     :class="{
       'grayscale pointer-events-none opacity-30': disabled,
     }"
   >
-    <h3
-      class="flex items-center m-0 text-xs font-medium uppercase tracking-wider text-n-slate-10"
+    <span
+      v-if="icon"
+      class="flex items-center justify-center mb-2 rounded-lg size-9 bg-n-alpha-2 text-n-slate-11"
     >
+      <span class="size-5" :class="icon" />
+    </span>
+    <h3 class="inline-flex items-center gap-1 text-sm text-n-slate-11">
       <span data-test-id="reportMetricLabel">{{ label }}</span>
       <fluent-icon
         v-tooltip="infoText"
@@ -65,7 +70,7 @@ const trendClass = computed(
     </h3>
     <h4
       data-test-id="reportMetricValue"
-      class="mt-1 mb-0 text-2xl font-semibold text-n-slate-12 tabular-nums"
+      class="m-0 text-3xl font-semibold tracking-tight text-n-slate-12 tabular-nums"
     >
       {{ value }}
     </h4>

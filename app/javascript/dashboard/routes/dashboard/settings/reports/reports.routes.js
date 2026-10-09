@@ -151,7 +151,7 @@ export default {
         {
           path: 'painel',
           name: 'reports_panel',
-          meta: { ...meta, wide: true },
+          meta,
           component: ReportsPanel,
         },
         {

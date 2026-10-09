@@ -175,9 +175,7 @@ export default {
 </script>
 
 <template>
-  <div
-    class="bg-n-solid-1 border border-n-weak rounded-xl px-4 py-4 relative z-30 mb-6"
-  >
+  <div class="relative z-30">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div
         class="w-full grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"

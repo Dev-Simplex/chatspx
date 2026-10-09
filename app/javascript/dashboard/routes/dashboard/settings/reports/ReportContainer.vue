@@ -274,11 +274,11 @@ export default {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
     <div
       v-for="metric in metrics"
       :key="metric.KEY"
-      class="flex flex-col gap-4 bg-n-solid-1 border border-n-weak rounded-xl p-5"
+      class="flex flex-col gap-4 bg-n-solid-2 border border-n-weak rounded-xl p-5"
     >
       <div class="flex items-start justify-between gap-4">
         <div class="flex flex-col gap-2">

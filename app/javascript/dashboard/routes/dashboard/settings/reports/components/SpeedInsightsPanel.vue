@@ -103,15 +103,13 @@ const insightCards = computed(() => {
 </script>
 
 <template>
-  <section
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-6 shadow-sm"
-  >
+  <section class="rounded-xl border border-n-weak bg-n-solid-2 p-5">
     <div class="flex items-center justify-between gap-3">
       <div class="flex flex-col gap-2">
         <span class="text-sm font-medium text-n-slate-11">
           {{ t('REPORT.INSIGHTS.EYEBROW') }}
         </span>
-        <h3 class="text-xl font-semibold text-n-slate-12">
+        <h3 class="m-0 text-base font-semibold text-n-slate-12">
           {{ title || t('REPORT.INSIGHTS.TITLE') }}
         </h3>
       </div>
@@ -125,7 +123,7 @@ const insightCards = computed(() => {
       <div
         v-for="card in insightCards"
         :key="card.id"
-        class="rounded-2xl border border-n-container/40 bg-n-background/80 p-4 shadow-sm"
+        class="rounded-xl border border-n-weak bg-n-solid-1 p-4"
       >
         <div class="flex items-center justify-between">
           <p class="text-sm text-n-slate-11">
@@ -133,7 +131,9 @@ const insightCards = computed(() => {
           </p>
           <span class="h-2 w-2 rounded-full bg-n-brand/70" />
         </div>
-        <div class="mt-2 text-2xl font-semibold text-n-slate-12">
+        <div
+          class="mt-2 text-2xl font-semibold tracking-tight text-n-slate-12 tabular-nums"
+        >
           {{ formatMetric(card.valueKey) }}
         </div>
         <p v-if="card.countKey" class="mt-1 text-xs text-n-slate-10">

@@ -105,7 +105,7 @@ onMounted(() => {
 <template>
   <section
     v-if="!uiFlags.isFetchingAccountConversationMetric"
-    class="rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+    class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
   >
     <h3 class="text-base font-semibold text-n-slate-12">
       {{ t('OVERVIEW_REPORTS.PLAIN_SUMMARY.TITLE') }}

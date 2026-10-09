@@ -40,7 +40,7 @@ const hasResponses = computed(
   <div class="flex flex-col gap-4">
     <section
       v-if="hasResponses && !isLoading"
-      class="rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+      class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
     >
       <h3 class="text-base font-semibold text-n-slate-12">
         {{ $t('REPORT.PLAIN_SUMMARY.TITLE') }}
@@ -82,19 +82,17 @@ const hasResponses = computed(
         {{ $t('CSAT_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
       </p>
     </section>
-    <div
-      class="flex sm:flex-row flex-col w-full gap-4 sm:gap-12 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
-    >
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <CsatMetricCard
+        icon="i-lucide-messages-square"
         :label="$t('CSAT_REPORTS.METRIC.TOTAL_RESPONSES.LABEL')"
         :tooltip="$t('CSAT_REPORTS.METRIC.TOTAL_RESPONSES.TOOLTIP')"
         :value="responseCount"
         :is-loading="isLoading"
       />
 
-      <div class="w-full sm:w-px bg-n-container/60" />
-
       <CsatMetricCard
+        icon="i-lucide-smile"
         :label="$t('CSAT_REPORTS.METRIC.SATISFACTION_SCORE.LABEL')"
         :tooltip="$t('CSAT_REPORTS.METRIC.SATISFACTION_SCORE.TOOLTIP')"
         :value="formatPercent(satisfactionScore)"
@@ -102,9 +100,8 @@ const hasResponses = computed(
         :signal="csatSignal"
       />
 
-      <div class="w-full sm:w-px bg-n-container/60" />
-
       <CsatMetricCard
+        icon="i-lucide-send"
         :label="$t('CSAT_REPORTS.METRIC.RESPONSE_RATE.LABEL')"
         :tooltip="$t('CSAT_REPORTS.METRIC.RESPONSE_RATE.TOOLTIP')"
         :value="formatPercent(responseRate)"

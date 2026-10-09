@@ -22,7 +22,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 <template>
   <section
     v-if="hasSignals"
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm mt-4"
+    class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
   >
     <span class="text-sm font-medium text-n-slate-11">
       {{ t('REPORT.NARRATIVE.EYEBROW') }}
@@ -30,7 +30,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
     <div class="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2">
       <div
         v-if="narrative.highlight"
-        class="rounded-2xl border border-n-teal-6 bg-n-teal-2/60 p-4"
+        class="rounded-xl border border-n-teal-6 bg-n-teal-2/60 p-4"
       >
         <div class="flex items-center gap-2">
           <span class="text-lg">{{ ICONS.highlight }}</span>
@@ -48,7 +48,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 
       <div
         v-if="narrative.attention"
-        class="rounded-2xl border border-n-amber-6 bg-n-amber-2/60 p-4"
+        class="rounded-xl border border-n-amber-6 bg-n-amber-2/60 p-4"
       >
         <div class="flex items-center gap-2">
           <span class="text-lg">{{ ICONS.attention }}</span>
@@ -74,7 +74,7 @@ const ICONS = { highlight: '🏆', attention: '⚠️', allGood: '👍' };
 
       <div
         v-else-if="narrative.allGood"
-        class="rounded-2xl border border-n-teal-6 bg-n-teal-2/60 p-4 flex items-center gap-2"
+        class="rounded-xl border border-n-teal-6 bg-n-teal-2/60 p-4 flex items-center gap-2"
       >
         <span class="text-lg">{{ ICONS.allGood }}</span>
         <p class="text-sm font-medium text-n-slate-12">

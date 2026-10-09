@@ -76,7 +76,7 @@ const pdfFilters = computed(() => ({
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 py-6">
+  <div class="flex flex-col gap-4 pt-6">
     <header
       class="flex flex-col gap-4 p-5 rounded-2xl border border-n-weak bg-n-solid-2"
     >

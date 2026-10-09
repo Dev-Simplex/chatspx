@@ -11,7 +11,7 @@ defineOptions({ name: 'RodizioPage' });
 
 const { t } = useI18n();
 const router = useRouter();
-const { accountId } = useAccount();
+const { accountId, currentAccount } = useAccount();
 
 const loading = ref(true);
 const loadError = ref(false);
@@ -502,10 +502,19 @@ const irParaPolitica = () =>
   <!-- `w-full h-full` porque esta tela deixou de ser filha do AgentsPageView: agora
        ela e o proprio filho do <main> do Dashboard (flex row, overflow-hidden), e sem
        isso encolheria para a largura do conteudo e nao rolaria. -->
-  <div class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-medium text-n-slate-12">
+  <div
+    class="flex flex-col w-full h-full gap-4 px-6 pt-6 pb-12 overflow-y-auto bg-n-surface-1"
+  >
+    <header
+      class="flex flex-wrap items-start justify-between gap-4 p-5 rounded-2xl border border-n-weak bg-n-solid-2"
+    >
+      <div class="min-w-0">
+        <p
+          class="m-0 text-xs font-semibold tracking-wider uppercase text-n-slate-10 truncate"
+        >
+          {{ currentAccount?.name }}
+        </p>
+        <h1 class="m-0 text-3xl font-semibold tracking-tight text-n-slate-12">
           {{ t('AGENTS_RODIZIO.TITLE') }}
         </h1>
         <p class="mt-1 text-sm text-n-slate-11">
@@ -554,41 +563,40 @@ const irParaPolitica = () =>
           {{ t('AGENTS_RODIZIO.CONFIGURE') }}
         </button>
       </div>
+      <!-- As duas datas ganham linha própria: espremidas na fila de botões elas ficavam de alturas
+           diferentes, sem rótulo, e a segunda aparecia como "dd/mm/aaaa" solto no meio da barra.
+           Aqui cabem rótulo, limites (fim nunca antes do início, nada no futuro) e o aviso de que
+           falta escolher — e a linha some quando o período não é personalizado. -->
+      <div
+        v-if="periodo === 'personalizado'"
+        class="flex flex-wrap items-center justify-end w-full gap-3"
+      >
+        <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+          {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
+          <input
+            v-model="de"
+            type="date"
+            :max="ate || hoje"
+            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            @change="trocarIntervalo"
+          />
+        </label>
+        <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+          {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
+          <input
+            v-model="ate"
+            type="date"
+            :min="de"
+            :max="hoje"
+            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            @change="trocarIntervalo"
+          />
+        </label>
+        <span v-if="!de || !ate" class="text-xs text-n-slate-10">
+          {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
+        </span>
+      </div>
     </header>
-
-    <!-- As duas datas ganham linha própria: espremidas na fila de botões elas ficavam de alturas
-         diferentes, sem rótulo, e a segunda aparecia como "dd/mm/aaaa" solto no meio da barra.
-         Aqui cabem rótulo, limites (fim nunca antes do início, nada no futuro) e o aviso de que
-         falta escolher — e a linha some quando o período não é personalizado. -->
-    <div
-      v-if="periodo === 'personalizado'"
-      class="flex flex-wrap items-center justify-end gap-3 px-3 py-2 -mt-2 border rounded-xl border-n-weak bg-n-solid-1 dark:bg-n-solid-2"
-    >
-      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
-        {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
-        <input
-          v-model="de"
-          type="date"
-          :max="ate || hoje"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
-          @change="trocarIntervalo"
-        />
-      </label>
-      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
-        {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
-        <input
-          v-model="ate"
-          type="date"
-          :min="de"
-          :max="hoje"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
-          @change="trocarIntervalo"
-        />
-      </label>
-      <span v-if="!de || !ate" class="text-xs text-n-slate-10">
-        {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
-      </span>
-    </div>
 
     <p v-if="loading" class="text-sm text-n-slate-11">
       {{ t('AGENTS_RODIZIO.LOADING') }}
@@ -600,7 +608,7 @@ const irParaPolitica = () =>
     <template v-else>
       <section
         v-if="resumo.recebidos"
-        class="rounded-2xl border border-n-weak bg-white dark:bg-n-solid-2 px-6 py-5"
+        class="rounded-xl border border-n-weak bg-n-solid-2 p-5"
       >
         <h2 class="text-base font-semibold text-n-slate-12">
           {{ t('AGENTS_RODIZIO.PLAIN_SUMMARY.TITLE') }}
@@ -650,24 +658,28 @@ const irParaPolitica = () =>
           </li>
         </ul>
       </section>
-      <section class="flex flex-wrap gap-4">
+      <section class="flex flex-wrap gap-3">
         <div
-          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="flex flex-col gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2 min-w-[10rem]"
         >
           <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
-          <p class="text-xl font-medium text-n-slate-12">
+          <p
+            class="m-0 text-3xl font-semibold tracking-tight tabular-nums text-n-slate-12"
+          >
             {{ totais.recebidos || 0 }}
           </p>
         </div>
         <div
-          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="flex flex-col gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2 min-w-[10rem]"
         >
           <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
-          <p class="text-xl font-medium text-n-slate-12">
+          <p
+            class="m-0 text-3xl font-semibold tracking-tight tabular-nums text-n-slate-12"
+          >
             {{ parados.total }}
           </p>
           <p class="text-xs text-n-slate-10">
@@ -682,7 +694,7 @@ const irParaPolitica = () =>
              da tabela, que é a seção que encolhe quando a tela não cabe. Pelo mesmo motivo é
              baixa: título e explicação numa linha só, e três leads visíveis antes de rolar. -->
         <div
-          class="flex flex-col flex-1 min-w-[20rem] gap-1 px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="flex flex-col flex-1 min-w-[20rem] gap-1 p-4 rounded-xl border border-n-weak bg-n-solid-2"
         >
           <div class="flex flex-wrap items-baseline gap-x-2">
             <h2 class="text-sm font-medium text-n-slate-11">
@@ -740,7 +752,7 @@ const irParaPolitica = () =>
       <!-- O "Por que este?" abre logo abaixo da lista que o chamou, e não no pé da página. -->
       <section
         v-if="detalhe"
-        class="flex flex-col gap-2 p-4 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+        class="flex flex-col gap-2 p-5 rounded-xl border border-n-weak bg-n-solid-2"
       >
         <div class="flex items-center justify-between">
           <h2 class="text-base font-medium text-n-slate-12">
@@ -886,8 +898,11 @@ const irParaPolitica = () =>
         </template>
       </section>
 
-      <section v-show="aba === 'consultores'" class="overflow-x-auto">
-        <table class="w-full text-sm border rounded-xl border-n-weak">
+      <section
+        v-show="aba === 'consultores'"
+        class="overflow-x-auto rounded-xl border border-n-weak bg-n-solid-2"
+      >
+        <table class="w-full text-sm">
           <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">
             <tr>
               <th class="px-3 py-2 font-medium text-left">
@@ -983,7 +998,7 @@ const irParaPolitica = () =>
               <tr v-if="expandido === linha.user_id">
                 <td colspan="10" class="p-0">
                   <div
-                    class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 dark:bg-n-solid-2 border-n-weak"
+                    class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 border-n-weak"
                   >
                     <div
                       class="flex flex-wrap items-baseline justify-between gap-2"

@@ -48,7 +48,7 @@ const open = (key, nameKey) => {
 <template>
   <section
     v-if="isReady"
-    class="mt-4 rounded-2xl border border-n-weak bg-n-solid-2 px-6 py-5"
+    class="mt-4 rounded-xl border border-n-weak bg-n-solid-2 p-5"
   >
     <h3 class="text-base font-semibold text-n-slate-12">
       {{ t('REPORT.PLAIN_SUMMARY.TITLE') }}

@@ -134,17 +134,18 @@ export default {
         @click="downloadReports"
       />
     </div>
+    <template #filters>
+      <ReportFilterSelector
+        show-agents-filter
+        show-inbox-filter
+        :show-team-filter="isTeamsEnabled"
+        :show-business-hours-switch="false"
+        @filter-change="onFilterChange"
+      />
+    </template>
   </ReportHeader>
 
-  <div class="flex flex-col gap-6">
-    <ReportFilterSelector
-      show-agents-filter
-      show-inbox-filter
-      :show-team-filter="isTeamsEnabled"
-      :show-business-hours-switch="false"
-      @filter-change="onFilterChange"
-    />
-
+  <div class="flex flex-col gap-4">
     <ReportNarrativeSummary :signals="npsSignals" />
     <NpsMetrics :filters="requestPayload" />
     <NpsTable
