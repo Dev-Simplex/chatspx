@@ -344,7 +344,7 @@ watch(teams, () => loadTeams().catch(() => {}));
 
     <section class="grid grid-cols-1 gap-4 lg:grid-cols-12">
       <div
-        class="flex flex-col p-5 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-0 lg:col-span-8"
+        class="flex flex-col p-5 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-0 lg:col-span-8"
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>

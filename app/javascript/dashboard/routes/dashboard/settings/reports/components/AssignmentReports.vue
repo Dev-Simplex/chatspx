@@ -349,7 +349,7 @@ onMounted(() => {
   <!-- Resumo do período (TL;DR em linguagem simples) -->
   <div
     v-if="hasData"
-    class="p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    class="p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
     <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.SUMMARY.TITLE') }}
@@ -387,7 +387,7 @@ onMounted(() => {
 
   <!-- Tabela (ou estado vazio) -->
   <div
-    class="relative flex-1 px-2 py-2 overflow-auto rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    class="relative flex-1 px-2 py-2 overflow-auto relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
     <Table v-if="hasData" :table="table" />
     <div
@@ -422,7 +422,7 @@ onMounted(() => {
   <!-- Matriz: quem atribuiu pra quem -->
   <div
     v-if="hasMatrix"
-    class="p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    class="p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
     <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.MATRIX.TITLE') }}
@@ -485,7 +485,7 @@ onMounted(() => {
   <!-- Legenda: o que significa cada coluna -->
   <div
     v-if="hasData"
-    class="p-4 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    class="p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
     <p class="text-base font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.LEGEND.TITLE') }}
