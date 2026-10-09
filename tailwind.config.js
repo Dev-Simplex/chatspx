@@ -16,6 +16,11 @@ const defaultSansFonts = [
   '"Helvetica Neue"',
   'Tahoma',
   'Arial',
+  // Emoji: sem isso, emoji novo que a fonte do sistema não conhece (ex. 🫡) vira caixa "NO GLYPH".
+  // A Noto Color Emoji vem do Google Fonts e o navegador só baixa os desenhos que faltarem.
+  '"Apple Color Emoji"',
+  '"Segoe UI Emoji"',
+  '"Noto Color Emoji"',
   'sans-serif !important',
 ];
 
