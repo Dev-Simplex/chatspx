@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
     <template v-else>
       <button
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 transition-colors rounded-full bg-[color-mix(in_srgb,currentColor_14%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_24%,transparent)]"
+        class="relative inline-flex items-center justify-center flex-shrink-0 w-8 h-8 transition-colors rounded-full bg-[color-mix(in_srgb,currentColor_14%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_24%,transparent)]"
         :title="
           status === 'playing'
             ? t('INTERNAL_CHAT.AUDIO.PAUSE')
@@ -201,15 +201,25 @@ onBeforeUnmount(() => {
         />
         <span v-else-if="status === 'playing'" class="i-lucide-pause" />
         <span v-else class="i-lucide-play" />
+        <!-- Ainda não ouvido (áudio recebido): ponto no play, como no WhatsApp -->
+        <span
+          v-if="!heard"
+          v-tooltip="t('INTERNAL_CHAT.AUDIO.NOT_HEARD')"
+          class="absolute -top-0.5 -right-0.5 rounded-full size-2.5 bg-n-teal-9"
+          :aria-label="t('INTERNAL_CHAT.AUDIO.NOT_HEARD')"
+          role="img"
+        />
       </button>
-      <!-- Ainda não ouvido (áudio recebido): ponto como no WhatsApp -->
-      <span
-        v-if="!heard"
-        v-tooltip="t('INTERNAL_CHAT.AUDIO.NOT_HEARD')"
-        class="flex-shrink-0 -ml-2 rounded-full size-2 bg-n-teal-9"
-        :aria-label="t('INTERNAL_CHAT.AUDIO.NOT_HEARD')"
-        role="img"
-      />
+      <!-- Velocidade perto do play: o canto direito do balão é do menu ⌄ -->
+      <button
+        v-tooltip="t('INTERNAL_CHAT.AUDIO.SPEED', { rate: rateLabel })"
+        type="button"
+        class="flex-shrink-0 h-6 px-1.5 text-[11px] font-bold tabular-nums rounded-full transition-colors bg-[color-mix(in_srgb,currentColor_14%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_24%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-current"
+        :aria-label="t('INTERNAL_CHAT.AUDIO.SPEED', { rate: rateLabel })"
+        @click="cycleRate"
+      >
+        {{ rateLabel }}
+      </button>
       <div class="relative flex items-center flex-1 h-6 min-w-0 group">
         <!-- trilha na cor do texto: lê no balão verde e no cinza -->
         <div
@@ -241,15 +251,6 @@ onBeforeUnmount(() => {
       <span class="flex-shrink-0 text-xs tabular-nums opacity-75">
         {{ timeLabel }}
       </span>
-      <button
-        v-tooltip="t('INTERNAL_CHAT.AUDIO.SPEED', { rate: rateLabel })"
-        type="button"
-        class="flex-shrink-0 h-6 px-1.5 text-[11px] font-bold tabular-nums rounded-full transition-colors bg-[color-mix(in_srgb,currentColor_14%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_24%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-current"
-        :aria-label="t('INTERNAL_CHAT.AUDIO.SPEED', { rate: rateLabel })"
-        @click="cycleRate"
-      >
-        {{ rateLabel }}
-      </button>
     </template>
   </div>
 </template>
