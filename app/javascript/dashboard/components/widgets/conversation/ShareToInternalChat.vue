@@ -16,6 +16,8 @@ const emit = defineEmits(['close']);
 const store = useStore();
 const { t } = useI18n();
 const dialogRef = ref(null);
+const noteRef = ref(null);
+const isLoading = ref(false);
 
 // Grupos e times aqui; conversa de 1 a 1 é por "Pessoas" (antes a mesma pessoa
 // aparecia nas duas listas). A busca filtra as duas.
@@ -79,10 +81,18 @@ watch(
       note.value = '';
       query.value = '';
       selected.value = null;
-      store.dispatch('internalChat/fetchChannels');
-      store.dispatch('internalChat/fetchAgents');
+      isLoading.value = !store.getters['internalChat/getAgents'].length;
+      Promise.allSettled([
+        store.dispatch('internalChat/fetchChannels'),
+        store.dispatch('internalChat/fetchAgents'),
+      ]).then(() => {
+        isLoading.value = false;
+      });
       nextTick(() => {
-        setTimeout(() => dialogRef.value?.open?.(), 10);
+        setTimeout(() => {
+          dialogRef.value?.open?.();
+          nextTick(() => noteRef.value?.focus());
+        }, 10);
       });
     } else {
       dialogRef.value?.close?.();
@@ -99,11 +109,13 @@ watch(
     :title="t('INTERNAL_CHAT.SHARE.TITLE')"
     :show-cancel-button="false"
     :show-confirm-button="false"
+    show-close-button
+    full-height
     width="md"
     @close="close"
   >
-    <div class="space-y-4">
-      <p class="text-sm text-n-slate-11">
+    <div class="flex flex-col flex-1 min-h-0 gap-4">
+      <p class="mb-0 text-sm text-n-slate-11">
         {{
           t('INTERNAL_CHAT.SHARE.SUBTITLE', {
             id: displayId,
@@ -113,9 +125,11 @@ watch(
       </p>
 
       <textarea
+        ref="noteRef"
         v-model="note"
         rows="2"
-        class="w-full px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand resize-none"
+        :aria-label="t('INTERNAL_CHAT.SHARE.NOTE_PLACEHOLDER')"
+        class="reset-base flex-shrink-0 w-full px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-lg text-n-slate-12 focus:outline-none focus:border-n-brand resize-none"
         :placeholder="t('INTERNAL_CHAT.SHARE.NOTE_PLACEHOLDER')"
       />
 
@@ -132,14 +146,22 @@ watch(
         />
       </div>
 
-      <div class="max-h-72 overflow-y-auto -mx-1 px-1 space-y-3">
+      <div class="flex-1 min-h-[8rem] overflow-y-auto -mx-1 px-1 space-y-3">
+        <p
+          v-if="isLoading"
+          class="flex items-center justify-center gap-2 py-4 mb-0 text-sm text-n-slate-11"
+        >
+          <span class="i-lucide-loader-circle animate-spin" />
+          {{ t('INTERNAL_CHAT.LOADING') }}
+        </p>
         <div v-if="channels.length">
-          <p class="text-xs font-medium uppercase text-n-slate-10 mb-1">
+          <p class="mb-1 text-sm font-medium text-n-slate-11">
             {{ t('INTERNAL_CHAT.SHARE.CHANNELS') }}
           </p>
           <button
             v-for="channel in channels"
             :key="`c-${channel.id}`"
+            type="button"
             class="flex items-center gap-2.5 w-full px-2 py-2 rounded-lg text-sm text-n-slate-12"
             :class="
               isSelected('channel', channel.id)
@@ -148,18 +170,26 @@ watch(
             "
             @click="pick('channel', channel.id)"
           >
-            <Avatar :name="channel.title" :size="26" rounded-full />
-            <span class="truncate">{{ channel.title }}</span>
+            <Avatar
+              :name="channel.title"
+              icon-name="i-lucide-users"
+              :size="26"
+              rounded-full
+            />
+            <span class="truncate" :title="channel.title">
+              {{ channel.title }}
+            </span>
           </button>
         </div>
 
         <div v-if="agents.length">
-          <p class="text-xs font-medium uppercase text-n-slate-10 mb-1">
+          <p class="mb-1 text-sm font-medium text-n-slate-11">
             {{ t('INTERNAL_CHAT.SHARE.PEOPLE') }}
           </p>
           <button
             v-for="agent in agents"
             :key="`a-${agent.id}`"
+            type="button"
             class="flex items-center gap-2.5 w-full px-2 py-2 rounded-lg text-sm text-n-slate-12"
             :class="
               isSelected('agent', agent.id)
@@ -174,12 +204,12 @@ watch(
               :size="26"
               rounded-full
             />
-            <span class="truncate">{{ agent.name }}</span>
+            <span class="truncate" :title="agent.name">{{ agent.name }}</span>
           </button>
         </div>
         <p
-          v-if="!channels.length && !agents.length"
-          class="py-4 text-sm text-center text-n-slate-10"
+          v-if="!isLoading && !channels.length && !agents.length"
+          class="mb-0 py-4 text-sm text-center text-n-slate-10"
         >
           {{ t('INTERNAL_CHAT.SHARE.NO_MATCH') }}
         </p>
@@ -187,11 +217,20 @@ watch(
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button variant="ghost" @click="close">
+      <div class="flex items-center justify-end w-full gap-3 shrink-0">
+        <span v-if="!selected" class="flex-1 min-w-0 text-xs text-n-slate-10">
+          {{ t('INTERNAL_CHAT.SHARE.PICK_FIRST') }}
+        </span>
+        <Button
+          type="button"
+          variant="faded"
+          color="slate"
+          @click="dialogRef?.close()"
+        >
           {{ t('INTERNAL_CHAT.CANCEL') }}
         </Button>
         <Button
+          type="button"
           color="blue"
           :is-loading="isSending"
           :disabled="!selected"
