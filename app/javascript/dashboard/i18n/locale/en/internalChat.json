@@ -213,7 +213,9 @@
       "SEARCH_PLACEHOLDER": "Search this conversation…",
       "CLOSE_SEARCH": "Close search",
       "NEW_MESSAGES": "New messages",
-      "LOAD_ERROR": "Could not load the messages of this conversation."
+      "LOAD_ERROR": "Could not load the messages of this conversation.",
+      "GO_BOTTOM": "Go to the latest messages",
+      "GO_BOTTOM_NEW": "{count} new message(s) · go to the end"
     },
     "COMPOSER": {
       "PLACEHOLDER_GROUP": "Write a message… ({'@'} to mention)",

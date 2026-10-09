@@ -213,7 +213,9 @@
       "SEARCH_PLACEHOLDER": "Buscar nesta conversa…",
       "CLOSE_SEARCH": "Fechar busca",
       "NEW_MESSAGES": "Mensagens novas",
-      "LOAD_ERROR": "Não foi possível carregar as mensagens desta conversa."
+      "LOAD_ERROR": "Não foi possível carregar as mensagens desta conversa.",
+      "GO_BOTTOM": "Ir para as últimas mensagens",
+      "GO_BOTTOM_NEW": "{count} mensagem(ns) nova(s) · ir para o fim"
     },
     "COMPOSER": {
       "PLACEHOLDER_GROUP": "Escreva uma mensagem… ({'@'} para mencionar)",
