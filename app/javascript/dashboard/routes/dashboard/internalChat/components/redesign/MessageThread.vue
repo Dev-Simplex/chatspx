@@ -25,6 +25,7 @@ const emit = defineEmits([
   'forward',
   'info',
   'star',
+  'replyPrivately',
 ]);
 
 const { t } = useI18n();
@@ -234,6 +235,7 @@ watch(
             @forward="emit('forward', $event)"
             @info="emit('info', $event)"
             @star="emit('star', $event)"
+            @reply-privately="emit('replyPrivately', $event)"
             @scroll-to="scrollToMessage"
           />
         </div>

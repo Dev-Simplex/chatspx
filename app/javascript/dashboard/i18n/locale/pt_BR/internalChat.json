@@ -249,7 +249,8 @@
       "INFO": "Dados da mensagem",
       "STAR": "Favoritar mensagem",
       "UNSTAR": "Remover dos favoritos",
-      "STARRED_HINT": "Mensagem favorita (só você vê)"
+      "STARRED_HINT": "Mensagem favorita (só você vê)",
+      "REPLY_PRIVATELY": "Responder em particular"
     },
     "SHARED": {
       "OPEN": "Abrir",
@@ -429,6 +430,9 @@
       "ROW": "Arquivadas ({count})",
       "ROW_HINT": "Fora da sua lista até chegar mensagem nova",
       "ALL_ARCHIVED": "Todas as suas conversas estão arquivadas. Veja em Arquivadas, abaixo."
+    },
+    "REPLY_PRIVATELY": {
+      "QUOTE": "↩ {name} no grupo {group}: “{excerpt}”"
     }
   }
 }

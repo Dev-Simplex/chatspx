@@ -32,6 +32,7 @@ const emit = defineEmits([
   'forward',
   'info',
   'star',
+  'replyPrivately',
 ]);
 
 const { t } = useI18n();
@@ -157,6 +158,11 @@ const forwarded = computed(() =>
 const onForward = () => {
   closeAll();
   emit('forward', props.message);
+};
+
+const onReplyPrivately = () => {
+  closeAll();
+  emit('replyPrivately', props.message);
 };
 
 const onStar = () => {
@@ -471,6 +477,17 @@ const iReacted = emoji =>
               }"
               variant="icon"
               @click.stop="onReply"
+            />
+            <MenuItem
+              v-if="
+                message.inGroup && !message.mine && message.userId && persisted
+              "
+              :option="{
+                icon: 'i-lucide-message-circle-reply',
+                label: t('INTERNAL_CHAT.BUBBLE.REPLY_PRIVATELY'),
+              }"
+              variant="icon"
+              @click.stop="onReplyPrivately"
             />
             <MenuItem
               :option="{

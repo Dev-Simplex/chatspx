@@ -61,7 +61,10 @@ watch(draft, value => emit('draftChange', value));
 onMounted(() =>
   nextTick(() => {
     autoResize();
-    textareaRef.value?.focus();
+    const el = textareaRef.value;
+    el?.focus();
+    // Rascunho pronto (ex.: citação do "Responder em particular"): cursor no fim.
+    el?.setSelectionRange(draft.value.length, draft.value.length);
   })
 );
 

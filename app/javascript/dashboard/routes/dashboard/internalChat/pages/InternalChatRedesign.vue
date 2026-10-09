@@ -693,6 +693,30 @@ const onOpenFromInfo = messageId => {
   onOpenMessage({ channelId: activeId.value, messageId });
 };
 
+// "Responder em particular" (grupo): abre/cria a DM com o autor e já deixa a
+// citação no rascunho dela (o mesmo rascunho por conversa de sempre).
+const QUOTE_MAX = 140;
+const onReplyPrivately = async msg => {
+  const group = activeConversation.value?.name || '';
+  const raw = (msg.content || '').replace(/\s+/g, ' ').trim();
+  const excerpt =
+    raw.length > QUOTE_MAX ? `${raw.slice(0, QUOTE_MAX)}…` : raw || '📎';
+  const channel = await store
+    .dispatch('internalChat/createDm', msg.userId)
+    .catch(failAlert);
+  if (!channel?.id) return;
+  const quote = t('INTERNAL_CHAT.REPLY_PRIVATELY.QUOTE', {
+    name: (msg.senderName || '').split(' ')[0],
+    group,
+    excerpt,
+  });
+  const current = drafts.value[channel.id];
+  const next = { ...drafts.value, [channel.id]: `${quote}\n${current || ''}` };
+  drafts.value = next;
+  writeLocal(DRAFTS_KEY, next);
+  onSelect(channel.id);
+};
+
 const onCreateDm = async agentId => {
   const channel = await store
     .dispatch('internalChat/createDm', agentId)
@@ -1008,6 +1032,7 @@ onBeforeUnmount(() => {
             @forward="onForward"
             @info="infoMessage = $event"
             @star="onToggleStar"
+            @reply-privately="onReplyPrivately"
             @reload="onSelect(activeId)"
           />
 

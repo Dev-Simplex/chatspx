@@ -249,7 +249,8 @@
       "INFO": "Message info",
       "STAR": "Star message",
       "UNSTAR": "Remove from starred",
-      "STARRED_HINT": "Starred message (only you see this)"
+      "STARRED_HINT": "Starred message (only you see this)",
+      "REPLY_PRIVATELY": "Reply privately"
     },
     "SHARED": {
       "OPEN": "Open",
@@ -429,6 +430,9 @@
       "ROW": "Archived ({count})",
       "ROW_HINT": "Out of your list until a new message arrives",
       "ALL_ARCHIVED": "All your conversations are archived. See Archived below."
+    },
+    "REPLY_PRIVATELY": {
+      "QUOTE": "↩ {name} in {group}: “{excerpt}”"
     }
   }
 }
