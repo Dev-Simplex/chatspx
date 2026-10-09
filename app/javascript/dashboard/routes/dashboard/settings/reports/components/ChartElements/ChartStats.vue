@@ -93,7 +93,7 @@ const trend = computed(() => {
       <button
         v-else-if="fetchingStatus === STATUS.FINISHED && clickable"
         type="button"
-        class="p-0 m-0 text-left text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand hover:decoration-n-brand"
+        class="p-0 m-0 text-left text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand hover:decoration-n-brand"
         :title="t('REPORT.DRILLDOWN.OPEN')"
         @click="emit('select')"
       >
@@ -101,7 +101,7 @@ const trend = computed(() => {
       </button>
       <div
         v-else-if="fetchingStatus === STATUS.FINISHED"
-        class="text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
+        class="text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
       >
         {{ displayMetric(metric.KEY) }}
       </div>

@@ -674,7 +674,7 @@ const irParaPolitica = () =>
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
           <p
-            class="m-0 text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
+            class="m-0 text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
           >
             {{ totais.recebidos || 0 }}
           </p>
@@ -686,7 +686,7 @@ const irParaPolitica = () =>
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
           <p
-            class="m-0 text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
+            class="m-0 text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
           >
             {{ parados.total }}
           </p>

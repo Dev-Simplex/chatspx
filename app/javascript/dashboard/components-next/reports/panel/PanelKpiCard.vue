@@ -80,7 +80,7 @@ const arrow = computed(
     </div>
     <span class="mt-2 text-sm text-n-slate-11">{{ label }}</span>
     <span
-      class="text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums truncate"
+      class="text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums truncate"
     >
       {{ value }}
     </span>
