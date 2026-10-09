@@ -837,6 +837,31 @@ defineExpose({ openCompose, focusSearch });
         </button>
       </div>
       <template v-else>
+        <!-- Arquivadas (N): no topo da lista, como no WhatsApp, para ser fácil de achar -->
+        <button
+          v-if="archived.length && activeFilter === 'all' && !search.trim()"
+          type="button"
+          class="flex items-center w-full gap-3 py-2 pl-4 pr-3 mb-1 text-left transition-colors rounded-2xl hover:bg-n-alpha-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+          @click="showArchived = true"
+        >
+          <span
+            class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-10 bg-n-alpha-2 text-n-slate-11"
+          >
+            <span class="flex-shrink-0 i-lucide-archive size-5" />
+          </span>
+          <span class="flex-1 min-w-0">
+            <span class="block text-[15px] font-semibold text-n-slate-12">
+              {{ t('INTERNAL_CHAT.ARCHIVE.ROW', { count: archived.length }) }}
+            </span>
+            <span class="block text-xs text-n-slate-11">
+              {{ t('INTERNAL_CHAT.ARCHIVE.ROW_HINT') }}
+            </span>
+          </span>
+          <span
+            class="flex-shrink-0 i-lucide-chevron-right size-4 text-n-slate-10"
+          />
+        </button>
+
         <section v-for="sec in sections" :key="sec.key">
           <p
             v-if="sec.title"
@@ -902,31 +927,6 @@ defineExpose({ openCompose, focusSearch });
         >
           {{ emptyFilterText }}
         </p>
-
-        <!-- Arquivadas (N): no fim da lista, como no WhatsApp -->
-        <button
-          v-if="archived.length && activeFilter === 'all' && !search.trim()"
-          type="button"
-          class="flex items-center w-full gap-3 py-2.5 pl-4 pr-3 mt-1 text-left transition-colors rounded-2xl hover:bg-n-alpha-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
-          @click="showArchived = true"
-        >
-          <span
-            class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-12 bg-n-alpha-2 text-n-slate-11"
-          >
-            <span class="flex-shrink-0 i-lucide-archive size-5" />
-          </span>
-          <span class="flex-1 min-w-0">
-            <span class="block text-[15px] font-semibold text-n-slate-12">
-              {{ t('INTERNAL_CHAT.ARCHIVE.ROW', { count: archived.length }) }}
-            </span>
-            <span class="block text-xs text-n-slate-11">
-              {{ t('INTERNAL_CHAT.ARCHIVE.ROW_HINT') }}
-            </span>
-          </span>
-          <span
-            class="flex-shrink-0 i-lucide-chevron-right size-4 text-n-slate-10"
-          />
-        </button>
 
         <!-- Resultados de mensagens (busca por conteúdo, cross-channel) -->
         <template v-if="showMessageResults">
