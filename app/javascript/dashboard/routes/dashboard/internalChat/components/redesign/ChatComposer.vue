@@ -256,19 +256,19 @@ const attachOptions = [
   {
     key: 'MEDIA',
     icon: 'i-lucide-image',
-    color: 'bg-n-iris-9',
+    color: 'bg-n-violet-9',
     run: () => pickFiles('image/*,video/*'),
   },
   {
     key: 'DOCUMENT',
     icon: 'i-lucide-file-text',
-    color: 'bg-n-blue-9',
+    color: 'bg-n-slate-10',
     run: () => pickFiles(''),
   },
   {
     key: 'AUDIO',
     icon: 'i-lucide-mic',
-    color: 'bg-n-amber-9',
+    color: 'bg-n-ruby-9',
     run: () => startRecording(),
   },
   {
