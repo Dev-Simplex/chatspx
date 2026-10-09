@@ -23,6 +23,10 @@ class CampaignPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def undelivered?
+    @account_user.administrator?
+  end
+
   def recipients?
     @account_user.administrator?
   end

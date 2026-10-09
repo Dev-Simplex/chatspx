@@ -12,6 +12,21 @@ class CampaignsAPI extends ApiClient {
     return axios.get(`${this.url}/${id}/stats`);
   }
 
+  // Destinatarios que NAO receberam (falhou | bloqueado), paginado, com o motivo.
+  getUndelivered(id, { type = null, page = 1 } = {}) {
+    return axios.get(`${this.url}/${id}/undelivered`, {
+      params: { type, page },
+    });
+  }
+
+  // A mesma lista inteira em CSV (`;`, para o Excel em pt-BR).
+  exportUndelivered(id, type = null) {
+    return axios.get(`${this.url}/${id}/undelivered.csv`, {
+      params: { type },
+      responseType: 'blob',
+    });
+  }
+
   // Higiene da audiencia em DRY-RUN: devolve quem entra, quem sai e por que, sem
   // gravar destinatario nenhum. E o passo que impede montar disparo em cima de
   // lista errada — o nome do arquivo mente.

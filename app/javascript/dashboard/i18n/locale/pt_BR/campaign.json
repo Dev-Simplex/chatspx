@@ -198,6 +198,33 @@
           "unknown": "Erro não catalogado"
         }
       },
+      "UNDELIVERED": {
+        "TITLE": "Não enviados",
+        "DESCRIPTION": "Quem não recebeu esta campanha e por quê. Corrija o cadastro e reenvie.",
+        "EXPORT": "Exportar CSV",
+        "EXPORT_ERROR": "Não foi possível exportar a lista.",
+        "ERROR": "Não foi possível carregar os não enviados.",
+        "EMPTY": "Todos deste filtro receberam a campanha.",
+        "FILTER": {
+          "ALL": "Todos",
+          "FAILED": "Falhou",
+          "BLOCKED": "Bloqueado"
+        },
+        "STATUS": {
+          "FAILED": "Falhou",
+          "SKIPPED": "Bloqueado",
+          "CANCELLED": "Cancelado"
+        },
+        "TABLE": {
+          "CONTACT": "Contato",
+          "STATUS": "Situação",
+          "REASON": "Motivo",
+          "DATE": "Data",
+          "OPEN": "Abrir"
+        },
+        "OPEN_CONVERSATION": "Conversa",
+        "OPEN_CONTACT": "Contato"
+      },
       "CREATE": {
         "TITLE": "Criar campanha do WhatsApp",
         "CANCEL_BUTTON_TEXT": "Cancelar",

@@ -43,7 +43,38 @@ class CampaignRecipient < ApplicationRecord
     read: 4, failed: 5, replied: 6, cancelled: 7, skipped: 8
   }
 
+  # Quem NAO recebeu: falhou no envio (Meta ou erro interno) ou foi barrado antes de sair.
+  UNDELIVERED_STATUSES = { 'failed' => %w[failed], 'blocked' => %w[skipped cancelled] }.freeze
+
+  # Motivo de bloqueio gravado em `external_error` quando o motor pula o destinatario. Codigo
+  # estavel (vira rotulo traduzido na tela e coluna no CSV); antes era frase solta, que segue
+  # reconhecida em LEGACY_SKIP_REASONS para os disparos ja feitos.
+  SKIP_REASONS = %w[caixa_somente_leitura atendimento_ativo].freeze
+  LEGACY_SKIP_REASONS = {
+    'caixa somente leitura' => 'caixa_somente_leitura', 'contato em atendimento ativo' => 'atendimento_ativo'
+  }.freeze
+
   validates :phone_number, presence: true
+
+  # Codigo do motivo de nao-envio. Falha da Meta grava "131026: Message undeliverable" -> '131026';
+  # falha sem codigo (excecao interna, erro sincrono da API) -> 'erro_envio'.
+  def reason_code
+    error = external_error.to_s
+    return error[/\A\d+/] || 'erro_envio' if failed?
+    return error if SKIP_REASONS.include?(error)
+
+    LEGACY_SKIP_REASONS[error] || (cancelled? ? 'cancelado' : 'desconhecido')
+  end
+
+  # Motivo em linguagem de operador. Codigo da Meta fora do catalogo cai no grupo (132xxx =
+  # template) ou, por ultimo, no texto cru que a Meta mandou.
+  def reason_label
+    code = reason_code
+    key = code.match?(/\A\d+\z/) ? "meta_#{code}" : code
+    I18n.t("campaigns.undelivered.reasons.#{key}", default: nil) ||
+      (code.start_with?('132') && I18n.t('campaigns.undelivered.reasons.template')) ||
+      external_error.presence || I18n.t('campaigns.undelivered.reasons.desconhecido')
+  end
 
   # Reivindica o destinatario de forma atomica (pending -> processing) para que a
   # engine nao despache o mesmo numero duas vezes em ticks concorrentes do

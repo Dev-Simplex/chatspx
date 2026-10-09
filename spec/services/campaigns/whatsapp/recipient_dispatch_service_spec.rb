@@ -56,4 +56,37 @@ RSpec.describe Campaigns::Whatsapp::RecipientDispatchService do
     expect(recipient).to be_sent
     expect(recipient.message_id).to eq(message.id)
   end
+
+  # O motivo do bloqueio vai como código estável: é ele que a lista de não enviados traduz.
+  it 'grava o motivo quando a caixa virou somente leitura' do
+    campaign # nasce antes: a caixa vira somente leitura no meio do disparo
+    inbox.update!(read_only: true)
+
+    recipient = dispatch('+5566992927211')
+
+    expect(recipient).to be_skipped
+    expect(recipient.external_error).to eq('caixa_somente_leitura')
+    expect(recipient.reason_code).to eq('caixa_somente_leitura')
+  end
+
+  it 'grava o motivo quando o contato já está em atendimento' do
+    contact = create(:contact, account: account, phone_number: '+5566992927211')
+    contact_inbox = create(:contact_inbox, contact: contact, inbox: inbox, source_id: '5566992927211')
+    create(:conversation, account: account, inbox: inbox, contact: contact, contact_inbox: contact_inbox, status: :open)
+
+    recipient = dispatch('+5566992927211')
+
+    expect(recipient).to be_skipped
+    expect(recipient.external_error).to eq('atendimento_ativo')
+    expect(recipient.contact_id).to eq(contact.id)
+  end
+
+  it 'grava a falha do envio para a lista de não enviados' do
+    allow(sender).to receive(:perform).and_raise(StandardError, 'boom')
+
+    recipient = dispatch('+5566992927211')
+
+    expect(recipient).to be_failed
+    expect(recipient.reason_code).to eq('erro_envio')
+  end
 end
