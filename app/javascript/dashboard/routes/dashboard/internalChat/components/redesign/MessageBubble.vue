@@ -706,7 +706,11 @@ const iReacted = emoji =>
                 class="max-w-[240px] max-h-[240px] rounded-2xl object-cover"
               />
             </a>
-            <AudioPlayer v-else-if="isAudio(att)" :src="att.url" />
+            <AudioPlayer
+              v-else-if="isAudio(att)"
+              :src="att.url"
+              :heard-key="message.mine ? null : att.id"
+            />
             <a
               v-else
               :href="att.url"

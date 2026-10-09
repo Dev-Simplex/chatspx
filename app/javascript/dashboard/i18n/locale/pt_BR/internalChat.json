@@ -128,7 +128,9 @@
       "SEEK": "Avançar ou voltar o áudio",
       "PLAY_ERROR": "Não foi possível tocar este áudio.",
       "DOWNLOAD": "Baixar",
-      "SENDING_PROGRESS": "Enviando {progress}%"
+      "SENDING_PROGRESS": "Enviando {progress}%",
+      "SPEED": "Velocidade {rate} · clique para mudar (1×, 1,5×, 2×)",
+      "NOT_HEARD": "Você ainda não ouviu este áudio"
     },
     "PRESENCE": {
       "ONLINE": "Online",

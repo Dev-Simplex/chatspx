@@ -128,7 +128,9 @@
       "SEEK": "Move forward or back in the audio",
       "PLAY_ERROR": "Couldn't play this audio.",
       "DOWNLOAD": "Download",
-      "SENDING_PROGRESS": "Sending {progress}%"
+      "SENDING_PROGRESS": "Sending {progress}%",
+      "SPEED": "Speed {rate} · click to change (1×, 1.5×, 2×)",
+      "NOT_HEARD": "You have not listened to this audio yet"
     },
     "PRESENCE": {
       "ONLINE": "Online",

@@ -1,16 +1,43 @@
 <script>
 // Um áudio por vez na tela: dar play num pausa o que estava tocando.
 let activeAudio = null;
+
+// Velocidade escolhida e áudios já ouvidos ficam no navegador (localStorage
+// pode faltar: aba anônima — aí só não lembra).
+const RATE_KEY = 'internal_chat_audio_rate';
+const HEARD_KEY = 'internal_chat_audio_heard';
+const RATES = [1, 1.5, 2];
+const HEARD_LIMIT = 500;
+const readStored = (key, fallback) => {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch (e) {
+    return fallback;
+  }
+};
+const store = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    // sem armazenamento
+  }
+};
+const storedRate = () => {
+  const rate = Number(readStored(RATE_KEY, 1));
+  return RATES.includes(rate) ? rate : 1;
+};
 </script>
 
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-defineProps({
+const props = defineProps({
   src: { type: String, required: true },
   // Ocupa a largura que sobrar (prévia no composer) em vez da largura fixa do balão.
   fluid: { type: Boolean, default: false },
+  // Áudio recebido: mostra o ponto de "ainda não ouvido" até dar play.
+  heardKey: { type: [String, Number], default: null },
 });
 
 const { t } = useI18n();
@@ -23,6 +50,34 @@ const current = ref(0);
 // Arquivo sem duração no cabeçalho (webm gravado no navegador): pular para o
 // fim força o navegador a calcular a duração; depois volta para o início.
 const fixingDuration = ref(false);
+
+// ── Velocidade 1× / 1,5× / 2× ────────────────────────────────────────────
+const rate = ref(storedRate());
+const rateLabel = computed(() => `${String(rate.value).replace('.', ',')}×`);
+const cycleRate = () => {
+  const next = RATES[(RATES.indexOf(rate.value) + 1) % RATES.length];
+  rate.value = next;
+  store(RATE_KEY, next);
+  if (audioRef.value) audioRef.value.playbackRate = next;
+};
+
+// ── Ouvido / não ouvido ──────────────────────────────────────────────────
+const heard = ref(
+  props.heardKey == null ||
+    readStored(HEARD_KEY, []).includes(String(props.heardKey))
+);
+const markHeard = () => {
+  if (heard.value) return;
+  heard.value = true;
+  const list = readStored(HEARD_KEY, []).filter(
+    k => k !== String(props.heardKey)
+  );
+  store(HEARD_KEY, [...list, String(props.heardKey)].slice(-HEARD_LIMIT));
+};
+const onPlaying = () => {
+  status.value = 'playing';
+  markHeard();
+};
 
 const formatTime = seconds => {
   if (!Number.isFinite(seconds)) return '--:--';
@@ -70,6 +125,9 @@ const toggle = () => {
   }
   if (activeAudio && activeAudio !== audio) activeAudio.pause();
   activeAudio = audio;
+  // A velocidade pode ter mudado em outro áudio desde o último play.
+  rate.value = storedRate();
+  audio.playbackRate = rate.value;
   status.value = 'loading';
   audio.play().catch(() => {
     status.value = 'error';
@@ -94,7 +152,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="flex items-center gap-3 max-w-full"
-    :class="fluid ? 'flex-1 min-w-0' : 'w-64'"
+    :class="fluid ? 'flex-1 min-w-0' : 'w-72'"
   >
     <audio
       ref="audioRef"
@@ -105,7 +163,7 @@ onBeforeUnmount(() => {
       @durationchange="onDurationChange"
       @timeupdate="onTimeUpdate"
       @waiting="status = 'loading'"
-      @playing="status = 'playing'"
+      @playing="onPlaying"
       @pause="status = status === 'error' ? 'error' : 'paused'"
       @ended="onEnded"
       @error="status = 'error'"
@@ -144,6 +202,14 @@ onBeforeUnmount(() => {
         <span v-else-if="status === 'playing'" class="i-lucide-pause" />
         <span v-else class="i-lucide-play" />
       </button>
+      <!-- Ainda não ouvido (áudio recebido): ponto como no WhatsApp -->
+      <span
+        v-if="!heard"
+        v-tooltip="t('INTERNAL_CHAT.AUDIO.NOT_HEARD')"
+        class="flex-shrink-0 -ml-2 rounded-full size-2 bg-n-teal-9"
+        :aria-label="t('INTERNAL_CHAT.AUDIO.NOT_HEARD')"
+        role="img"
+      />
       <div class="relative flex items-center flex-1 h-6 min-w-0 group">
         <!-- trilha na cor do texto: lê no balão verde e no cinza -->
         <div
@@ -175,6 +241,15 @@ onBeforeUnmount(() => {
       <span class="flex-shrink-0 text-xs tabular-nums opacity-75">
         {{ timeLabel }}
       </span>
+      <button
+        v-tooltip="t('INTERNAL_CHAT.AUDIO.SPEED', { rate: rateLabel })"
+        type="button"
+        class="flex-shrink-0 h-6 px-1.5 text-[11px] font-bold tabular-nums rounded-full transition-colors bg-[color-mix(in_srgb,currentColor_14%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_24%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-current"
+        :aria-label="t('INTERNAL_CHAT.AUDIO.SPEED', { rate: rateLabel })"
+        @click="cycleRate"
+      >
+        {{ rateLabel }}
+      </button>
     </template>
   </div>
 </template>
