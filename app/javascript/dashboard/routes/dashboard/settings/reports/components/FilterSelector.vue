@@ -1,11 +1,8 @@
 <script>
-import WootDateRangePicker from 'dashboard/components/ui/DateRangePicker.vue';
-import ReportsFiltersDateRange from './Filters/DateRange.vue';
+import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import ReportsFiltersDateGroupBy from './Filters/DateGroupBy.vue';
-import ReportsFiltersAgents from './Filters/Agents.vue';
+import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
 import ReportsFiltersLabels from './Filters/Labels.vue';
-import ReportsFiltersInboxes from './Filters/Inboxes.vue';
-import ReportsFiltersTeams from './Filters/Teams.vue';
 import ReportsFiltersRatings from './Filters/Ratings.vue';
 import subDays from 'date-fns/subDays';
 import { DATE_RANGE_OPTIONS } from '../constants';
@@ -14,13 +11,10 @@ import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 
 export default {
   components: {
-    WootDateRangePicker,
-    ReportsFiltersDateRange,
+    ReportPeriodPicker,
     ReportsFiltersDateGroupBy,
-    ReportsFiltersAgents,
+    ReportFiltersPopover,
     ReportsFiltersLabels,
-    ReportsFiltersInboxes,
-    ReportsFiltersTeams,
     ReportsFiltersRatings,
     ToggleSwitch,
   },
@@ -58,18 +52,42 @@ export default {
   data() {
     return {
       // default value, need not be translated
-      selectedDateRange: DATE_RANGE_OPTIONS.LAST_7_DAYS,
+      // o periodo vem sempre do ReportPeriodPicker, como intervalo de datas
+      selectedDateRange: DATE_RANGE_OPTIONS.CUSTOM_DATE_RANGE,
       selectedGroupByFilter: null,
       selectedLabel: null,
       selectedInbox: null,
       selectedTeam: null,
       selectedRating: null,
       selectedAgents: [],
-      customDateRange: [new Date(), new Date()],
+      customDateRange: [subDays(new Date(), 6), new Date()],
       businessHoursSelected: false,
     };
   },
   computed: {
+    // Caixa, time e atendente no botao Filtros (uma opcao por grupo), nos mesmos campos de antes.
+    popoverGroups() {
+      return [
+        this.showInboxFilter && 'inbox',
+        this.showTeamFilter && 'team',
+        this.showAgentsFilter && 'agent',
+      ].filter(Boolean);
+    },
+    popoverSelection: {
+      get() {
+        return {
+          inbox: this.selectedInbox?.id || null,
+          team: this.selectedTeam?.id || null,
+          agent: this.selectedAgents[0]?.id || null,
+        };
+      },
+      set(value) {
+        this.selectedInbox = value.inbox ? { id: value.inbox } : null;
+        this.selectedTeam = value.team ? { id: value.team } : null;
+        this.selectedAgents = value.agent ? [{ id: value.agent }] : [];
+        this.emitChange();
+      },
+    },
     isDateRangeSelected() {
       return (
         this.selectedDateRange.id === DATE_RANGE_OPTIONS.CUSTOM_DATE_RANGE.id
@@ -136,13 +154,8 @@ export default {
         selectedRating,
       });
     },
-    onDateRangeChange(selectedRange) {
-      this.selectedDateRange = selectedRange;
-      this.selectedGroupByFilter = this.validGroupBy;
-      this.emitChange();
-    },
-    onCustomDateRangeChange(value) {
-      this.customDateRange = value;
+    onPeriodChange([start, end]) {
+      this.customDateRange = [start, end];
       this.selectedGroupByFilter = this.validGroupBy;
       this.emitChange();
     },
@@ -150,20 +163,8 @@ export default {
       this.selectedGroupByFilter = payload;
       this.emitChange();
     },
-    handleAgentsFilterSelection(selectedAgents) {
-      this.selectedAgents = selectedAgents;
-      this.emitChange();
-    },
     handleLabelsFilterSelection(selectedLabel) {
       this.selectedLabel = selectedLabel;
-      this.emitChange();
-    },
-    handleInboxFilterSelection(selectedInbox) {
-      this.selectedInbox = selectedInbox;
-      this.emitChange();
-    },
-    handleTeamFilterSelection(selectedTeam) {
-      this.selectedTeam = selectedTeam;
       this.emitChange();
     },
     handleRatingFilterSelection(selectedRating) {
@@ -175,22 +176,14 @@ export default {
 </script>
 
 <template>
-  <div
-    class="bg-n-solid-1 border border-n-weak rounded-xl px-4 py-4 relative z-30 mb-6"
-  >
+  <div class="relative z-30">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div
         class="w-full grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"
       >
-        <ReportsFiltersDateRange @on-range-change="onDateRangeChange" />
-        <WootDateRangePicker
-          v-if="isDateRangeSelected"
-          show-range
-          class="no-margin auto-width"
-          :value="customDateRange"
-          :confirm-text="$t('REPORT.CUSTOM_DATE_RANGE.CONFIRM')"
-          :placeholder="$t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER')"
-          @change="onCustomDateRangeChange"
+        <ReportPeriodPicker
+          v-model:date-range="customDateRange"
+          @date-range-changed="onPeriodChange"
         />
         <ReportsFiltersDateGroupBy
           v-if="showGroupByFilter && isGroupByPossible"
@@ -198,21 +191,15 @@ export default {
           :selected-option="selectedGroupByFilter"
           @on-grouping-change="onGroupingChange"
         />
-        <ReportsFiltersAgents
-          v-if="showAgentsFilter"
-          @agents-filter-selection="handleAgentsFilterSelection"
+        <ReportFiltersPopover
+          v-if="popoverGroups.length"
+          v-model="popoverSelection"
+          :groups="popoverGroups"
+          :period="{ since: from, until: to }"
         />
         <ReportsFiltersLabels
           v-if="showLabelsFilter"
           @labels-filter-selection="handleLabelsFilterSelection"
-        />
-        <ReportsFiltersTeams
-          v-if="showTeamFilter"
-          @team-filter-selection="handleTeamFilterSelection"
-        />
-        <ReportsFiltersInboxes
-          v-if="showInboxFilter"
-          @inbox-filter-selection="handleInboxFilterSelection"
         />
         <ReportsFiltersRatings
           v-if="showRatingFilter"

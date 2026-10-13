@@ -272,6 +272,52 @@ pt_BR:
   reports:
     period: Reportando o período %{since} a %{until}
     utc_warning: O relatório gerado está em fuso horário UTC
+    assignment_csv:
+      headers:
+        display_id: Conversa
+        contact: Contato
+        inbox: Caixa de entrada
+        assignee: Quem recebeu
+        assigned_by: Quem passou
+        source: Como
+        team: Time
+        assigned_at: Quando
+      source:
+        manual: Alguém passou
+        self_assigned: Pegou para si
+        auto_round_robin: Automática (rodízio)
+        automation: Regra de automação
+        bot: IA / robô
+        api: API
+        unknown: Origem desconhecida
+    drilldown_csv:
+      headers:
+        display_id: Conversa
+        contact: Contato
+        inbox: Caixa de entrada
+        agent: Agente
+        team: Time
+        status: Status
+        created_at: Criada em
+        value_at: Contada em
+      value:
+        conversations_count: Conversas
+        resolved_conversations_count: Conversas resolvidas
+        incoming_messages_count: Mensagens recebidas
+        outgoing_messages_count: Mensagens enviadas
+        avg_first_response_time: Tempo de primeira resposta (segundos)
+        avg_first_response_time_after_assignment: Primeira resposta após atribuição (segundos)
+        avg_resolution_time: Tempo de resolução (segundos)
+        resolutions_count: Tempo de resolução (segundos)
+        reply_time: Tempo de espera do cliente (segundos)
+        waiting: Esperando há (segundos)
+        bot_resolutions_count: Resolvida pelo robô
+        bot_handoffs_count: Passada pelo robô
+      status:
+        open: Aberta
+        resolved: Resolvida
+        pending: Pendente
+        snoozed: Adiada
     agent_csv:
       agent_name: Nome do Agente
       conversations_count: Conversas atribuídas

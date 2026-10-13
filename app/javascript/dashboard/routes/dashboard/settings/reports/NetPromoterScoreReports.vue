@@ -11,10 +11,12 @@ import V4Button from 'dashboard/components-next/button/Button.vue';
 import ReportHeader from './components/ReportHeader.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
+import NpsOverviewVisuals from 'dashboard/components-next/reports/nps/NpsOverviewVisuals.vue';
 
 export default {
   name: 'NetPromoterScoreReports',
   components: {
+    NpsOverviewVisuals,
     NpsMetrics,
     NpsTable,
     ReportFilterSelector,
@@ -42,6 +44,16 @@ export default {
     }),
     npsSignals() {
       return this.npsMetrics.signals || [];
+    },
+    // Com menos respostas que o minimo, a nota ainda nao diz nada: a frase avisa isso (igual ao PDF).
+    npsVerdict() {
+      const { total_count: total, reliable } = this.npsMetrics;
+      if (!total || reliable !== false) return null;
+      return {
+        level: 'warn',
+        title: this.$t('REPORT.VERDICT.NPS_LOW_SAMPLE_TITLE'),
+        text: this.$t('REPORT.VERDICT.NPS_LOW_SAMPLE_TEXT', { n: total }),
+      };
     },
     requestPayload() {
       return {
@@ -134,18 +146,20 @@ export default {
         @click="downloadReports"
       />
     </div>
+    <template #filters>
+      <ReportFilterSelector
+        show-agents-filter
+        show-inbox-filter
+        :show-team-filter="isTeamsEnabled"
+        :show-business-hours-switch="false"
+        @filter-change="onFilterChange"
+      />
+    </template>
   </ReportHeader>
 
-  <div class="flex flex-col gap-6">
-    <ReportFilterSelector
-      show-agents-filter
-      show-inbox-filter
-      :show-team-filter="isTeamsEnabled"
-      :show-business-hours-switch="false"
-      @filter-change="onFilterChange"
-    />
-
-    <ReportNarrativeSummary :signals="npsSignals" />
+  <div class="flex flex-col gap-4">
+    <NpsOverviewVisuals :filters="requestPayload" />
+    <ReportNarrativeSummary :signals="npsSignals" :verdict="npsVerdict" />
     <NpsMetrics :filters="requestPayload" />
     <NpsTable
       :page-index="pageIndex"

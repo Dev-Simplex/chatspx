@@ -46,6 +46,53 @@ class SummaryReportsAPI extends ApiClient {
     });
   }
 
+  // As atribuicoes por tras de um numero da tabela de Atribuicoes (painel de detalhe).
+  getAgentAssignmentList({
+    from,
+    to,
+    teamId,
+    inboxId,
+    kind,
+    userId,
+    toId,
+    page = 1,
+  } = {}) {
+    return axios.get(`${this.url}/agent_assignment_list`, {
+      params: {
+        since: from,
+        until: to,
+        team_id: teamId || undefined,
+        inbox_id: inboxId || undefined,
+        kind,
+        user_id: userId,
+        to_id: toId || undefined,
+        page,
+      },
+    });
+  }
+
+  getAgentAssignmentListCsv({
+    from,
+    to,
+    teamId,
+    inboxId,
+    kind,
+    userId,
+    toId,
+  } = {}) {
+    return axios.get(`${this.url}/agent_assignment_list.csv`, {
+      params: {
+        since: from,
+        until: to,
+        team_id: teamId || undefined,
+        inbox_id: inboxId || undefined,
+        kind,
+        user_id: userId,
+        to_id: toId || undefined,
+      },
+    });
+  }
+
   getInboxReports({ since, until, businessHours, inboxId } = {}) {
     return axios.get(`${this.url}/inbox`, {
       params: {

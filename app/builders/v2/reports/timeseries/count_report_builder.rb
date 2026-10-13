@@ -15,6 +15,11 @@ class V2::Reports::Timeseries::CountReportBuilder < V2::Reports::Timeseries::Bas
     object_scope.count
   end
 
+  # O mesmo recorte do numero, para a lista de conversas por tras dele (V2::Reports::Conversations::DrilldownBuilder).
+  def drilldown_scope
+    object_scope
+  end
+
   private
 
   def metric

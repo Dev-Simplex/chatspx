@@ -49,7 +49,7 @@ class Reports::PdfExportService
         # qualquer leitor. margin_top reserva o espaco; margin_bottom o rodape.
         header_template: header_template(title),
         footer_template: footer_template,
-        margin_top: 0.62,    # ~16mm: faixa de marca
+        margin_top: 0.62,    # ~16mm: faixa de marca + respiro para o conteudo da pagina seguinte
         margin_bottom: 0.43, # ~11mm: rodape de paginacao
         margin_left: 0,
         margin_right: 0
@@ -60,14 +60,9 @@ class Reports::PdfExportService
   # Faixa verde full-bleed (badge ChatSPX + titulo) repetida no topo de toda pagina.
   # print-color-adjust:exact garante o verde no print.
   # O Chromium reserva ~0.4cm de margem branca acima do header impresso; o
-  # margin-top negativo (folgado) faz o verde sangrar ate a borda da pagina
-  # (elimina QUALQUER "linha branca" no topo — o excedente e cortado na borda
-  # fisica). O padding-top recoloca o conteudo no centro da faixa visivel.
-  #
-  # A altura extra e de 0.15cm, nao mais 0.8cm: o header e pintado POR CIMA do
-  # conteudo, e o que sobrava para baixo engolia a primeira linha de toda pagina
-  # que nao fosse a capa (titulo de secao sumia). Conta medida com regua:
-  # fundo_da_faixa = margin_top + extra - 2mm.
+  # margin-top negativo (folgado) + altura extra fazem o verde sangrar ate a borda
+  # da pagina (elimina QUALQUER "linha branca" no topo — o excedente e cortado na
+  # borda fisica). O padding-top recoloca o conteudo no centro da faixa visivel.
   def header_template(title)
     icon = pdf_public_image_data_uri('android-icon-36x36.png')
     # Icone ChatSPX (verde) recolorido p/ branco via filtro — fundo 100% verde, sem badge.
@@ -75,7 +70,7 @@ class Reports::PdfExportService
                  'filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1);'
     icon_html = icon ? %(<img src="#{icon}" style="#{icon_style}">) : ''
     <<~HTML
-      <div style="width:100%;height:calc(100% + 0.15cm);margin-top:-0.7cm;
+      <div style="width:100%;height:calc(16mm + 0.3cm);margin-top:-0.7cm;
                   padding:0.7cm 14mm 0;box-sizing:border-box;
                   background:#1ea65b;-webkit-print-color-adjust:exact;print-color-adjust:exact;
                   color:#ffffff;font-family:Arial,sans-serif;display:flex;align-items:center;

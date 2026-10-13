@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { formatPercent } from 'dashboard/helper/reportFormat';
 import { CSAT_RATINGS } from 'shared/constants/messages';
 
 const props = defineProps({
@@ -28,11 +29,10 @@ const sortedRatings = computed(() =>
   [...CSAT_RATINGS].sort((a, b) => b.value - a.value)
 );
 
-const formatPercent = value => (value ? `${value}%` : '0%');
-
 const getRatingLabel = value => {
   const rating = CSAT_RATINGS.find(r => r.value === value);
-  return rating ? t(rating.translationKey) : '';
+  // Nota + carinha e nome: "5 · 😍 Excelente" (so o nome nao dizia que nota era; a carinha ja vem na traducao).
+  return rating ? `${value} · ${t(rating.translationKey)}` : '';
 };
 
 const getRatingCount = value => {
@@ -42,7 +42,7 @@ const getRatingCount = value => {
 
 <template>
   <div
-    class="shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 px-6 py-5"
+    class="relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] px-6 py-5"
   >
     <span class="text-sm font-medium text-n-slate-11">
       {{ $t('CSAT_REPORTS.METRIC.RATING_DISTRIBUTION') }}

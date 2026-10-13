@@ -33,14 +33,21 @@ class Reports::MetricSignalsBuilder
   attr_reader :summary, :previous, :benchmarks
 
   # Traduz o summary de Conversas em entradas {metric, value, prev} para o SignalSet.
+  # Sem conversa ou sem tempo medido não há veredito: "--" não está "dentro da meta".
   def entries
-    METRICS.map do |config|
+    METRICS.select { |config| data?(config) }.map do |config|
       {
         metric: config[:metric],
         value: value_for(config, summary),
         prev: previous.present? ? value_for(config, previous) : nil
       }
     end
+  end
+
+  def data?(config)
+    return summary[:conversations_count].to_i.positive? if config[:kind] == :rate
+
+    summary[config[:key]].to_f.positive?
   end
 
   def normalize(hash)

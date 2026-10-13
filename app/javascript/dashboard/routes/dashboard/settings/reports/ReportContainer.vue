@@ -5,12 +5,13 @@ import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import { GROUP_BY_FILTER, METRIC_CHART } from './constants';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import format from 'date-fns/format';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration } from 'dashboard/helper/reportFormat';
 import ChartStats from './components/ChartElements/ChartStats.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
 export default {
-  components: { ChartStats, BarChart },
+  components: { ChartStats, BarChart, ReportDrilldownPanel },
   props: {
     groupBy: {
       type: Object,
@@ -23,6 +24,12 @@ export default {
     summaryFetchingKey: {
       type: String,
       default: 'getAccountSummaryFetchingStatus',
+    },
+    // Filtros da tela ({ from, to, type, id, businessHours, inboxId }): com eles, cada numero abre
+    // a lista de conversas por tras dele.
+    drilldownFilters: {
+      type: Object,
+      default: null,
     },
     reportKeys: {
       type: Object,
@@ -43,13 +50,15 @@ export default {
     const { calculateTrend, isAverageMetricType } = useReportMetrics(
       props.accountSummaryKey
     );
-    const { signalForReportKey, phraseFor } = useReportNarrative();
+    const { signalForReportKey } = useReportNarrative();
     return {
       calculateTrend,
       isAverageMetricType,
       signalForReportKey,
-      phraseFor,
     };
+  },
+  data() {
+    return { drilldownMetric: null };
   },
   computed: {
     ...mapGetters({
@@ -84,6 +93,52 @@ export default {
     },
   },
   methods: {
+    // Numero zerado (ou tempo "--") nao tem conversa para mostrar: nem link, nem "Ver conversas".
+    hasData(metric) {
+      return Number(this.accountSummary[metric.KEY]) > 0;
+    },
+    // "Como ler" + o ponto mais alto e o mais baixo do grafico, em frase.
+    chartCaption(metric) {
+      const data = (this.accountReport.data[metric.KEY] || []).filter(
+        point => point.value !== null && point.value !== undefined
+      );
+      if (data.length < 2) return '';
+      const labels = this.getCollection(metric).labels || [];
+      const all = this.accountReport.data[metric.KEY];
+      const isTime = this.isAverageMetricType(metric.KEY);
+      const show = value =>
+        isTime
+          ? formatDuration(value, this.$t)
+          : Number(value).toLocaleString();
+      const ranked = (isTime ? data.filter(point => point.value > 0) : data)
+        .slice()
+        .sort((a, b) => b.value - a.value);
+      if (ranked.length < 2) return '';
+      const high = ranked[0];
+      const low = ranked[ranked.length - 1];
+      // Tudo zerado nao tem o que contar; tudo igual, diz isso em vez de "o mais alto e o mais baixo".
+      if (!high.value) return '';
+      const period = this.groupBy?.period || 'day';
+      const how = this.$t(
+        `REPORT.CHART_CAPTION.${isTime ? 'HOW_TIME' : 'HOW_COUNT'}.${period.toUpperCase()}`
+      );
+      if (high.value === low.value) {
+        return `${how} ${this.$t('REPORT.CHART_CAPTION.ALL_EQUAL', { value: show(high.value) })}`;
+      }
+      const peak = this.$t(
+        `REPORT.CHART_CAPTION.${isTime ? 'PEAK_TIME' : 'PEAK_COUNT'}`,
+        {
+          high: labels[all.indexOf(high)],
+          highValue: show(high.value),
+          low: labels[all.indexOf(low)],
+          lowValue: show(low.value),
+        }
+      );
+      return `${how} ${peak}`;
+    },
+    openDrilldown(metric) {
+      this.drilldownMetric = { key: metric.KEY, name: metric.NAME };
+    },
     getMetricMax(metric) {
       const data = this.accountReport.data[metric.KEY] || [];
       const values = data.map(element => element.value || 0);
@@ -104,18 +159,18 @@ export default {
           const last_day = first_day + 6;
           const week_first_date = new Date(week_date.setDate(first_day));
           const week_last_date = new Date(week_date.setDate(last_day));
-          return `${format(week_first_date, 'dd-MMM')} - ${format(
+          return `${format(week_first_date, 'dd/MM')} - ${format(
             week_last_date,
-            'dd-MMM'
+            'dd/MM'
           )}`;
         }
         if (this.groupBy?.period === GROUP_BY_FILTER[3].period) {
-          return format(fromUnixTime(element.timestamp), 'MMM-yyyy');
+          return format(fromUnixTime(element.timestamp), 'MM/yyyy');
         }
         if (this.groupBy?.period === GROUP_BY_FILTER[4].period) {
           return format(fromUnixTime(element.timestamp), 'yyyy');
         }
-        return format(fromUnixTime(element.timestamp), 'dd-MMM');
+        return format(fromUnixTime(element.timestamp), 'dd/MM');
       });
       const datasets = METRIC_CHART[metric.KEY].datasets.map(dataset => {
         switch (dataset.type) {
@@ -160,6 +215,30 @@ export default {
         },
       };
 
+      // Eixos com nome: no grafico de tempo ha dois (tempo a esquerda, conversas a direita).
+      const axisTitle = text => ({ display: true, text, color: '#8696a0' });
+      if (options.scales?.y) {
+        options.scales.y.title = axisTitle(
+          this.$t(
+            this.isAverageMetricType(metric.KEY)
+              ? 'REPORT.CHART_AXIS.AVERAGE_TIME'
+              : 'REPORT.CHART_AXIS.QUANTITY'
+          )
+        );
+      }
+      if (options.scales?.y1) {
+        options.scales.y1.title = axisTitle(
+          this.$t('REPORT.CHART_AXIS.CONVERSATIONS')
+        );
+      }
+      if (this.isAverageMetricType(metric.KEY) && options.scales?.y) {
+        const tickCallback = options.scales.y.ticks.callback;
+        options.scales.y.ticks.callback = (value, index, ticks) =>
+          tickCallback(value, index, ticks) === ''
+            ? ''
+            : formatDuration(value, this.$t);
+      }
+
       const { valueMax, countMax } = this.getMetricMax(metric);
       if (options.scales?.y && valueMax > 0) {
         options.scales.y.suggestedMax = Math.ceil(valueMax * 1.1);
@@ -178,7 +257,7 @@ export default {
                   return `${this.$t('REPORT.METRICS.CONVERSATIONS.NAME')}: ${raw}`;
                 }
                 return this.$t(metric.TOOLTIP_TEXT, {
-                  metricValue: formatTime(raw || 0),
+                  metricValue: formatDuration(raw || 0, this.$t),
                   conversationCount:
                     this.accountReport.data[metric.KEY][dataIndex]?.count || 0,
                 });
@@ -195,11 +274,11 @@ export default {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
     <div
       v-for="metric in metrics"
       :key="metric.KEY"
-      class="flex flex-col gap-4 bg-n-solid-1 border border-n-weak rounded-xl p-5"
+      class="flex flex-col gap-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
     >
       <div class="flex items-start justify-between gap-4">
         <div class="flex flex-col gap-2">
@@ -208,10 +287,21 @@ export default {
             :signal="metric.signal"
             :account-summary-key="accountSummaryKey"
             :summary-fetching-key="summaryFetchingKey"
+            :clickable="!!drilldownFilters && hasData(metric)"
+            @select="openDrilldown(metric)"
           />
           <span v-if="metric.DESC" class="text-sm text-n-slate-10">
             {{ metric.DESC }}
           </span>
+          <button
+            v-if="drilldownFilters && hasData(metric)"
+            type="button"
+            class="flex items-center gap-1 p-0 m-0 text-sm font-medium text-n-brand hover:underline w-fit"
+            @click="openDrilldown(metric)"
+          >
+            <span class="i-lucide-list size-4" />
+            {{ $t('REPORT.DRILLDOWN.OPEN') }}
+          </button>
         </div>
       </div>
       <div class="h-72 rounded-xl p-2">
@@ -231,9 +321,18 @@ export default {
           </span>
         </div>
       </div>
-      <p v-if="metric.signal" class="text-xs text-n-slate-11 -mt-2 px-1">
-        {{ phraseFor(metric.signal) }}
+      <p
+        v-if="chartCaption(metric)"
+        class="text-sm text-n-slate-11 -mt-2 px-1 leading-relaxed"
+      >
+        {{ chartCaption(metric) }}
       </p>
     </div>
+    <ReportDrilldownPanel
+      v-if="drilldownMetric && drilldownFilters"
+      :metric="drilldownMetric"
+      :filters="drilldownFilters"
+      @close="drilldownMetric = null"
+    />
   </div>
 </template>

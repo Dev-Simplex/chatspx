@@ -1,89 +1,144 @@
+<%# Robô no estilo do PDF de Conversas: manchete, "O robô resolveu sozinho?", dia a dia, cada caixa com robô e quais
+    conversas ele passou para uma pessoa. %>
 <%
   k = @data[:kpis]
   resolution_rate = k[:resolution_rate].to_f
   handoff_rate = k[:handoff_rate].to_f
-
+  conversations = k[:conversations].to_i
   resolutions_series = @data.dig(:timeseries, :resolutions)
   handoffs_series = @data.dig(:timeseries, :handoffs)
-  inboxes = @data[:inboxes]
+  inboxes = @data[:inboxes] || []
+  handoffs = @data[:handoffs] || []
+  most = inboxes.map { |row| row[:conversations].to_i }.max.to_f
+
+  headline =
+    if conversations.zero?
+      { emoji: '🤔', text: 'Nenhuma conversa passou pelo robô no período.' }
+    else
+      { emoji: '🤖', text: "#{number_with_delimiter(conversations)} conversas passaram pelo robô. Ele resolveu #{resolution_rate.round}% sozinho e passou #{handoff_rate.round}% para uma pessoa." }
+    end
 %>
 
-<%# ---------- Veredito (cards: resolução e handoff) ---------- %>
-<% if @data[:verdict] %>
-  <div class="section">
-    <div class="verdict-grid">
-      <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
-      <% if @data[:verdict_secondary] %>
-        <%= render 'reports/pdf/verdict', v: @data[:verdict_secondary] %>
-      <% end %>
-    </div>
-  </div>
-<% end %>
-
-<%# ---------- KPIs ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'Taxa de resolução', value: "#{resolution_rate.round}%", hero: true, hint: 'resolvidas pelo bot' },
-    { label: 'Conversas do bot', value: number_with_delimiter(k[:conversations]) },
-    { label: 'Mensagens', value: number_with_delimiter(k[:messages]) },
-    { label: 'Taxa de handoff', value: "#{handoff_rate.round}%", modifier: 'is-passive', hint: 'transferidas à equipe' },
-    { label: 'Resoluções', value: number_with_delimiter(k[:resolutions]), modifier: 'is-promoter' },
-    { label: 'Transferências', value: number_with_delimiter(k[:handoffs]) },
-  ] %>
+<div class="clarity-legend">
+  <span><span class="status-dot status-dot--good"></span> bom</span>
+  <span><span class="status-dot status-dot--warn"></span> atenção</span>
+  <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
 </div>
 
-<%# ---------- Resolucoes por dia ---------- %>
-<% if resolutions_series.present? %>
+<%= render 'reports/pdf/plain_verdict', verdict: @data[:plain_verdict] if @data[:plain_verdict] %>
+<%= render 'reports/pdf/headline', headline: headline %>
+
+<% if conversations.positive? %>
+  <%# ============ 1. O ROBÔ RESOLVEU SOZINHO? ============ %>
   <div class="section">
-    <div class="section-title"><span class="dot">1</span> Resoluções por dia</div>
-    <div class="card">
-      <%= pdf_bar_chart(resolutions_series, color: '#2dc46f') %>
-      <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'conversas resolvidas pelo bot no dia' }] %>
+    <div class="narrative-title"><span class="q">1.</span> O robô resolveu sozinho?</div>
+    <div class="hero-row">
+      <%= render 'reports/pdf/hero_stat',
+            value: "#{resolution_rate.round}%", value_class: 'is-neutral',
+            label: 'Resolveu sozinho', caption: "#{number_with_delimiter(k[:resolutions])} conversas sem precisar de uma pessoa" %>
+      <%= render 'reports/pdf/composition_bar', title: 'Das conversas com o robô', segments: [
+        { label: 'Resolveu sozinho', value: k[:resolutions].to_i, color: '#2dc46f' },
+        { label: 'Passou para uma pessoa', value: k[:handoffs].to_i, color: '#ffc53d' },
+      ] %>
     </div>
   </div>
-<% end %>
 
-<%# ---------- Transferencias por dia ---------- %>
-<% if handoffs_series.present? %>
   <div class="section">
-    <div class="section-title"><span class="dot">2</span> Transferências por dia</div>
-    <div class="card">
-      <%= pdf_bar_chart(handoffs_series, color: '#ffc53d') %>
-      <%= render 'reports/pdf/chart_legend', items: [{ color: '#ffc53d', label: 'conversas transferidas para a equipe no dia' }] %>
-    </div>
+    <%= render 'reports/pdf/kpi_band', cards: [
+      { label: 'Conversas com o robô', value: number_with_delimiter(conversations), hero: true, meaning: 'chegaram numa caixa com robô ligado' },
+      { label: 'Mensagens', value: number_with_delimiter(k[:messages]), meaning: 'enviadas aos clientes nessas conversas' },
+      { label: 'Resolveu sozinho', value: number_with_delimiter(k[:resolutions]), modifier: 'is-promoter', meaning: "#{resolution_rate.round}% das conversas" },
+      { label: 'Passou para uma pessoa', value: number_with_delimiter(k[:handoffs]), modifier: 'is-passive', meaning: "#{handoff_rate.round}% das conversas" },
+    ] %>
   </div>
-<% end %>
 
-<%# ---------- Desempenho por caixa ---------- %>
-<div class="section">
-  <div class="section-title"><span class="dot">3</span> Desempenho por caixa</div>
-  <% if inboxes.present? %>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table', table: {
-        columns: [
-          { label: 'Caixa' },
-          { label: 'Conversas', align: 'right' },
-          { label: 'Resoluções', align: 'right' },
-          { label: 'Transferências', align: 'right' },
-          { label: 'Taxa resolução', align: 'right' }
-        ],
-        rows: inboxes.first(18).map { |row|
-          [row[:name], number_with_delimiter(row[:conversations]),
-           number_with_delimiter(row[:resolutions]), number_with_delimiter(row[:handoffs]),
-           "#{row[:resolution_rate].to_f.round}%"]
-        }
-      } %>
+  <% if @data[:verdict] %>
+    <div class="section">
+      <div class="verdict-grid">
+        <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
+        <%= render 'reports/pdf/verdict', v: @data[:verdict_secondary] if @data[:verdict_secondary] %>
+      </div>
     </div>
-  <% else %>
-    <%= render 'reports/pdf/callout', variant: 'neutral',
-          title: 'Sem caixas com bot ativo',
-          body: 'Nenhuma caixa de entrada teve o bot ativo no período analisado.' %>
   <% end %>
-</div>
 
-<%# ---------- Conclusao (data-driven) ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/conclusion',
-        title: 'Leitura executiva',
-        body: raw("A automação resolveu <span class=\"hl\">#{resolution_rate.round}%</span> das #{number_with_delimiter(k[:conversations])} conversas atendidas, totalizando <span class=\"hl\">#{number_with_delimiter(k[:resolutions])} resoluções</span> sem intervenção humana e <span class=\"hl\">#{number_with_delimiter(k[:handoffs])} transferências</span> (#{handoff_rate.round}%) encaminhadas à equipe. #{resolution_rate >= 60 ? 'O patamar indica fluxos bem cobertos; mantenha o monitoramento das transferências para preservar o índice.' : 'Revisar os fluxos das transferências mais frequentes tende a elevar a taxa de resolução automática.'}") %>
-</div>
+  <%# ============ 2. DIA A DIA ============ %>
+  <% if resolutions_series.present? %>
+    <div class="section">
+      <div class="narrative-title"><span class="q">2.</span> Quantas o robô resolveu em cada dia?</div>
+      <div class="card">
+        <%= pdf_bar_chart(resolutions_series, color: '#2dc46f') %>
+        <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'cada barra é um dia: conversas que o robô resolveu sozinho' }] %>
+      </div>
+    </div>
+  <% end %>
+
+  <% if handoffs_series.present? %>
+    <div class="section">
+      <div class="narrative-title"><span class="q">3.</span> Quantas o robô passou para uma pessoa em cada dia?</div>
+      <div class="card">
+        <%= pdf_bar_chart(handoffs_series, color: '#ffc53d') %>
+        <%= render 'reports/pdf/chart_legend', items: [{ color: '#ffc53d', label: 'cada barra é um dia: conversas que o robô passou para um atendente' }] %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# ============ 4. CADA CAIXA COM ROBÔ ============ %>
+  <% if inboxes.any? %>
+    <div class="section">
+      <div class="narrative-title"><span class="q">4.</span> Como foi cada caixa com robô?</div>
+      <div class="card" style="padding: 2mm 4mm;">
+        <table class="cl-table">
+          <colgroup><col style="width: 28%;"><col style="width: 32%;"><col style="width: 13%;"><col style="width: 14%;"><col style="width: 13%;"></colgroup>
+          <thead><tr><th>Caixa</th><th>Conversas</th><th>Resolveu sozinho</th><th>Passou para uma pessoa</th><th>Resolveu (de cada 100)</th></tr></thead>
+          <tbody>
+            <% inboxes.first(18).each do |row| %>
+              <tr>
+                <td class="cl-wrap"><strong><%= row[:name] %></strong></td>
+                <td>
+                  <div class="cl-track">
+                    <div class="cl-fill" style="width: <%= most.positive? ? [((row[:conversations].to_f / most) * 100).round, 3].max : 3 %>%;"></div>
+                    <span class="cl-value"><%= number_with_delimiter(row[:conversations]) %></span>
+                  </div>
+                </td>
+                <td><%= number_with_delimiter(row[:resolutions]) %></td>
+                <td><%= number_with_delimiter(row[:handoffs]) %></td>
+                <td><%= row[:resolution_rate].to_f.round %>%</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+
+  <%# ============ 5. QUAIS O ROBÔ PASSOU PARA UMA PESSOA? ============ %>
+  <% if handoffs.any? %>
+    <div class="section">
+      <div class="narrative-title"><span class="q">5.</span> Quais conversas o robô passou para uma pessoa?</div>
+      <div class="card" style="padding: 2mm 4mm;">
+        <table class="cl-table">
+          <colgroup><col style="width: 11%;"><col style="width: 23%;"><col style="width: 22%;"><col style="width: 20%;"><col style="width: 12%;"><col style="width: 12%;"></colgroup>
+          <thead><tr><th>Conversa</th><th>Cliente</th><th>Caixa</th><th>Atendente</th><th>Situação</th><th>Quando</th></tr></thead>
+          <tbody>
+            <% handoffs.each do |row| %>
+              <tr>
+                <td><%= row[:id] %></td>
+                <td class="cl-wrap"><%= row[:contact] %></td>
+                <td class="cl-wrap"><%= row[:inbox] %></td>
+                <td class="cl-wrap"><%= row[:agent] %></td>
+                <td><%= row[:status] %></td>
+                <td class="muted"><%= row[:date] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin: 2mm 0 0; font-size: 10px; color: #667781;">As <%= handoffs.size %> mais recentes. A lista completa está no sistema (clique no número).</p>
+    </div>
+  <% end %>
+<% else %>
+  <div class="section">
+    <%= render 'reports/pdf/callout', variant: 'neutral', title: 'Nenhuma caixa com robô ligado',
+          body: 'Nenhuma conversa passou pelo robô no período. Para usar, ligue um robô em uma caixa de entrada.' %>
+  </div>
+<% end %>

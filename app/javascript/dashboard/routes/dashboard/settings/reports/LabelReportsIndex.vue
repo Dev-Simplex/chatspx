@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import ReportHeader from './components/ReportHeader.vue';
 import SummaryReports from './components/SummaryReports.vue';
+import EntityOverviewVisuals from 'dashboard/components-next/reports/entities/EntityOverviewVisuals.vue';
 import V4Button from 'dashboard/components-next/button/Button.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 
@@ -37,6 +38,8 @@ const onFilterChange = ({ from, to, businessHours, inboxId }) => {
       />
     </div>
   </ReportHeader>
+
+  <EntityOverviewVisuals type="label" />
 
   <SummaryReports
     ref="summarReportsRef"

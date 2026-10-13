@@ -57,6 +57,55 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  // As conversas por tras de um numero do relatorio (painel de detalhe).
+  getDrilldown({
+    metric,
+    from,
+    to,
+    type = 'account',
+    id,
+    businessHours,
+    inboxId,
+    page = 1,
+  }) {
+    return axios.get(`${this.url}/drilldown`, {
+      params: {
+        metric,
+        since: from,
+        until: to,
+        type,
+        id,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+        timezone_offset: getTimeOffset(),
+        page,
+      },
+    });
+  }
+
+  getDrilldownCsv({
+    metric,
+    from,
+    to,
+    type = 'account',
+    id,
+    businessHours,
+    inboxId,
+  }) {
+    return axios.get(`${this.url}/drilldown.csv`, {
+      params: {
+        metric,
+        since: from,
+        until: to,
+        type,
+        id,
+        business_hours: businessHours,
+        inbox_id: inboxId || undefined,
+        timezone_offset: getTimeOffset(),
+      },
+    });
+  }
+
   getConversationMetric(type = 'account', page = 1) {
     return axios.get(`${this.url}/conversations`, {
       params: {
@@ -129,6 +178,13 @@ class ReportsAPI extends ApiClient {
         business_hours: businessHours,
         inbox_id: inboxId || undefined,
       },
+    });
+  }
+
+  // Um numero aberto por grupo: kind = csat_by_agent | nps_by_team | sla_by_policy | sla_by_team.
+  getBreakdown({ kind, from, to, inboxId } = {}) {
+    return axios.get(`${this.url}/breakdown`, {
+      params: { kind, since: from, until: to, inbox_id: inboxId || undefined },
     });
   }
 

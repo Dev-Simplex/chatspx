@@ -731,6 +731,7 @@ Rails.application.routes.draw do
             collection do
               get :agent
               get :agent_assignment
+              get :agent_assignment_list
               get :team
               get :inbox
               get :label
@@ -741,6 +742,8 @@ Rails.application.routes.draw do
             collection do
               get :summary
               get :bot_summary
+              get :drilldown
+              get :breakdown
               get :agents
               get :inboxes
               get :labels
@@ -759,6 +762,7 @@ Rails.application.routes.draw do
             collection do
               get :conversation_metrics
               get :grouped_conversation_metrics
+              get :conversation_list
               get :in_service_overview
               get :in_service_conversations
             end
