@@ -585,20 +585,20 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def create_messages
-    content = normalize_response_content(@response['response'])
+    content = conteudo_da_resposta
     return log_ignored(content) if no_reply?(content)
 
     if unknown_marker?(content)
       return unless regenerate_after_unknown_marker(content)
 
-      content = normalize_response_content(@response['response'])
+      content = conteudo_da_resposta
       return if no_reply?(content)
     end
 
     if skip_duplicate?(content)
       return unless regenerate_to_avoid_repeat
 
-      content = normalize_response_content(@response['response'])
+      content = conteudo_da_resposta
       return log_ignored(content) if no_reply?(content)
       return if skip_duplicate?(content)
     end
@@ -684,6 +684,27 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def unknown_marker?(content)
     content.to_s.strip.match?(UNKNOWN_MARKER)
+  end
+
+  def conteudo_da_resposta
+    sem_marcadores_soltos(normalize_response_content(@response['response']))
+  end
+
+  # O marcador também vem MISTURADO com texto: o histórico mostra cada carrossel como
+  # "[carrossel de fotos do imóvel X enviado]" e o agente copia o rótulo antes da fala dele. A
+  # checagem acima só olha a resposta inteira, e o humanizer quebrava "marcador + frase" em balões,
+  # mandando o marcador sozinho ao cliente (10 vezes em 30 dias na Tozi; conv 44248). Aqui sai a
+  # linha que é só marcador. Resposta que é SÓ marcador fica como veio, para o [IGNORAR] e a
+  # regeneração acima continuarem decidindo.
+  def sem_marcadores_soltos(content)
+    return content unless content.is_a?(String)
+
+    linhas = content.lines
+    marcadores, falas = linhas.partition { |linha| linha.strip.match?(UNKNOWN_MARKER) }
+    return content if marcadores.empty? || falas.none? { |linha| linha.strip.present? }
+
+    log_behavior_event('unknown_marker', { content: marcadores.map(&:strip).join(' ').first(80), acao: 'removido' })
+    falas.join.gsub(/\n{3,}/, "\n\n").strip
   end
 
   # Re-roda UMA vez cobrando texto de verdade. Se insistir no marcador, chama gente em vez de
