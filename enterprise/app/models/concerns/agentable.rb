@@ -147,7 +147,7 @@ module Concerns::Agentable
     agenda = (0..DIAS_DA_AGENDA).map { |dias| unidade.estado_em(agora.to_date + dias, escopo_excecoes: excecoes) }
     {
       current_datetime: "#{DIAS_POR_EXTENSO[agora.wday]}, #{agora.strftime('%d/%m/%Y às %H:%M')}",
-      business_status: [status_da_unidade(agenda, agora), datas_especiais(unidade, agenda)].compact.join(' '),
+      business_status: [status_da_unidade(agenda, agora), datas_especiais(unidade, agenda)].compact.join('. '),
       business_hours_text: grade_da_unidade(unidade)
     }
   end
@@ -196,7 +196,7 @@ module Concerns::Agentable
     end
     return if linhas.empty?
 
-    "Datas com funcionamento diferente do normal: #{linhas.join('; ')}."
+    "Datas com funcionamento diferente do normal: #{linhas.join('; ')}"
   end
 
   def linha_especial(estado)
