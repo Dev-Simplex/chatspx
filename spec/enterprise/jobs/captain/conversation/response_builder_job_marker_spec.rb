@@ -35,9 +35,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
   end
 
   it 'tira a linha de marcador e manda so a fala' do
-    responde("[carrossel de fotos do imóvel 5196 enviado]
-
-#{fala}")
+    responde("[carrossel de fotos do imóvel 5196 enviado]\n\n#{fala}")
 
     described_class.perform_now(conversation, assistant)
 
@@ -48,17 +46,11 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
   end
 
   it 'tira marcador no meio de varios paragrafos sem juntar as falas' do
-    responde("Achei mais uma!
-
-[carrossel de fotos do imóvel 1699 enviado]
-
-Quer agendar a visita?")
+    responde("Achei mais uma!\n\n[carrossel de fotos do imóvel 1699 enviado]\n\nQuer agendar a visita?")
 
     described_class.perform_now(conversation, assistant)
 
-    expect(enviadas).to eq(["Achei mais uma!
-
-Quer agendar a visita?"])
+    expect(enviadas).to eq(["Achei mais uma!\n\nQuer agendar a visita?"])
   end
 
   it 'resposta que e SO marcador continua indo para a regeneracao' do
