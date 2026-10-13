@@ -9,53 +9,91 @@
     "DOWNLOAD_PDF_FAILED": "Failed to generate the report PDF, please try again later.",
     "DATA_FETCHING_FAILED": "Failed to fetch data, please try again later.",
     "SUMMARY_FETCHING_FAILED": "Failed to fetch summary, please try again later.",
+    "DRILLDOWN": {
+      "OPEN": "View conversations",
+      "CLOSE": "Close",
+      "DOWNLOAD_CSV": "CSV",
+      "LOAD_MORE": "Load more",
+      "EMPTY": "No conversations behind this number in the selected period.",
+      "FETCH_FAILED": "Could not load the conversations, please try again.",
+      "CSV_FAILED": "Could not download the CSV, please try again.",
+      "TOTAL_CONVERSATIONS": "{count} conversations",
+      "TOTAL_MESSAGES": "{total} messages in {conversations} conversations",
+      "TOTAL_EVENTS": "{total} records in {conversations} conversations",
+      "MESSAGES_COUNT": "{count} messages",
+      "NO_NAME": "No name",
+      "NO_AGENT": "No agent",
+      "ORDER": {
+        "RECENT": "Most recent first",
+        "SLOWEST": "Slowest first",
+        "MOST_MESSAGES": "Most messages first",
+        "LONGEST_WAITING": "Longest waiting first"
+      },
+      "STATUS": {
+        "open": "Open",
+        "resolved": "Resolved",
+        "pending": "Pending",
+        "snoozed": "Snoozed"
+      },
+      "WAITING_FOR": "waiting for {time}",
+      "TOTAL_ASSIGNMENTS": "{total} hand-offs in {conversations} conversations",
+      "ASSIGNMENT_SOURCE": {
+        "manual": "handed by {by}",
+        "self_assigned": "took it",
+        "auto_round_robin": "round robin",
+        "automation": "automation",
+        "bot": "by the AI",
+        "api": "via API",
+        "unknown": "unknown origin"
+      }
+    },
     "METRICS": {
       "CONVERSATIONS": {
-        "NAME": "Conversations",
-        "DESC": "( Total )"
+        "NAME": "How many conversations came in?",
+        "DESC": "Each customer who sent a message and opened a conversation in the period."
       },
       "INCOMING_MESSAGES": {
-        "NAME": "Messages received",
-        "DESC": "( Total )"
+        "NAME": "How many messages did customers send?",
+        "DESC": "Every message that came in from customers."
       },
       "OUTGOING_MESSAGES": {
-        "NAME": "Messages sent",
-        "DESC": "( Total )"
+        "NAME": "How many messages did the team send?",
+        "DESC": "Every reply sent to customers, by agents and by the AI."
       },
       "FIRST_RESPONSE_TIME": {
-        "NAME": "First Response Time",
-        "DESC": "( Avg )",
+        "NAME": "How long did the customer wait for the first reply?",
+        "DESC": "On average, from the customer writing until the first reply from a person. Lower is better.",
         "INFO_TEXT": "Average time until the first human reply to the customer. Lower is better.",
         "TOOLTIP_TEXT": "First Response Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
-        "NAME": "First Response After Transfer",
-        "DESC": "( Avg )",
+        "NAME": "After reaching an agent, how long until they replied?",
+        "DESC": "On average, from the conversation reaching the agent until their first reply. Lower is better.",
         "INFO_TEXT": "Average time until the first reply after a conversation is transferred to an agent. Lower is better.",
         "TOOLTIP_TEXT": "First Response After Transfer is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_TIME": {
-        "NAME": "Resolution Time",
-        "DESC": "( Avg )",
+        "NAME": "How long did it take to resolve?",
+        "DESC": "On average, from the first message until the conversation was marked as resolved. Lower is better.",
         "INFO_TEXT": "Average time from when a conversation opens until it is resolved. Lower is better.",
         "TOOLTIP_TEXT": "Resolution Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_COUNT": {
-        "NAME": "Resolution Count",
-        "DESC": "( Total )"
+        "NAME": "How many conversations were resolved?",
+        "DESC": "Conversations the team marked as resolved in the period."
       },
       "BOT_RESOLUTION_COUNT": {
-        "NAME": "Resolution Count",
-        "DESC": "( Total )"
+        "NAME": "How many did the bot resolve by itself?",
+        "DESC": "Conversations resolved by the bot, without a person."
       },
       "BOT_HANDOFF_COUNT": {
-        "NAME": "Handoff Count",
-        "DESC": "( Total )"
+        "NAME": "How many did the bot hand to a person?",
+        "DESC": "Conversations where the bot called an agent."
       },
       "REPLY_TIME": {
-        "NAME": "Customer waiting time",
+        "NAME": "How long did the customer wait between messages?",
         "TOOLTIP_TEXT": "Waiting time is {metricValue} (based on {conversationCount} replies)",
-        "DESC": ""
+        "DESC": "On average, each time the customer sent a message and waited for the reply. Lower is better."
       }
     },
     "DATE_RANGE_OPTIONS": {
@@ -135,47 +173,152 @@
       "PER_PAGE_TEMPLATE": "{size} / page"
     },
     "INSIGHTS": {
-      "EYEBROW": "Insights",
-      "TITLE": "Speed Insights",
-      "BASE": "Base:",
-      "AVG_FIRST_RESPONSE_TIME": "Avg. first response",
-      "P50_FIRST_RESPONSE_TIME": "First response p50",
-      "P90_FIRST_RESPONSE_TIME": "First response p90",
-      "AVG_REPLY_TIME": "Avg. customer waiting time",
-      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Avg. after transfer",
-      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p50",
-      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p90"
+      "EYEBROW": "Response speed",
+      "TITLE": "How long does the customer wait?",
+      "BASE": "based on {count} conversations",
+      "AVG_FIRST_RESPONSE_TIME": "On average, the first reply came in",
+      "P50_FIRST_RESPONSE_TIME": "Half of the customers got the first reply within",
+      "P90_FIRST_RESPONSE_TIME": "9 out of 10 customers got the first reply within",
+      "AVG_REPLY_TIME": "On average, between messages, the customer waited",
+      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After reaching the agent, the first reply came on average in",
+      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After reaching the agent, half got a reply within",
+      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After reaching the agent, 9 out of 10 got a reply within"
     },
     "NARRATIVE": {
-      "EYEBROW": "Auto-insights",
+      "EYEBROW": "Quick summary",
       "LEVEL": {
         "GOOD": "on target",
-        "WARN": "needs attention",
-        "BAD": "needs improvement"
+        "WARN": "close to target",
+        "BAD": "far from target"
       },
-      "HIGHLIGHT_TITLE": "Highlight",
-      "ATTENTION_TITLE": "Point of attention",
+      "HIGHLIGHT_TITLE": "What went best",
+      "ATTENTION_TITLE": "What needs attention",
       "ALL_GOOD": "All indicators are on target — keep up the pace.",
       "INSIGHT_BETTER": "{pct}% better than the previous period",
       "INSIGHT_WORSE": "{pct}% worse than the previous period",
-      "VS_GOAL": "goal {goal}",
+      "VS_GOAL": "the target is {goal}",
       "METRIC": {
-        "FIRST_RESPONSE": "First response time",
-        "RESOLUTION": "Resolution time",
-        "REPLY": "Customer waiting time",
-        "RESOLUTION_RATE": "Resolution rate",
-        "CSAT": "Satisfaction",
-        "NPS": "NPS",
-        "SLA_HIT_RATE": "SLA hit rate",
-        "BOT_RESOLUTION_RATE": "Bot resolution rate",
-        "BOT_HANDOFF_RATE": "Bot handoff rate"
+        "FIRST_RESPONSE": "Wait for the first reply",
+        "RESOLUTION": "Time to resolve",
+        "REPLY": "Wait between messages",
+        "RESOLUTION_RATE": "Resolved conversations",
+        "CSAT": "Satisfied customers",
+        "NPS": "Would recommend the company",
+        "SLA_HIT_RATE": "Answered on time",
+        "BOT_RESOLUTION_RATE": "Resolved by the bot",
+        "BOT_HANDOFF_RATE": "Handed from the bot to a person"
+      },
+      "INSIGHT_BETTER_TIMES": "{times} times better than the previous period",
+      "INSIGHT_WORSE_TIMES": "{times} times worse than the previous period",
+      "VS_GOAL_PILL": "{level} ({goal})"
+    },
+    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes",
+    "TIME": {
+      "ZERO": "0 s",
+      "SECONDS": "{s} s",
+      "MINUTES": "{min} min",
+      "MINUTES_SECONDS": "{min} min {s} s",
+      "HOURS": "{h} h",
+      "HOURS_MINUTES": "{h} h {min} min",
+      "DAYS": "{d} day | {d} days",
+      "DAYS_HOURS": "{d} day and {h} h | {d} days and {h} h"
+    },
+    "CHANGE": {
+      "SAME": "the same",
+      "MORE": "{pct}% more",
+      "LESS": "{pct}% less",
+      "TIMES_MORE": "{times} times more",
+      "VS_PREVIOUS": "{change} than the previous period",
+      "VERDICT": {
+        "GOOD": "good sign",
+        "BAD": "attention"
       }
     },
-    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes"
+    "CHART_CAPTION": {
+      "HOW_COUNT": {
+        "HOUR": "Each bar is one hour.",
+        "DAY": "Each bar is one day.",
+        "WEEK": "Each bar is one week.",
+        "MONTH": "Each bar is one month.",
+        "YEAR": "Each bar is one year."
+      },
+      "HOW_TIME": {
+        "HOUR": "Each bar is the average time of one hour; the line shows how many conversations were counted.",
+        "DAY": "Each bar is the average time of one day; the line shows how many conversations were counted.",
+        "WEEK": "Each bar is the average time of one week; the line shows how many conversations were counted.",
+        "MONTH": "Each bar is the average time of one month; the line shows how many conversations were counted.",
+        "YEAR": "Each bar is the average time of one year; the line shows how many conversations were counted."
+      },
+      "PEAK_COUNT": "The highest was {high} ({highValue}) and the lowest, {low} ({lowValue}).",
+      "PEAK_TIME": "The slowest was {high} ({highValue}) and the fastest, {low} ({lowValue}).",
+      "ALL_EQUAL": "All of them were the same: {value}."
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "The period in a few words",
+      "VOLUME": "{conversations} came in. Customers sent {incoming} messages and the team replied with {outgoing}.",
+      "CONVERSATIONS": "{count} conversations",
+      "FIRST_RESPONSE": "On average, the customer waited {avg} for the first reply. Half waited up to {half}; 9 out of 10, up to {most}.",
+      "RESOLUTION": "{resolved}, and each one took {time} on average to be resolved.",
+      "RESOLVED": "{count} conversations were resolved"
+    },
+    "CHART_AXIS": {
+      "QUANTITY": "quantity",
+      "AVERAGE_TIME": "average time",
+      "CONVERSATIONS": "conversations"
+    },
+    "ENTITY_SUMMARY": {
+      "AGENT": {
+        "VOLUME": "{count} agents got {conversations} conversations in the period.",
+        "BUSIEST": "The one who got the most was {name}, with {conversations}."
+      },
+      "INBOX": {
+        "VOLUME": "{count} inboxes got {conversations} conversations in the period.",
+        "BUSIEST": "The one that got the most was {name}, with {conversations}."
+      },
+      "TEAM": {
+        "VOLUME": "{count} teams got {conversations} conversations in the period.",
+        "BUSIEST": "The one that got the most was {name}, with {conversations}."
+      },
+      "LABEL": {
+        "VOLUME": "{count} labels were used in {conversations} conversations in the period.",
+        "BUSIEST": "The most used was {name}, with {conversations}."
+      },
+      "FASTEST": "The fastest first reply, on average, was from {name}: {time}.",
+      "SLOWEST": "The slowest was from {name}: {time}.",
+      "RESOLVED": "{resolved} conversations were resolved.",
+      "HOW_TO_READ": "Click an underlined number to see the conversations. The dot next to the time shows the target: green is within, yellow is close and red is far."
+    },
+    "VERDICT": {
+      "GOOD_TITLE": "Going well.",
+      "GOOD_TEXT": "All numbers are within the goal. Keep it up.",
+      "WARN_TITLE": "Almost there.",
+      "WARN_TEXT": "One point is a bit off the goal: {label} (the goal is {goal}). Everything else is fine.",
+      "BAD_TITLE": "Attention.",
+      "MORE": "And {n} more point needs care. | And {n} more points need care.",
+      "EMPTY_TITLE": "Too early to say.",
+      "EMPTY_TEXT": "There was not enough activity in this period to compare with the goal.",
+      "BAD": {
+        "FIRST_RESPONSE": "Customers are waiting too long for the first reply. The goal is up to {goal}.",
+        "RESOLUTION": "Conversations are taking too long to be resolved. The goal is up to {goal}.",
+        "REPLY": "Between messages, customers are waiting too long. The goal is up to {goal}.",
+        "RESOLUTION_RATE": "Few conversations are being resolved. The goal is {goal}.",
+        "CSAT": "Fewer customers than expected were satisfied. The goal is {goal}.",
+        "NPS": "Few customers would recommend the company. The goal is a score of {goal}.",
+        "SLA_HIT_RATE": "Many conversations went past the agreed deadline. The goal is {goal} on time.",
+        "BOT_RESOLUTION_RATE": "The bot is solving little on its own. The goal is {goal}.",
+        "BOT_HANDOFF_RATE": "The bot is handing too many conversations to a person. The goal is at most {goal}."
+      },
+      "LIVE_GOOD_TITLE": "Nobody waiting now.",
+      "LIVE_GOOD_TEXT": "Every customer who wrote already got a reply.",
+      "LIVE_BAD_TITLE": "Customers are waiting.",
+      "LIVE_BAD_TEXT": "{n} customer is waiting for a reply now. | {n} customers are waiting for a reply now.",
+      "NPS_LOW_SAMPLE_TITLE": "Too few answers yet.",
+      "NPS_LOW_SAMPLE_TEXT": "Only {n} customers gave a score. With so few, the recommendation score is not reliable yet."
+    }
   },
   "AGENT_REPORTS": {
-    "HEADER": "Agents Overview",
-    "DESCRIPTION": "Easily track agent performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click an agent's name to learn more.",
+    "HEADER": "Agents",
+    "DESCRIPTION": "How each agent did: how many conversations they got, how long the customer waited and how many they resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_AGENT_REPORTS": "Download agent reports",
@@ -248,7 +391,7 @@
   },
   "ASSIGNMENT_REPORTS": {
     "HEADER": "Assignments",
-    "DESCRIPTION": "See how conversation assignments are distributed per agent — how many each person received (manually, via round-robin, or self-assigned) and how many they assigned to others.",
+    "DESCRIPTION": "How conversations reached each agent: someone handed it over, the round robin sent it, the person took it, or it came another way (AI, automation). It also shows who handed conversations to colleagues. Click a number to see the conversations.",
     "DOWNLOAD": "Download assignment report",
     "FILTER": {
       "TEAM": "Team:",
@@ -257,25 +400,27 @@
       "ALL_INBOXES": "All inboxes"
     },
     "MATRIX": {
-      "TITLE": "Who assigned to whom",
-      "HINT": "Rows = who assigned · Columns = who received · values = manual assignments in the period.",
-      "FROM_TO": "From \\ To"
+      "TITLE": "Who handed conversations to whom",
+      "HINT": "Each row is who handed over and each column is who received. The number is how many conversations were handed over in the period. Click to see which.",
+      "FROM_TO": "From \\ To",
+      "PAIR": "{from} handed to {to}"
     },
     "TABLE": {
       "AGENT": "Agent",
       "GROUP_RECEIVED": "Received",
-      "GROUP_ASSIGNED": "Assigned",
+      "GROUP_ASSIGNED": "Handed over",
       "RECEIVED_TOTAL": "Total",
-      "RECEIVED_MANUAL": "↳ Manual",
-      "RECEIVED_AUTO": "↳ Automatic",
-      "SELF_ASSIGNED": "↳ Self-assigned",
-      "ASSIGNED_TO_OTHERS": "To others"
+      "RECEIVED_MANUAL": "Someone handed it",
+      "RECEIVED_AUTO": "Round robin",
+      "SELF_ASSIGNED": "Took it",
+      "ASSIGNED_TO_OTHERS": "To colleagues",
+      "RECEIVED_OTHER": "Other (AI, automation...)"
     },
     "SUMMARY": {
-      "TITLE": "Period summary",
-      "TOTAL": "{total} assignments distributed across {agents} agents.",
-      "COMPOSITION": "Source of received: {manual}% manual · {auto}% automatic (round-robin) · {self}% self-assigned.",
-      "TOP": "Received the most: {name} ({count}).",
+      "TITLE": "The period in a few words",
+      "TOTAL": "{total} conversations were given to {agents} agents.",
+      "COMPOSITION": "How they arrived: {manual}% someone handed it, {auto}% round robin, {self}% the person took it and {other}% another way (AI, automation, API).",
+      "TOP": "The one who got the most was {name}, with {count}.",
       "FORWARD_ONLY": "Counts start from when the feature was enabled — older periods may show as zero."
     },
     "EMPTY": {
@@ -285,16 +430,17 @@
     "LEGEND": {
       "TITLE": "Understand each column",
       "AGENT": "The agent (name).",
-      "RECEIVED": "Received — conversations assigned to this agent (they were the destination). Total is the sum of Manual + Automatic + Self-assigned.",
-      "RECEIVED_MANUAL": "↳ Manual: someone else assigned the conversation to this agent.",
-      "RECEIVED_AUTO": "↳ Automatic: the system distributed it via round-robin.",
-      "SELF_ASSIGNED": "↳ Self-assigned: the agent picked up the conversation themselves.",
-      "ASSIGNED_TO_OTHERS": "Assigned → To others: conversations this agent manually assigned to someone else."
+      "RECEIVED": "Received: how many conversations reached this person. The Total is the sum of the next columns (someone handed + round robin + took it + other).",
+      "RECEIVED_MANUAL": "Someone handed it: a colleague or manager gave the conversation to this person.",
+      "RECEIVED_AUTO": "Round robin: the system distributed it by itself.",
+      "SELF_ASSIGNED": "Took it: the person took the conversation.",
+      "ASSIGNED_TO_OTHERS": "To colleagues: conversations this person handed to someone else.",
+      "RECEIVED_OTHER": "Other: it came from the AI, an automation rule, the API, or in a way the system did not record."
     }
   },
   "LABEL_REPORTS": {
-    "HEADER": "Labels Overview",
-    "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",
+    "HEADER": "Labels",
+    "DESCRIPTION": "How the conversations of each label went: how many there were, how long the customer waited and how many were resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_LABEL_REPORTS": "Download label reports",
@@ -366,8 +512,8 @@
     }
   },
   "INBOX_REPORTS": {
-    "HEADER": "Inbox Overview",
-    "DESCRIPTION": "Quickly view your inbox performance with key metrics like conversations, response times, resolution times, and resolved cases—all in one place. Click an inbox name for more details.",
+    "HEADER": "Inboxes",
+    "DESCRIPTION": "How each inbox did (WhatsApp, Instagram, website...): how many conversations came in, how long the customer waited and how many were resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_INBOX_REPORTS": "Download inbox reports",
@@ -441,8 +587,8 @@
     }
   },
   "TEAM_REPORTS": {
-    "HEADER": "Team Overview",
-    "DESCRIPTION": "Get a snapshot of your team's performance with essential metrics, including conversations, response times, resolution times, and resolved cases. Click a team name for more details.",
+    "HEADER": "Teams",
+    "DESCRIPTION": "How each team did: how many conversations it got, how long the customer waited and how many it resolved. Click a name for details, or a number to see the conversations.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_TEAM_REPORTS": "Download team reports",
@@ -517,7 +663,7 @@
     }
   },
   "CSAT_REPORTS": {
-    "HEADER": "CSAT Reports",
+    "HEADER": "Customer satisfaction (CSAT)",
     "NO_RECORDS": "No responses yet",
     "NO_RECORDS_DESCRIPTION": "CSAT survey responses will appear here once customers start providing feedback.",
     "DOWNLOAD": "Download CSAT Reports",
@@ -550,7 +696,7 @@
         "CONTACT_NAME": "Contact",
         "AGENT_NAME": "Agent",
         "RATING": "Rating",
-        "FEEDBACK_TEXT": "Feedback comment",
+        "FEEDBACK_TEXT": "What the customer wrote",
         "CONVERSATION": "Conversation",
         "CUSTOMER": "Customer",
         "RESPONSE": "Response",
@@ -562,18 +708,18 @@
     "NO_FEEDBACK": "No feedback provided",
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total responses",
-        "TOOLTIP": "Total number of responses collected"
+        "LABEL": "How many ratings did customers give?",
+        "TOOLTIP": "Each customer who answered the satisfaction survey with a rating from 1 to 5."
       },
       "SATISFACTION_SCORE": {
-        "LABEL": "Satisfaction score",
-        "TOOLTIP": "Total number of positive responses / Total number of responses * 100"
+        "LABEL": "How many were satisfied?",
+        "TOOLTIP": "Out of every 100 ratings, how many were 4 or 5."
       },
       "RESPONSE_RATE": {
-        "LABEL": "Response rate",
-        "TOOLTIP": "Total number of responses / Total number of CSAT survey messages sent * 100"
+        "LABEL": "How many answered the survey?",
+        "TOOLTIP": "Out of every 100 surveys sent, how many the customer answered."
       },
-      "RATING_DISTRIBUTION": "Rating distribution"
+      "RATING_DISTRIBUTION": "How the ratings went"
     },
     "REVIEW_NOTES": {
       "TITLE": "Review notes",
@@ -592,10 +738,15 @@
         "UPGRADE_NOW": "Upgrade now",
         "CANCEL_ANYTIME": "You can change or cancel your plan anytime"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "SCORE": "Customers gave {total} ratings. {satisfied} were satisfied (rating 4 or 5), that is {percent}. {unhappy} were unhappy (rating 1 or 2).",
+      "RATE": "{rate} of the surveys sent were answered.",
+      "HOW_TO_READ": "The rating goes from 1 (very bad) to 5 (excellent). Below are the answers, one per customer: click the conversation number to open it."
     }
   },
   "NPS_REPORTS": {
-    "HEADER": "NPS Reports",
+    "HEADER": "Would customers recommend you? (NPS)",
     "NO_RECORDS": "No records found",
     "DOWNLOAD": "Export CSV",
     "DOWNLOAD_FAILED": "Failed to download NPS report",
@@ -605,15 +756,15 @@
       "Y_AXIS": "Count",
       "TOOLTIP": "Score {score}: {count} ({share}%)",
       "LEGEND": {
-        "DETRACTORS": "Detractors (0-6)",
-        "PASSIVES": "Passives (7-8)",
-        "PROMOTERS": "Promoters (9-10)"
+        "DETRACTORS": "Would not recommend (0 to 6)",
+        "PASSIVES": "Neutral (7 and 8)",
+        "PROMOTERS": "Would recommend (9 and 10)"
       }
     },
     "CLASSIFICATION": {
-      "PROMOTER": "Promoter",
-      "PASSIVE": "Passive",
-      "DETRACTOR": "Detractor"
+      "PROMOTER": "Would recommend",
+      "PASSIVE": "Neutral",
+      "DETRACTOR": "Would not recommend"
     },
     "FILTER": {
       "RESPONDED": "Responded",
@@ -624,98 +775,115 @@
       "HEADER": {
         "CONTACT_NAME": "Contact",
         "AGENT_NAME": "Agent",
-        "SCORE": "Score",
-        "CLASSIFICATION": "Classification"
+        "SCORE": "Rating",
+        "CLASSIFICATION": "What the rating means"
       }
     },
     "METRIC": {
       "TOTAL_RESPONSES": {
-        "LABEL": "Total Responses",
-        "TOOLTIP": "Total NPS responses received"
+        "LABEL": "How many ratings?",
+        "TOOLTIP": "Customers who answered “from 0 to 10, how likely are you to recommend us?”."
       },
       "NPS_SCORE": {
-        "LABEL": "NPS Score",
-        "TOOLTIP": "Net Promoter Score calculated",
+        "LABEL": "NPS score",
+        "TOOLTIP": "The percentage of who would recommend minus who would not. It goes from −100 to 100.",
         "TREND": "{value} pts vs previous period"
       },
       "RESPONSE_RATE": {
-        "LABEL": "Response Rate",
-        "TOOLTIP": "Percentage of responses vs sent"
+        "LABEL": "How many answered?",
+        "TOOLTIP": "Out of every 100 surveys sent, how many were answered."
       },
       "PROMOTERS": {
-        "LABEL": "Promoters",
-        "TOOLTIP": "Percentage of promoters (9-10)"
+        "LABEL": "Would recommend",
+        "TOOLTIP": "Rated 9 or 10."
       },
       "PASSIVES": {
-        "LABEL": "Passives",
-        "TOOLTIP": "Percentage of passives (7-8)"
+        "LABEL": "Neutral",
+        "TOOLTIP": "Rated 7 or 8."
       },
       "DETRACTORS": {
-        "LABEL": "Detractors",
-        "TOOLTIP": "Percentage of detractors (0-6)"
+        "LABEL": "Would not recommend",
+        "TOOLTIP": "Rated 0 to 6."
       },
       "BLOCKED": {
-        "LABEL": "Blocked",
-        "TOOLTIP": "Total NPS blocked by labels"
+        "LABEL": "Not sent",
+        "TOOLTIP": "Surveys that were not sent because the conversation had a label that blocks NPS."
       },
       "DETRACTOR_FOLLOWUP": {
-        "LABEL": "Detractor follow-up",
-        "TOOLTIP": "Average time until an agent replies to a detractor (0-6) after the score. 'Awaiting' = detractors still without a human reply.",
+        "LABEL": "Follow-up with unhappy customers",
+        "TOOLTIP": "How long, on average, an agent took to talk to a customer who rated 0 to 6. “Waiting” are the ones with no follow-up yet.",
         "SUMMARY": "{followedUp} replied / {awaiting} awaiting"
       },
       "SCORE_DISTRIBUTION": {
-        "LABEL": "Score Distribution"
+        "LABEL": "How many customers gave each rating"
       }
+    },
+    "PLAIN_SUMMARY": {
+      "BANDS": "Customers gave {total} ratings from 0 to 10. {promoters} would recommend the company (9 or 10), {passives} were neutral (7 or 8) and {detractors} would not recommend (0 to 6).",
+      "SCORE": "The NPS score is {score}. It is the percentage of who would recommend minus who would not, and goes from −100 to 100: above 50 is very good, and below 0 means more people would not recommend than would.",
+      "HOW_TO_READ": "Below, the chart shows how many customers gave each rating, and the list shows each answer: click the conversation number to open it."
     }
   },
   "BOT_REPORTS": {
-    "HEADER": "Bot Reports",
+    "HEADER": "Bots (automatic service)",
     "METRIC": {
       "TOTAL_CONVERSATIONS": {
-        "LABEL": "No. of Conversations",
-        "TOOLTIP": "Total number of conversations handled by the bot"
+        "LABEL": "How many conversations went through the bot?",
+        "TOOLTIP": "Conversations that came into an inbox with a bot turned on."
       },
       "TOTAL_RESPONSES": {
-        "LABEL": "Total Responses",
-        "TOOLTIP": "Total number of responses sent by the bot"
+        "LABEL": "How many messages did the bot send?",
+        "TOOLTIP": "Messages sent to customers in those conversations."
       },
       "RESOLUTION_RATE": {
-        "LABEL": "Resolution Rate",
-        "TOOLTIP": "Total number of conversations resolved by the bot / Total number of conversations handled by the bot * 100"
+        "LABEL": "How many did the bot resolve by itself?",
+        "TOOLTIP": "Out of every 100 conversations with the bot, how many it resolved without a person."
       },
       "HANDOFF_RATE": {
-        "LABEL": "Handoff Rate",
-        "TOOLTIP": "Total number of conversations handed off to agents / Total number of conversations handled by the bot * 100"
+        "LABEL": "How many did the bot hand to a person?",
+        "TOOLTIP": "Out of every 100 conversations with the bot, how many it handed to an agent."
       }
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversations went through the bot. It resolved {resolved} of them by itself and handed {handoff} to a person. In total, {messages} messages were sent.",
+      "HOW_TO_READ": "Below, the charts show day by day how many conversations the bot resolved and how many it handed to a person. Click the number to see the conversations."
     }
   },
   "OVERVIEW_REPORTS": {
     "HEADER": "Overview",
     "LIVE": "Live",
     "ACCOUNT_CONVERSATIONS": {
-      "HEADER": "Open Conversations",
+      "HEADER": "Open conversations now",
       "LOADING_MESSAGE": "Loading conversation metrics...",
       "OPEN": "Open",
       "UNATTENDED": "Unattended",
       "UNASSIGNED": "Unassigned",
-      "PENDING": "Pending"
+      "PENDING": "Pending",
+      "HINT": {
+        "OPEN": "conversations in progress",
+        "UNATTENDED": "still without a first reply or waiting for a reply",
+        "UNASSIGNED": "without an agent in charge",
+        "PENDING": "waiting for the customer or snoozed"
+      }
     },
     "CONVERSATION_HEATMAP": {
-      "HEADER": "Conversation Traffic",
+      "HEADER": "When conversations come in",
       "NO_CONVERSATIONS": "No conversations",
       "CONVERSATION": "{count} conversation",
       "CONVERSATIONS": "{count} conversations",
-      "DOWNLOAD_REPORT": "Download report"
+      "DOWNLOAD_REPORT": "Download report",
+      "CAPTION": "Each little square is one hour of a weekday. The darker it is, the more conversations came in at that hour. Hover to see the number."
     },
     "RESOLUTION_HEATMAP": {
-      "HEADER": "Resolutions",
+      "HEADER": "When conversations are resolved",
       "NO_CONVERSATIONS": "No conversations",
       "CONVERSATION": "{count} conversation",
       "CONVERSATIONS": "{count} conversations",
-      "DOWNLOAD_REPORT": "Download report"
+      "DOWNLOAD_REPORT": "Download report",
+      "CAPTION": "Each little square is one hour of a weekday. The darker it is, the more conversations were resolved at that hour. Hover to see the number."
     },
     "AGENT_CONVERSATIONS": {
-      "HEADER": "Conversations by agents",
+      "HEADER": "Open conversations per agent",
       "LOADING_MESSAGE": "Loading agent metrics...",
       "NO_AGENTS": "There are no conversations by agents",
       "TABLE_HEADER": {
@@ -727,7 +895,7 @@
     },
     "TEAM_CONVERSATIONS": {
       "ALL_TEAMS": "All Teams",
-      "HEADER": "Conversations by teams",
+      "HEADER": "Open conversations per team",
       "LOADING_MESSAGE": "Loading team metrics...",
       "NO_TEAMS": "There is no data available",
       "TABLE_HEADER": {
@@ -738,10 +906,16 @@
       }
     },
     "AGENT_STATUS": {
-      "HEADER": "Agent status",
+      "HEADER": "Agents now",
       "ONLINE": "Online",
       "BUSY": "Busy",
       "OFFLINE": "Offline"
+    },
+    "PLAIN_SUMMARY": {
+      "TITLE": "Right now, in a few words",
+      "OPEN": "There are {open} open conversations: {unattended} are still waiting for a reply and {unassigned} have no agent. Another {pending} are pending.",
+      "AGENTS": "Of the agents, {online} are available, {busy} busy and {offline} offline.",
+      "HOW_TO_READ": "These numbers are live and update by themselves. Click an underlined number to see the conversations, starting with who has been waiting the longest."
     }
   },
   "DAYS_OF_WEEK": {
@@ -754,8 +928,8 @@
     "SATURDAY": "Saturday"
   },
   "SLA_REPORTS": {
-    "HEADER": "SLA Reports",
-    "NO_RECORDS": "SLA applied conversations are not available.",
+    "HEADER": "Response deadlines (SLA)",
+    "NO_RECORDS": "No conversation missed the deadline in this period. 🎉",
     "LOADING": "Loading SLA data...",
     "DOWNLOAD_SLA_REPORTS": "Download SLA reports",
     "DOWNLOAD_FAILED": "Failed to download SLA Reports",
@@ -773,7 +947,7 @@
         "LABELS": "Label name",
         "TEAMS": "Team name"
       },
-      "SLA": "SLA Policy",
+      "SLA": "Deadline (SLA policy)",
       "INBOXES": "Inbox",
       "AGENTS": "Agent",
       "LABELS": "Label",
@@ -782,25 +956,29 @@
     "WITH": "with",
     "METRICS": {
       "HIT_RATE": {
-        "LABEL": "Hit Rate",
-        "TOOLTIP": "Percentage of SLAs created were completed successfully"
+        "LABEL": "How many met the deadline?",
+        "TOOLTIP": "Out of every 100 conversations with a deadline, how many were handled within it."
       },
       "NO_OF_MISSES": {
-        "LABEL": "Number of Misses",
-        "TOOLTIP": "Total SLA misses in a certain period"
+        "LABEL": "How many missed the deadline?",
+        "TOOLTIP": "Conversations where the team did not reply or resolve within the agreed deadline."
       },
       "NO_OF_CONVERSATIONS": {
-        "LABEL": "Number of Conversations",
-        "TOOLTIP": "Total number of conversations with SLA"
+        "LABEL": "How many had a deadline?",
+        "TOOLTIP": "Conversations that had a response deadline (SLA) in the period."
       }
     },
     "TABLE": {
       "HEADER": {
-        "POLICY": "Policy",
-        "CONVERSATION": "Conversation",
+        "POLICY": "Agreed deadline",
+        "CONVERSATION": "Conversation that missed it",
         "AGENT": "Agent"
       },
-      "VIEW_DETAILS": "View Details"
+      "VIEW_DETAILS": "See what was missed"
+    },
+    "PLAIN_SUMMARY": {
+      "TEXT": "{conversations} conversations had an agreed response deadline (SLA). {rate} met the deadline and {misses} missed it.",
+      "HOW_TO_READ": "Below are only the conversations that missed the deadline. Click “See what was missed” to know which deadline was lost, or the number to open the conversation."
     }
   },
   "SUMMARY_REPORTS": {
@@ -808,12 +986,12 @@
     "AGENT": "Agent",
     "TEAM": "Team",
     "LABEL": "Label",
-    "AVG_RESOLUTION_TIME": "Avg. Resolution Time",
-    "AVG_FIRST_RESPONSE_TIME": "Avg. First Response Time",
-    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "Avg. First Response After Transfer",
-    "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
-    "RESOLUTION_COUNT": "Resolution Count",
-    "CONVERSATIONS": "No. of conversations"
+    "AVG_RESOLUTION_TIME": "Time to resolve",
+    "AVG_FIRST_RESPONSE_TIME": "Wait for first reply",
+    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "First reply after reaching the agent",
+    "AVG_REPLY_TIME": "Wait between messages",
+    "RESOLUTION_COUNT": "Resolved",
+    "CONVERSATIONS": "Conversations"
   },
   "LIVE_REPORTS": {
     "IN_SERVICE": {
@@ -862,6 +1040,201 @@
       "SORT_BY_NAME_ASC": "Name (A–Z)",
       "SORT_BY_NAME_DESC": "Name (Z–A)",
       "LOAD_MORE_CONVERSATIONS": "Load more conversations"
+    }
+  },
+  "REPORTS_PANEL": {
+    "TITLE": "Reports",
+    "TABS": {
+      "OVERVIEW": "Overview",
+      "AGENTS": "Agents",
+      "NPS": "Recommendation",
+      "SLA": "Deadlines",
+      "AI": "Bot",
+      "INBOXES_LABELS": "Inboxes and labels"
+    },
+    "PERIOD": {
+      "TODAY": "Today",
+      "LAST_7": "7 days",
+      "LAST_30": "30 days"
+    },
+    "VS": {
+      "TODAY": "than yesterday up to this time",
+      "LAST_7": "than the previous 7 days",
+      "LAST_30": "than the previous 30 days"
+    },
+    "KPI": {
+      "CONVERSATIONS": "Conversations",
+      "CONVERSATIONS_SUB": "arrived in the period",
+      "FIRST_RESPONSE": "How long customers waited",
+      "FIRST_RESPONSE_SUB": "half of the customers waited up to this for the first reply",
+      "RESOLVED": "Problems solved",
+      "RESOLVED_SUB": "conversations closed",
+      "CSAT": "Satisfied customers",
+      "CSAT_SUB": "{pct} gave 4 or 5 · CSAT",
+      "CSAT_EMPTY": "nobody answered the survey",
+      "NO_DATA": "--",
+      "SEE_CONVERSATIONS": "See the conversations",
+      "OUT_OF_TEN": "{n} out of 10"
+    },
+    "SHORTCUT": {
+      "NPS": "Would recommend",
+      "NPS_SUB": "score from −100 to 100 · {pct} would recommend · NPS",
+      "NPS_EMPTY": "no answers in the period",
+      "SLA": "Answered on time",
+      "SLA_SUB": "{pct} on time · none breached | {pct} on time · 1 breached | {pct} on time · {n} breached",
+      "SLA_EMPTY": "no conversation with SLA",
+      "AI": "Bot solved alone",
+      "AI_SUB": "conversations without a human",
+      "OPEN": "Open the report"
+    },
+    "VOLUME": {
+      "TITLE": "Conversation volume",
+      "SUB_TODAY": "per hour, today",
+      "SUB_DAYS": "per day",
+      "RECEIVED": "Received",
+      "RESOLVED": "Resolved",
+      "EMPTY": "No conversations in the period."
+    },
+    "LIVE": {
+      "TITLE": "Live",
+      "SUB": "Queue and presence in one place.",
+      "UPDATED": "updated {time}",
+      "WAITING": "waiting",
+      "OLDEST": "longest wait {time}",
+      "NO_QUEUE": "Nobody is waiting for a reply right now.",
+      "NO_TEAM": "No team",
+      "ONLINE": "{online} of {total} online",
+      "OPEN_COUNT": "none open | 1 open | {n} open",
+      "OPEN_QUEUE": "Open the queue",
+      "NOBODY_ONLINE": "Nobody online right now."
+    },
+    "FIRST_RESPONSE": {
+      "TITLE": "First response time",
+      "SUB": "average per team, in the period",
+      "GOAL": "goal {time}",
+      "EMPTY": "No team answered conversations in the period."
+    },
+    "FUNNEL": {
+      "TITLE": "Sales funnel",
+      "SUB": "how many are in each stage now",
+      "OPEN": "Open the funnel"
+    },
+    "LOAD_FAILED": "Part of the report could not be loaded. Try again in a moment."
+  },
+  "REPORTS_UI": {
+    "TABS_LABEL": "Report topics",
+    "AGENTS": {
+      "CSAT_TITLE": "Satisfied customers, per agent",
+      "CSAT_SUB": "who gave 4 or 5 in the survey · CSAT",
+      "CSAT_EMPTY": "Nobody answered the survey in the period.",
+      "CSAT_GOAL": "Dashed line: goal of {goal}.",
+      "RANKING_TITLE": "Agent ranking",
+      "RANKING_SUB": "who resolved the most in the period",
+      "RANKING_EMPTY": "No agent resolved conversations in the period.",
+      "RESOLVED": "resolved",
+      "RANK_SUB": "{n} conversations | 1 conversation | {n} conversations",
+      "RANK_CSAT": "{pct} satisfied",
+      "FRT_TITLE": "First response per agent",
+      "FRT_SUB": "how long the customer waited, on average",
+      "FRT_EMPTY": "No agent replied in the period.",
+      "FRT_GOAL": "Dashed line: goal of {goal}."
+    },
+    "ROTATION": {
+      "TITLE": "Distribution and rotation",
+      "SUB": "who got the new conversations of each team, in the period",
+      "ADJUST": "Adjust the rotation",
+      "DISTRIBUTED": "none distributed | 1 distributed | {n} distributed",
+      "EMPTY": "No conversation distributed by the rotation in the period."
+    },
+    "NPS": {
+      "TITLE": "Would they recommend us?",
+      "SUB": "score from −100 to 100 · NPS · no answers | score from −100 to 100 · NPS · 1 answer | score from −100 to 100 · NPS · {n} answers",
+      "DELTA_UP": "+{n} in the period",
+      "DELTA_DOWN": "−{n} in the period",
+      "PROMOTERS": "Would recommend",
+      "PASSIVES": "Neutral",
+      "DETRACTORS": "Would not recommend",
+      "PROMOTERS_HINT": "score 9 and 10",
+      "PASSIVES_HINT": "score 7 and 8",
+      "DETRACTORS_HINT": "score 0 to 6",
+      "SCORES": "Scores from 0 to 10",
+      "EMPTY": "No customer answered in the period.",
+      "COMMENTS_TITLE": "Recent comments",
+      "COMMENTS_SUB": "what the customer wrote after the score",
+      "COMMENTS_EMPTY": "No comment in this filter.",
+      "ALL": "All",
+      "BY_TEAM_TITLE": "Would recommend, per team",
+      "BY_TEAM_SUB": "each team score, from −100 to 100 · NPS",
+      "BY_TEAM_EMPTY": "No team with answers in the period.",
+      "RESPONSES": "no answers | 1 answer | {n} answers",
+      "QUOTE": "“{text}”"
+    },
+    "SLA": {
+      "TITLE": "Answered on time",
+      "SUB": "conversations answered within the agreed deadline · SLA",
+      "OF_TOTAL": "{ok} of {total} conversations",
+      "POLICY": "Deadline rule",
+      "MET": "On time",
+      "MISSED": "Late",
+      "EMPTY": "No conversation with a deadline in the period.",
+      "BREACHES_TITLE": "What went past the deadline",
+      "BREACHES_SUB": "the latest that went past the deadline",
+      "BREACHES_COUNT": "no conversation | 1 conversation | {n} conversations",
+      "BREACHES_EMPTY": "No conversation went past the deadline in the period.",
+      "BY_TEAM": "On time, per team"
+    },
+    "INBOXES": {
+      "TITLE": "Volume per inbox",
+      "SUB": "conversations that arrived in each number or channel",
+      "EMPTY": "No conversations in the period.",
+      "FRT_TITLE": "First response per inbox",
+      "FRT_SUB": "how long the customer waited, on average"
+    },
+    "LABELS": {
+      "TITLE": "Most used labels",
+      "SUB": "conversations with each label, in the period",
+      "EMPTY": "No labeled conversation in the period.",
+      "RESOLUTION_TITLE": "Time to resolve per label",
+      "RESOLUTION_SUB": "how long it took, on average, from start to end"
+    },
+    "TEAMS": {
+      "VOLUME_TITLE": "Conversations per team",
+      "VOLUME_SUB": "how many arrived and how many were resolved",
+      "RESOLVED_OF": "{resolved} of {total} resolved",
+      "FRT_TITLE": "First response per team",
+      "FRT_SUB": "how long the customer waited, on average",
+      "EMPTY": "No team with conversations in the period."
+    },
+    "CHANNELS": {
+      "WHATSAPP": "WhatsApp",
+      "INSTAGRAM": "Instagram",
+      "FACEBOOK": "Facebook",
+      "SITE": "Website",
+      "EMAIL": "Email",
+      "TELEGRAM": "Telegram",
+      "API": "API",
+      "OTHER": "Other"
+    },
+    "PERIOD": {
+      "TODAY": "Today",
+      "LAST_7": "7 days",
+      "LAST_30": "30 days",
+      "CUSTOM": "Custom",
+      "FROM": "From",
+      "TO": "To",
+      "APPLY": "Apply",
+      "LABEL": "Period"
+    },
+    "FILTERS": {
+      "BUTTON": "Filters",
+      "TITLE": "Filters",
+      "INBOX": "Inbox",
+      "TEAM": "Team",
+      "AGENT": "Agent",
+      "CLEAR": "Clear",
+      "CLOSE": "Close",
+      "EMPTY": "Nothing to choose.",
+      "HINT": "One option per group. The number is how many conversations arrived in the period."
     }
   }
 }

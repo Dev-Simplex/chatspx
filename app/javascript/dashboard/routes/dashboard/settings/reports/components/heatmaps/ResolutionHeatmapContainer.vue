@@ -14,6 +14,7 @@ const { t } = useI18n();
 
 <template>
   <BaseHeatmapContainer
+    :caption="t('OVERVIEW_REPORTS.RESOLUTION_HEATMAP.CAPTION')"
     :scope-inbox-id="scopeInboxId"
     metric="resolutions_count"
     :title="t('OVERVIEW_REPORTS.RESOLUTION_HEATMAP.HEADER')"

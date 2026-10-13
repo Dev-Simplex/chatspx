@@ -3,10 +3,10 @@
     "TITLE": "Avalie sua conversa",
     "PLACEHOLDER": "Conte-nos mais...",
     "RATINGS": {
-      "POOR": "😞Ruim",
+      "POOR": "😞 Ruim",
       "FAIR": "😑 Neutro",
       "AVERAGE": "😐 Mediano",
-      "GOOD": "😛 Bom",
+      "GOOD": "😀 Bom",
       "EXCELLENT": "😍 Excelente"
     }
   }

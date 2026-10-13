@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SLAFilter from '../SLA/SLAFilter.vue';
-import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
+import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import { subDays, fromUnixTime } from 'date-fns';
 import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 import {
@@ -88,11 +88,14 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col flex-wrap w-full gap-3 md:flex-row">
-    <WootDatePicker
+    <ReportPeriodPicker
       v-model:date-range="customDateRange"
       v-model:range-type="selectedDateRange"
       @date-range-changed="onDateRangeChange"
     />
-    <SLAFilter @filter-change="emitFilterChange" />
+    <SLAFilter
+      :period="{ since: from, until: to }"
+      @filter-change="emitFilterChange"
+    />
   </div>
 </template>

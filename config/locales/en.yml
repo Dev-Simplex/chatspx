@@ -228,6 +228,52 @@ en:
   reports:
     period: Reporting period %{since} to %{until}
     utc_warning: The report generated is in UTC timezone
+    assignment_csv:
+      headers:
+        display_id: Conversation
+        contact: Contact
+        inbox: Inbox
+        assignee: Received by
+        assigned_by: Assigned by
+        source: How
+        team: Team
+        assigned_at: When
+      source:
+        manual: Someone assigned it
+        self_assigned: Took it for themselves
+        auto_round_robin: Automatic (round robin)
+        automation: Automation rule
+        bot: AI / bot
+        api: API
+        unknown: Unknown
+    drilldown_csv:
+      headers:
+        display_id: Conversation
+        contact: Contact
+        inbox: Inbox
+        agent: Agent
+        team: Team
+        status: Status
+        created_at: Created at
+        value_at: Counted at
+      value:
+        conversations_count: Conversations
+        resolved_conversations_count: Resolved conversations
+        incoming_messages_count: Incoming messages
+        outgoing_messages_count: Outgoing messages
+        avg_first_response_time: First response time (seconds)
+        avg_first_response_time_after_assignment: First response after assignment (seconds)
+        avg_resolution_time: Resolution time (seconds)
+        resolutions_count: Resolution time (seconds)
+        reply_time: Customer waiting time (seconds)
+        waiting: Waiting for (seconds)
+        bot_resolutions_count: Resolved by the bot
+        bot_handoffs_count: Handed over by the bot
+      status:
+        open: Open
+        resolved: Resolved
+        pending: Pending
+        snoozed: Snoozed
     agent_csv:
       agent_name: Agent name
       conversations_count: Assigned conversations

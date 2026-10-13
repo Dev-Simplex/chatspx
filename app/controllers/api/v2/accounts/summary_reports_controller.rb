@@ -1,6 +1,6 @@
 class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :prepare_builder_params, only: [:agent, :agent_assignment, :team, :inbox, :label, :channel]
+  before_action :prepare_builder_params, only: [:agent, :agent_assignment, :agent_assignment_list, :team, :inbox, :label, :channel]
 
   def agent
     render_report_with(V2::Reports::AgentSummaryBuilder)
@@ -12,6 +12,18 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
   def agent_assignment
     builder = V2::Reports::AgentAssignmentBuilder.new(account: Current.account, params: @builder_params)
     render json: { rows: builder.build, matrix: builder.matrix }
+  end
+
+  # As atribuicoes por tras de um numero da tabela de Atribuicoes (painel de detalhe e o CSV dele).
+  def agent_assignment_list
+    builder = V2::Reports::AssignmentDrilldownBuilder.new(account: Current.account, params: @builder_params, kind: params[:kind],
+                                                          user_id: params[:user_id], to_id: params[:to_id])
+    return head :unprocessable_entity unless builder.supported?
+
+    respond_to do |format|
+      format.json { render json: builder.page(params[:page]) }
+      format.csv { send_data builder.to_csv, filename: "atribuicoes_#{Time.zone.today.iso8601}.csv", type: 'text/csv' }
+    end
   end
 
   def team

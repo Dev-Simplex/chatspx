@@ -1,72 +1,37 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useStore, useMapGetter } from 'dashboard/composables/store';
-import ActiveFilterChip from './v3/ActiveFilterChip.vue';
+import { computed } from 'vue';
+import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
 
-// Recorte por caixa de entrada — vale para a tela inteira, ao lado do periodo.
-// Nao se confunde com o filtro de entidade: aqui a caixa e o corte, nao o
-// assunto do relatorio. Reusa os rotulos de INBOX_REPORTS para falar a mesma
-// lingua do resto do produto.
+// Recorte por caixa de entrada — vale para a tela inteira, ao lado do periodo. Desenhado como o
+// botao "Filtros" do prototipo (grupo Caixa, com quantas conversas cada uma recebeu no periodo),
+// mas com a mesma interface de antes: v-model com o id da caixa (ou null) e o evento change.
 const props = defineProps({
   modelValue: {
     type: [Number, null],
     default: null,
   },
+  // { since, until } para as contagens; sem ele (telas ao vivo) a lista vem sem numero
+  period: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
 
-const { t } = useI18n();
-const store = useStore();
-const inboxes = useMapGetter('inboxes/getInboxes');
-const showMenu = ref(false);
-
-const options = computed(() =>
-  (inboxes.value || []).map(inbox => ({ id: inbox.id, name: inbox.name }))
-);
-
-const selectedName = computed(() => {
-  const selected = options.value.find(item => item.id === props.modelValue);
-  return selected?.name || t('INBOX_REPORTS.ALL_INBOXES');
+const selection = computed({
+  get: () => ({ inbox: props.modelValue }),
+  set: value => {
+    emit('update:modelValue', value.inbox);
+    emit('change', value.inbox);
+  },
 });
-
-const toggleDropdown = () => {
-  showMenu.value = !showMenu.value;
-};
-
-const closeDropdown = () => {
-  showMenu.value = false;
-};
-
-const selectInbox = item => {
-  showMenu.value = false;
-  emit('update:modelValue', item.id);
-  emit('change', item.id);
-};
-
-const clearInbox = () => {
-  showMenu.value = false;
-  emit('update:modelValue', null);
-  emit('change', null);
-};
-
-onMounted(() => store.dispatch('inboxes/get'));
 </script>
 
 <template>
-  <ActiveFilterChip
-    :id="modelValue"
-    :name="selectedName"
-    type="inboxScope"
-    :options="options"
-    :active-filter-type="showMenu ? 'inboxScope' : ''"
-    :show-menu="showMenu"
-    :placeholder="$t('INBOX_REPORTS.SEARCH_INBOX')"
-    enable-search
-    @toggle-dropdown="toggleDropdown"
-    @close-dropdown="closeDropdown"
-    @add-filter="selectInbox"
-    @remove-filter="clearInbox"
+  <ReportFiltersPopover
+    v-model="selection"
+    :groups="['inbox']"
+    :period="period"
   />
 </template>

@@ -792,6 +792,11 @@ const menuItems = computed(() => {
       icon: lordIcon('reports', 'i-lucide-chart-spline'),
       children: [
         {
+          name: 'Reports Panel',
+          label: t('SIDEBAR.REPORTS_PANEL'),
+          to: accountScopedRoute('reports_panel'),
+        },
+        {
           name: 'Report Overview',
           label: t('SIDEBAR.REPORTS_OVERVIEW'),
           to: accountScopedRoute('account_overview_reports'),

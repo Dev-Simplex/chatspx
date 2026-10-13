@@ -49,7 +49,7 @@ class Reports::PdfExportService
         # qualquer leitor. margin_top reserva o espaco; margin_bottom o rodape.
         header_template: header_template(title),
         footer_template: footer_template,
-        margin_top: 0.55,    # ~14mm: faixa de marca
+        margin_top: 0.62,    # ~16mm: faixa de marca + respiro para o conteudo da pagina seguinte
         margin_bottom: 0.43, # ~11mm: rodape de paginacao
         margin_left: 0,
         margin_right: 0
@@ -70,7 +70,7 @@ class Reports::PdfExportService
                  'filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1);'
     icon_html = icon ? %(<img src="#{icon}" style="#{icon_style}">) : ''
     <<~HTML
-      <div style="width:100%;height:calc(100% + 0.8cm);margin-top:-0.7cm;
+      <div style="width:100%;height:calc(16mm + 0.3cm);margin-top:-0.7cm;
                   padding:0.7cm 14mm 0;box-sizing:border-box;
                   background:#1ea65b;-webkit-print-color-adjust:exact;print-color-adjust:exact;
                   color:#ffffff;font-family:Arial,sans-serif;display:flex;align-items:center;

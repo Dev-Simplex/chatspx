@@ -1,5 +1,7 @@
 <script>
+import { formatPercent } from 'dashboard/helper/reportFormat';
 import { mapGetters } from 'vuex';
+import { I18nT } from 'vue-i18n';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import ReportMetricCard from './ReportMetricCard.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
@@ -17,7 +19,7 @@ const NPS_SCORES = Array.from({ length: 11 }, (_, i) => ({
 }));
 
 export default {
-  components: { BarChart, ReportMetricCard },
+  components: { BarChart, ReportMetricCard, I18nT },
   props: {
     // eslint-disable-next-line vue/no-unused-properties
     filters: {
@@ -228,125 +230,183 @@ export default {
   },
   methods: {
     formatToPercent(value) {
-      return value && value !== '--' ? `${value}%` : '--';
+      // virgula decimal ("54,5%"), como o resto do relatorio
+      return value && value !== '--' ? formatPercent(value) : '--';
     },
     // Percentual da faixa a partir do backend (fonte única do cálculo do NPS),
     // com fallback local para contas cujo payload ainda não traz *_pct.
     bandPercent(band) {
       if (!this.hasData) return '--';
       const pct = this.metrics[`${band}_pct`];
-      if (pct !== undefined && pct !== null) return `${pct.toFixed(1)}%`;
-      const count = this.metrics[`${band}_count`] || 0;
-      return `${((count / this.metrics.total_count) * 100).toFixed(1)}%`;
+      // Com virgula decimal ("62,5%"), no formato do navegador.
+      const value =
+        pct !== undefined && pct !== null
+          ? pct
+          : ((this.metrics[`${band}_count`] || 0) / this.metrics.total_count) *
+            100;
+      return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    },
+    bandCount(band) {
+      return Number(this.metrics[`${band}_count`] || 0).toLocaleString();
     },
   },
 };
 </script>
 
 <template>
-  <div
-    class="flex-col lg:flex-row flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-6 gap-4 shadow-sm"
+  <section
+    v-if="hasData"
+    class="relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
   >
+    <h3
+      class="m-0 text-[15px] font-extrabold tracking-[-0.015em] text-n-slate-12"
+    >
+      {{ $t('REPORT.PLAIN_SUMMARY.TITLE') }}
+    </h3>
+    <ul
+      class="mt-3 flex flex-col gap-3 text-base leading-relaxed text-n-slate-12"
+    >
+      <li class="flex gap-3">
+        <span class="i-lucide-heart size-5 mt-1 shrink-0 text-n-brand" />
+        <span class="min-w-0">
+          <I18nT keypath="NPS_REPORTS.PLAIN_SUMMARY.BANDS" tag="span">
+            <template #total>
+              <strong>{{ totalCount }}</strong>
+            </template>
+            <template #promoters>
+              <strong>{{ bandCount('promoters') }}</strong>
+            </template>
+            <template #passives>
+              <strong>{{ bandCount('passives') }}</strong>
+            </template>
+            <template #detractors>
+              <strong>{{ bandCount('detractors') }}</strong>
+            </template>
+          </I18nT>
+        </span>
+      </li>
+      <li class="flex gap-3">
+        <span class="i-lucide-gauge size-5 mt-1 shrink-0 text-n-brand" />
+        <span class="min-w-0">
+          <I18nT keypath="NPS_REPORTS.PLAIN_SUMMARY.SCORE" tag="span">
+            <template #score>
+              <strong>{{ npsScore }}</strong>
+            </template>
+          </I18nT>
+        </span>
+      </li>
+    </ul>
+    <p class="mt-4 text-sm text-n-slate-11">
+      {{ $t('NPS_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
+    </p>
+  </section>
+  <div class="flex flex-col gap-4">
     <div
       v-if="isLowSample"
       class="w-full flex items-center gap-2 rounded-lg border border-n-amber-7 bg-n-amber-3 px-3 py-2 text-xs font-medium text-n-amber-11"
     >
       {{ lowSampleBadge }}
     </div>
-    <ReportMetricCard
-      :label="
-        $t('NPS_REPORTS.METRIC.TOTAL_RESPONSES.LABEL', {
-          default: 'Total de Respostas',
-        })
-      "
-      :info-text="
-        $t('NPS_REPORTS.METRIC.TOTAL_RESPONSES.TOOLTIP', {
-          default: 'Total de respostas NPS recebidas',
-        })
-      "
-      :value="totalCount"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      :label="
-        $t('NPS_REPORTS.METRIC.NPS_SCORE.LABEL', { default: 'NPS Score' })
-      "
-      :info-text="
-        $t('NPS_REPORTS.METRIC.NPS_SCORE.TOOLTIP', {
-          default: 'Net Promoter Score calculado',
-        })
-      "
-      :value="npsScore"
-      :signal="npsSignal"
-      :trend="npsTrend"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      :label="
-        $t('NPS_REPORTS.METRIC.RESPONSE_RATE.LABEL', {
-          default: 'Taxa de Resposta',
-        })
-      "
-      :info-text="
-        $t('NPS_REPORTS.METRIC.RESPONSE_RATE.TOOLTIP', {
-          default: 'Percentual de respostas em relação aos enviados',
-        })
-      "
-      :value="formatToPercent(responseRate)"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      :label="
-        $t('NPS_REPORTS.METRIC.PROMOTERS.LABEL', { default: 'Promotores' })
-      "
-      :info-text="
-        $t('NPS_REPORTS.METRIC.PROMOTERS.TOOLTIP', {
-          default: 'Percentual de promotores (9-10)',
-        })
-      "
-      :value="promotersPercent"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      :label="$t('NPS_REPORTS.METRIC.PASSIVES.LABEL', { default: 'Passivos' })"
-      :info-text="
-        $t('NPS_REPORTS.METRIC.PASSIVES.TOOLTIP', {
-          default: 'Percentual de passivos (7-8)',
-        })
-      "
-      :value="passivesPercent"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      :label="
-        $t('NPS_REPORTS.METRIC.DETRACTORS.LABEL', { default: 'Detratores' })
-      "
-      :info-text="
-        $t('NPS_REPORTS.METRIC.DETRACTORS.TOOLTIP', {
-          default: 'Percentual de detratores (0-6)',
-        })
-      "
-      :value="detractorsPercent"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      :label="$t('NPS_REPORTS.METRIC.BLOCKED.LABEL', { default: 'Bloqueados' })"
-      :info-text="blockedTooltip"
-      :value="blockedCount"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
-    <ReportMetricCard
-      v-if="hasDetractorFollowup"
-      :label="
-        $t('NPS_REPORTS.METRIC.DETRACTOR_FOLLOWUP.LABEL', {
-          default: 'Follow-up de detratores',
-        })
-      "
-      :info-text="detractorFollowupTooltip"
-      :value="detractorFollowupTime"
-      :trend="{ text: detractorFollowupSummary, tone: 'flat' }"
-      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
-    />
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <ReportMetricCard
+        icon="i-lucide-messages-square"
+        :label="
+          $t('NPS_REPORTS.METRIC.TOTAL_RESPONSES.LABEL', {
+            default: 'Total de Respostas',
+          })
+        "
+        :info-text="
+          $t('NPS_REPORTS.METRIC.TOTAL_RESPONSES.TOOLTIP', {
+            default: 'Total de respostas NPS recebidas',
+          })
+        "
+        :value="totalCount"
+      />
+      <ReportMetricCard
+        icon="i-lucide-gauge"
+        :label="
+          $t('NPS_REPORTS.METRIC.NPS_SCORE.LABEL', { default: 'NPS Score' })
+        "
+        :info-text="
+          $t('NPS_REPORTS.METRIC.NPS_SCORE.TOOLTIP', {
+            default: 'Net Promoter Score calculado',
+          })
+        "
+        :value="npsScore"
+        :signal="npsSignal"
+        :trend="npsTrend"
+      />
+      <ReportMetricCard
+        icon="i-lucide-send"
+        :label="
+          $t('NPS_REPORTS.METRIC.RESPONSE_RATE.LABEL', {
+            default: 'Taxa de Resposta',
+          })
+        "
+        :info-text="
+          $t('NPS_REPORTS.METRIC.RESPONSE_RATE.TOOLTIP', {
+            default: 'Percentual de respostas em relação aos enviados',
+          })
+        "
+        :value="formatToPercent(responseRate)"
+      />
+      <ReportMetricCard
+        icon="i-lucide-thumbs-up"
+        :label="
+          $t('NPS_REPORTS.METRIC.PROMOTERS.LABEL', { default: 'Promotores' })
+        "
+        :info-text="
+          $t('NPS_REPORTS.METRIC.PROMOTERS.TOOLTIP', {
+            default: 'Percentual de promotores (9-10)',
+          })
+        "
+        :value="promotersPercent"
+      />
+      <ReportMetricCard
+        icon="i-lucide-meh"
+        :label="
+          $t('NPS_REPORTS.METRIC.PASSIVES.LABEL', { default: 'Passivos' })
+        "
+        :info-text="
+          $t('NPS_REPORTS.METRIC.PASSIVES.TOOLTIP', {
+            default: 'Percentual de passivos (7-8)',
+          })
+        "
+        :value="passivesPercent"
+      />
+      <ReportMetricCard
+        icon="i-lucide-thumbs-down"
+        :label="
+          $t('NPS_REPORTS.METRIC.DETRACTORS.LABEL', { default: 'Detratores' })
+        "
+        :info-text="
+          $t('NPS_REPORTS.METRIC.DETRACTORS.TOOLTIP', {
+            default: 'Percentual de detratores (0-6)',
+          })
+        "
+        :value="detractorsPercent"
+      />
+      <ReportMetricCard
+        icon="i-lucide-ban"
+        :label="
+          $t('NPS_REPORTS.METRIC.BLOCKED.LABEL', { default: 'Bloqueados' })
+        "
+        :info-text="blockedTooltip"
+        :value="blockedCount"
+      />
+      <ReportMetricCard
+        v-if="hasDetractorFollowup"
+        icon="i-lucide-phone-call"
+        :label="
+          $t('NPS_REPORTS.METRIC.DETRACTOR_FOLLOWUP.LABEL', {
+            default: 'Follow-up de detratores',
+          })
+        "
+        :info-text="detractorFollowupTooltip"
+        :value="detractorFollowupTime"
+        :trend="{ text: detractorFollowupSummary, tone: 'flat' }"
+      />
+    </div>
 
     <div
       v-if="
@@ -354,7 +414,7 @@ export default {
         metrics.scores_count &&
         Object.keys(metrics.scores_count).length > 0
       "
-      class="w-full md:w-1/2 md:max-w-[50%] flex-1 rtl:[direction:initial]"
+      class="relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5 rtl:[direction:initial]"
     >
       <h3
         class="flex items-center m-0 text-xs font-medium md:text-sm text-n-slate-12 mb-2"

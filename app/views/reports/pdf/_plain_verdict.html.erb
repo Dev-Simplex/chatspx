@@ -1,0 +1,5 @@
+<%# Frase de veredito do topo (a mesma das telas): rosto + titulo + frase. local: verdict => {level:, emoji:, title:, text:} %>
+<div class="plain-verdict pv-<%= verdict[:level] %>">
+  <span class="pv-face"><%= verdict[:emoji] %></span>
+  <p class="pv-text"><strong><%= verdict[:title] %></strong> <%= verdict[:text] %></p>
+</div>

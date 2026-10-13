@@ -1,5 +1,5 @@
 import { useI18n } from 'vue-i18n';
-import { formatTime } from '@chatwoot/utils';
+import { formatDuration, timesFromPct } from 'dashboard/helper/reportFormat';
 
 /**
  * Camada narrativa dos relatórios: transforma os `signals` estruturados que o
@@ -104,7 +104,7 @@ export function useReportNarrative() {
   const goalDisplay = signal => {
     if (PERCENT_METRICS.includes(signal.metric)) return `${signal.goal}%`;
     if (signal.metric === 'nps') return `${signal.goal}`;
-    return formatTime(signal.goal || 0);
+    return formatDuration(signal.goal || 0, t);
   };
 
   /** Pílula de semáforo: { tone, icon, colorClass, label }. */
@@ -140,10 +140,19 @@ export function useReportNarrative() {
 
     if (improved === null) return goal;
 
+    // "5422% pior" ninguem le: acima de +100% vira "N vezes".
     const pct = Math.abs(signal.delta_pct);
-    const trend = improved
-      ? t('REPORT.NARRATIVE.INSIGHT_BETTER', { pct })
-      : t('REPORT.NARRATIVE.INSIGHT_WORSE', { pct });
+    const times = timesFromPct(pct);
+    let trend;
+    if (pct >= 100) {
+      trend = improved
+        ? t('REPORT.NARRATIVE.INSIGHT_BETTER_TIMES', { times })
+        : t('REPORT.NARRATIVE.INSIGHT_WORSE_TIMES', { times });
+    } else {
+      trend = improved
+        ? t('REPORT.NARRATIVE.INSIGHT_BETTER', { pct })
+        : t('REPORT.NARRATIVE.INSIGHT_WORSE', { pct });
+    }
     return `${trend} · ${goal}`;
   };
 
@@ -225,7 +234,57 @@ export function useReportNarrative() {
     };
   };
 
+  /**
+   * Veredito de uma tela em uma frase, a partir dos signals: 'good' (tudo na meta), 'warn' (algo
+   * quase), 'bad' (algo longe, dito em palavras do dia a dia) ou 'empty' (sem dado para julgar).
+   * Devolve { level, title, text }.
+   */
+  const verdictFor = rawSignals => {
+    const list = (rawSignals || [])
+      .map(normalizeSignal)
+      .filter(signal => signal.metric && signal.level);
+    if (!list.length) {
+      return {
+        level: 'empty',
+        title: t('REPORT.VERDICT.EMPTY_TITLE'),
+        text: t('REPORT.VERDICT.EMPTY_TEXT'),
+      };
+    }
+    const bad = list.filter(signal => signal.level === 'bad');
+    if (bad.length) {
+      const [first] = bad;
+      const more = bad.length - 1;
+      const text = t(`REPORT.VERDICT.BAD.${first.metric.toUpperCase()}`, {
+        goal: goalDisplay(first),
+      });
+      return {
+        level: 'bad',
+        title: t('REPORT.VERDICT.BAD_TITLE'),
+        text: more
+          ? `${text} ${t('REPORT.VERDICT.MORE', { n: more }, more)}`
+          : text,
+      };
+    }
+    const warn = list.find(signal => signal.level === 'warn');
+    if (warn) {
+      return {
+        level: 'warn',
+        title: t('REPORT.VERDICT.WARN_TITLE'),
+        text: t('REPORT.VERDICT.WARN_TEXT', {
+          label: metricLabel(warn),
+          goal: goalDisplay(warn),
+        }),
+      };
+    }
+    return {
+      level: 'good',
+      title: t('REPORT.VERDICT.GOOD_TITLE'),
+      text: t('REPORT.VERDICT.GOOD_TEXT'),
+    };
+  };
+
   return {
+    verdictFor,
     signalForReportKey,
     signalByMetric,
     metricLabel,

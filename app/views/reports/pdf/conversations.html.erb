@@ -18,7 +18,7 @@
   recos << { title: 'Responda mais rápido', body: "A 1ª resposta está em #{k[:avg_first_response]} (meta #{frt_goal_h}). Priorize a triagem inicial e use respostas rápidas para o primeiro contato." } if frt_status[:level] != :good
   recos << { title: 'Resolva mais rápido', body: "O tempo de resolução está em #{k[:avg_resolution]} (meta #{res_goal_h}). Escale casos parados e padronize os fluxos mais comuns." } if res_status[:level] != :good
   recos << { title: 'Reforce os horários de pico', body: @data[:heatmap_insight] } if @data[:heatmap_insight].present?
-  recos << { title: 'Mantenha o ritmo', body: 'Os indicadores estão saudáveis. Documente o que está funcionando para sustentar o padrão.' } if recos.empty?
+  recos << { title: 'Mantenha o ritmo', body: 'Os indicadores estão saudáveis. Documente o que está funcionando para sustentar o padrão.' } if recos.empty? && total.positive?
   recos = recos.first(4)
 %>
 
@@ -30,6 +30,7 @@
 </div>
 
 <%# Manchete amigável (princ. 1) %>
+<%= render 'reports/pdf/plain_verdict', verdict: @data[:plain_verdict] if @data[:plain_verdict] %>
 <%= render 'reports/pdf/headline', headline: @data[:headline] %>
 
 <%# ============ 1. O QUE ACONTECEU? ============ %>
@@ -49,34 +50,38 @@
 
 <%# ============ 2. MELHOROU OU PIOROU? ============ %>
 <div class="section">
-  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?</div>
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?<% if cmp.values.any? { |c| c[:delta_pct] } && @data.dig(:period, :previous) %><span class="vs">comparado com o período de <%= @data.dig(:period, :previous) %></span><% end %></div>
   <%= render 'reports/pdf/kpi_band', cards: [
     { label: 'Conversas', value: number_with_delimiter(total), hero: true,
       meaning: 'quantas pessoas falaram com a equipe', delta: pdf_delta(cmp[:conversations]) },
-    { label: '1ª resposta', value: k[:avg_first_response], small: true, status: frt_status[:level],
+    { label: 'Quanto o cliente esperou', value: k[:avg_first_response], small: true, status: (frt_status[:level] if k[:frt_seconds].to_f.positive?),
       meaning: 'quanto o cliente espera pela primeira resposta', delta: pdf_delta(cmp[:first_response]) },
-    { label: 'Resolução', value: k[:avg_resolution], small: true, status: res_status[:level],
+    { label: 'Resolução', value: k[:avg_resolution], small: true, status: (res_status[:level] if k[:resolution_seconds].to_f.positive?),
       meaning: 'quanto tempo até o problema ser resolvido', delta: pdf_delta(cmp[:resolution]) },
-    { label: 'Taxa de resolução', value: "#{k[:resolution_rate]}%", status: rate_status[:level],
+    { label: 'Conversas resolvidas', value: "#{k[:resolution_rate]}%", status: (rate_status[:level] if total.positive?),
       meaning: 'quantas conversas terminam resolvidas' },
   ] %>
 </div>
 
-<%# Meta x resultado (princ. 5, textual) %>
-<div class="section">
-  <%= render 'reports/pdf/callout',
-        variant: frt_status[:level] == :good ? 'success' : (frt_status[:level] == :warn ? 'warning' : 'error'),
-        title: "Sua meta é responder em até #{frt_goal_h}",
-        body: "Hoje você responde em #{k[:avg_first_response]} #{frt_status[:emoji]} (#{frt_status[:word]}) e resolve em #{k[:avg_resolution]} (meta #{res_goal_h})." %>
-</div>
+<%# Meta x resultado (princ. 5, textual) — sem conversa não há tempo para comparar com a meta %>
+<% if k[:frt_seconds].to_i.positive? %>
+  <div class="section">
+    <%= render 'reports/pdf/callout',
+          variant: frt_status[:level] == :good ? 'success' : (frt_status[:level] == :warn ? 'warning' : 'error'),
+          title: "Sua meta é responder em até #{frt_goal_h}",
+          body: "Hoje você responde em #{k[:avg_first_response]} #{frt_status[:emoji]} (#{frt_status[:word]}) e resolve em #{k[:avg_resolution]} (meta #{res_goal_h})." %>
+  </div>
+<% end %>
 
 <%# Herói e vilão (princ. 6) — cards de veredito com hierarquia (métrica · valor · meta · status) %>
-<div class="section">
-  <div class="verdict-grid">
-    <%= render 'reports/pdf/verdict', v: @data[:highlight] %>
-    <%= render 'reports/pdf/verdict', v: @data[:attention] %>
+<% if @data[:highlight] %>
+  <div class="section">
+    <div class="verdict-grid">
+      <%= render 'reports/pdf/verdict', v: @data[:highlight] %>
+      <%= render 'reports/pdf/verdict', v: @data[:attention] %>
+    </div>
   </div>
-</div>
+<% end %>
 
 <%# Gráficos com meta + legenda automática (princ. 5 e 7) %>
 <% if trends[:conversations].present? %>
@@ -117,17 +122,85 @@
 <% end %>
 
 <%# ============ 3. O QUE FAZER AGORA? ============ %>
-<div class="section">
-  <div class="narrative-title"><span class="q">3.</span> O que fazer agora?</div>
-  <%= render 'reports/pdf/recommendations', items: recos %>
-</div>
+<% if recos.any? %>
+  <div class="section">
+    <div class="narrative-title"><span class="q">3.</span> O que fazer agora?</div>
+    <%= render 'reports/pdf/recommendations', items: recos %>
+  </div>
+<% end %>
 
 <%# Detalhe técnico (para quem quer se aprofundar) %>
-<% if @data[:table].present? && @data[:table][:rows].present? %>
+<% if total.positive? && @data[:table].present? && @data[:table][:rows].present? %>
   <div class="section">
     <div class="section-title"><span class="dot">+</span> Detalhe dos tempos (percentis p50/p90)</div>
     <div class="card" style="padding:0;">
       <%= render 'reports/pdf/data_table', table: @data[:table] %>
     </div>
+  </div>
+<% end %>
+
+<%# ============ ANEXO: as conversas por trás dos números ============ %>
+<%# Visual: as mais demoradas em barras; o período agrupado por dia, uma linha por conversa, tempo curto e a 1ª
+    resposta colorida pela meta. As tabelas podem quebrar entre páginas (o padrão do PDF segura seção e cartão). %>
+<% appendix = @data[:appendix] || {} %>
+<% if appendix[:shown].to_i.positive? %>
+  <div class="section" style="break-before: page;">
+    <div class="narrative-title"><span class="q">Anexo.</span> Quais são essas conversas?</div>
+    <div class="cl-legend">
+      <span><i class="cl-dot good"></i> 1ª resposta dentro da meta (até <%= appendix[:goal] %>)</span>
+      <span><i class="cl-dot warn"></i> perto da meta</span>
+      <span><i class="cl-dot bad"></i> longe da meta</span>
+    </div>
+    <% if appendix[:slowest].present? %>
+      <div class="section-title"><span class="dot">›</span> As <%= appendix[:slowest].size %> que mais esperaram pela 1ª resposta</div>
+      <div class="card cl-bars">
+        <% appendix[:slowest].each do |row| %>
+          <div class="cl-bar-row">
+            <div>
+              <div class="cl-who"><%= row[:id] %> · <%= row[:contact] %></div>
+              <div class="cl-where"><%= row[:inbox] %> · <%= row[:agent] %> · <%= row[:status] %>, resolução: <%= row[:resolution] %></div>
+            </div>
+            <div class="cl-track">
+              <div class="cl-fill <%= row[:first_level] %>" style="width: <%= [row[:bar_pct], 2].max %>%;"></div>
+              <span class="cl-value"><%= row[:first] %></span>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  <div class="section" style="break-inside: auto;">
+    <div class="section-title"><span class="dot">›</span> Conversas do período, dia a dia</div>
+    <% if appendix[:total] > appendix[:shown] %>
+      <p style="margin: -2mm 0 2mm; font-size: 10px; color: #667781;">
+        Mostrando as <%= appendix[:shown] %> mais recentes de <%= appendix[:total] %>. A lista completa está no sistema (clique no número) e no CSV.
+      </p>
+    <% end %>
+    <% appendix[:days].each do |day| %>
+      <div class="cl-day"><%= day[:title] %> <small><%= day[:rows].size %> <%= day[:rows].size == 1 ? 'conversa' : 'conversas' %></small></div>
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 7%;"><col style="width: 8%;"><col style="width: 19%;"><col style="width: 19%;">
+          <col style="width: 18%;"><col style="width: 10%;"><col style="width: 11%;"><col style="width: 8%;">
+        </colgroup>
+        <thead>
+          <tr><th>Hora</th><th>Conversa</th><th>Contato</th><th>Caixa</th><th>Agente</th><th>Status</th><th>1ª resposta</th><th>Resolução</th></tr>
+        </thead>
+        <tbody>
+          <% day[:rows].each do |row| %>
+            <tr>
+              <td class="muted"><%= row[:time] %></td>
+              <td><%= row[:id] %></td>
+              <td class="cl-wrap"><%= row[:contact] %></td>
+              <td class="cl-wrap"><%= row[:inbox] %></td>
+              <td class="cl-wrap"><%= row[:agent] %></td>
+              <td><span class="cl-chip <%= row[:status_key] %>"><%= row[:status] %></span></td>
+              <td><i class="cl-dot <%= row[:first_level] %>"></i> <%= row[:first] %></td>
+              <td class="<%= 'muted' if row[:resolution] == 'em aberto' %>"><%= row[:resolution] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
   </div>
 <% end %>
