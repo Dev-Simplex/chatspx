@@ -185,6 +185,16 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     post('/api/sendText', payload)
   end
 
+  # Arquivo como DOCUMENTO (MIDIA-01: video acima de 16 MB). O WAHA baixa o arquivo pela URL, entao a chamada
+  # demora o tempo do download — use com um timeout maior, fora do ciclo web.
+  # https://waha.devlike.pro/docs/how-to/send-messages/#send-file
+  # file: { url:, filename:, mimetype: }
+  def send_file(session:, chat_id:, file:, caption: nil)
+    payload = { session: session, chatId: chat_id, file: file }
+    payload[:caption] = caption if caption.present?
+    post('/api/sendFile', payload)
+  end
+
   # Plain text message via WAHA REST. Used as the fallback path when an
   # interactive menu can't be expressed as a poll (fewer than 2 options).
   def send_text(session:, chat_id:, text:)
@@ -271,6 +281,13 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
   private
 
   # Encode a path segment but preserve @ so WAHA accepts WhatsApp JIDs like 5511@c.us
+  # Corpo que nao e JSON (ex.: pagina HTML da Cloudflare no 525) vira so o titulo: o motivo aparece no balao do
+  # atendente como "Falha ao enviar", e a pagina inteira entrava ali.
+  def resumo_do_corpo(body)
+    titulo = body.to_s[%r{<title>(.*?)</title>}m, 1]
+    (titulo || body.to_s).squish.truncate(200)
+  end
+
   def encode_path_segment(segment)
     CGI.escape(segment.to_s).gsub('%40', '@')
   end
@@ -360,7 +377,7 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
         error_message
       rescue StandardError => e
         Rails.logger.error("Failed to parse error response: #{e.message}")
-        response.body
+        resumo_do_corpo(response.body)
       end
 
       raise Error, "WAHA API error (#{response.code}): #{error_data}"

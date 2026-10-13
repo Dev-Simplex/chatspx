@@ -68,9 +68,21 @@ export const effectiveMaxUploadSize = channelLimit => {
 // getMaxUploadSizeByChannel falls back to the 40MB default. That means
 // oversized media slips past the client check and the WhatsApp engine rejects
 // it later — a silent late failure. We mirror the WhatsApp Cloud limits here,
-// with video capped at 16MB (the value the WAHA engine reliably accepts;
-// raise WAHA_VIDEO once the engine owner confirms a higher ceiling).
-const WAHA_VIDEO = 16;
+// Video goes up to the 100MB ceiling: above WHATSAPP_VIDEO_LIMIT_MB it is sent as
+// a DOCUMENT (MIDIA-01, backend AttachmentEnvioComoDocumento).
+const WAHA_VIDEO = HARD_MAXIMUM_FILE_UPLOAD_SIZE;
+
+// WhatsApp video limit (MB). Bigger videos leave as a document, on WAHA and on
+// the official channel alike.
+export const WHATSAPP_VIDEO_LIMIT_MB = 16;
+
+export const vaiComoDocumento = file => {
+  const type = file?.content_type || file?.type || '';
+  const size = file?.byte_size || file?.size || 0;
+  return (
+    type.startsWith('video/') && size > WHATSAPP_VIDEO_LIMIT_MB * 1024 * 1024
+  );
+};
 const WAHA_MAX_SIZE_BY_CATEGORY = {
   image: 16,
   video: WAHA_VIDEO,

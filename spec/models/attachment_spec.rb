@@ -413,7 +413,7 @@ RSpec.describe Attachment do
 
     def anexo(msg, megas, content_type: 'video/mp4', file_type: :video)
       attachment = msg.attachments.new(account_id: msg.account_id, file_type: file_type)
-      attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'arquivo', content_type: content_type)
+      attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'arquivo', content_type: content_type, identify: false)
       allow(attachment.file).to receive(:byte_size).and_return(megas.megabytes)
       attachment
     end
@@ -424,10 +424,15 @@ RSpec.describe Attachment do
       expect(anexo(recebida, 20).valid?).to be true
     end
 
-    it 'still refuses a 20MB video the agent sends from the panel' do
+    # MIDIA-01: o video acima de 16 MB que o atendente manda sai como documento, ate 100 MB.
+    it 'accepts a 20MB video the agent sends from the panel and sends it as a document' do
+      api_inbox.update!(waha_session_name: 'sessao_teste')
       enviada = create(:message, account: message.account, inbox: api_inbox, message_type: :outgoing)
+      video = anexo(enviada, 20)
 
-      expect(anexo(enviada, 20).valid?).to be false
+      expect(video.valid?).to be true
+      expect(video.vai_como_documento?).to be true
+      expect(anexo(enviada, 16).vai_como_documento?).to be false
     end
 
     it 'accepts a received file above the 40MB global cap, up to the hard 100MB' do
@@ -443,6 +448,7 @@ RSpec.describe Attachment do
                              content: "*📱 Enviado do WhatsApp*\n\nvideo do imovel")
 
       expect(anexo(eco, 20).valid?).to be true
+      expect(anexo(eco, 20).vai_como_documento?).to be false
     end
   end
 
@@ -469,10 +475,12 @@ RSpec.describe Attachment do
       expect(attachment.errors[:file]).to include('size exceeds the 16MB limit for image')
     end
 
-    it 'rejects a video over the 16MB WAHA limit' do
+    it 'allows a video up to 100MB and rejects above it (MIDIA-01)' do
       attachment = api_attachment
-      attachment.send(:validate_waha_category_size, 20.megabytes, 'video/mp4')
-      expect(attachment.errors[:file]).to include('size exceeds the 16MB limit for video')
+      attachment.send(:validate_waha_category_size, 99.megabytes, 'video/mp4')
+      expect(attachment.errors[:file]).to be_empty
+      attachment.send(:validate_waha_category_size, 101.megabytes, 'video/mp4')
+      expect(attachment.errors[:file]).to include('size exceeds the 100MB limit for video')
     end
 
     it 'allows an image within the 16MB WAHA limit' do

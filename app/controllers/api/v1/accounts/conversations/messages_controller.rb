@@ -95,6 +95,8 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
     if waha_interactive_message?(message)
       retry_waha_interactive
+    elsif message.attachments.first&.vai_como_documento?
+      retry_waha_documento
     else
       service = Messages::StatusUpdateService.new(message, 'sent')
       service.perform
@@ -200,6 +202,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     attrs = (message.content_attributes || {}).except('external_error')
     message.update!(content_attributes: attrs, status: :sent, source_id: nil)
     Waha::OutboundSpecialMessageService.new(message).perform
+  end
+
+  # MIDIA-01: o video grande sai direto pelo WAHA, sem o webhook do app. O retry padrao so marca 'sent' e conta com
+  # esse webhook, entao nunca reenviaria: limpa o erro e o source_id e manda de novo pelo job.
+  def retry_waha_documento
+    attrs = (message.content_attributes || {}).except('external_error')
+    message.update!(content_attributes: attrs, status: :sent, source_id: nil)
+    Waha::EnviarDocumentoJob.perform_later(message.id)
   end
 
   def enqueue_waha_status_sync

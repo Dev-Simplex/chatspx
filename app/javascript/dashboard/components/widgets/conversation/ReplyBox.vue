@@ -92,6 +92,7 @@ import {
   isFileTypeAllowedForChannel,
   buildAttachmentThumbUrl,
   revokeAttachmentThumbUrl,
+  vaiComoDocumento,
 } from 'shared/helpers/FileHelper';
 import {
   DropdownContainer,
@@ -374,6 +375,15 @@ export default {
     // seletor avisa isso antes de o atendente mandar. Mesma leitura do MessagesView.
     isWahaInbox() {
       return !!this.inbox?.waha_session_name;
+    },
+    // MIDIA-01: no WAHA o video acima de 16 MB sai sozinho, como documento. Com outros anexos junto, cada anexo
+    // vira uma mensagem (como no canal oficial).
+    wahaComVideoDocumento() {
+      return (
+        this.isWahaInbox &&
+        this.composerAttachedFiles.length > 1 &&
+        this.composerAttachedFiles.some(a => vaiComoDocumento(a.resource))
+      );
     },
     // Free-form interactive buttons/list are delivered via WAHA (Channel::Api).
     // Offer on WhatsApp / API inboxes, in reply mode, when a reply is allowed.
@@ -1650,7 +1660,8 @@ export default {
       const isOnWhatsApp =
         this.isATwilioWhatsAppChannel ||
         this.isAWhatsAppCloudChannel ||
-        this.is360DialogWhatsAppChannel;
+        this.is360DialogWhatsAppChannel ||
+        this.wahaComVideoDocumento;
       // Instagram and TikTok do not support sending text and attachments in the same message.
       // For Instagram, combining them causes duplicate messages due to separate echo events per component.
       // For TikTok, the API rejects messages that mix text and media.
@@ -1716,7 +1727,8 @@ export default {
       const isOnWhatsApp =
         this.isATwilioWhatsAppChannel ||
         this.isAWhatsAppCloudChannel ||
-        this.is360DialogWhatsAppChannel;
+        this.is360DialogWhatsAppChannel ||
+        this.wahaComVideoDocumento;
       const isOnInstagram = this.isAnInstagramChannel;
       if ((isOnWhatsApp || isOnInstagram) && !this.isPrivate) {
         const messages = this.getMultipleMessagesPayload(
@@ -3036,6 +3048,7 @@ export default {
             <AttachmentPreview
               class="mt-2"
               :attachments="composerAttachedFiles"
+              :is-whatsapp="isWahaInbox || isAWhatsAppCloudChannel"
               @remove-attachment="removeAttachment"
               @retry-upload="retryAttachmentUpload"
             />
@@ -3472,6 +3485,7 @@ export default {
       :show="showAttachmentModal"
       :files="composerAttachedFiles"
       :caption="message"
+      :is-whatsapp="isWahaInbox || isAWhatsAppCloudChannel"
       :sending="isSendingAttachment"
       @update:caption="message = $event"
       @update:files="removeAttachment"

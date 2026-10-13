@@ -1,5 +1,8 @@
 {
   "CONVERSATION": {
+    "SENT_AS_DOCUMENT_BADGE": "Documento",
+    "SENT_AS_DOCUMENT": "Enviado como documento",
+    "SENT_AS_DOCUMENT_HINT": "Acima de 16 MB: o cliente recebe um arquivo para baixar, e não um vídeo que toca na conversa.",
     "WHATSAPP_PHONE_REPLY": "Enviada direto pelo WhatsApp do celular (sem identificar o atendente)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
@@ -1259,6 +1262,8 @@
     "ARIA_LABEL": "Área de soltar — solte para anexar arquivos"
   },
   "ATTACHMENT_PREVIEW": {
+    "SENT_AS_DOCUMENT": "Vídeo acima de 16 MB: vai como documento",
+    "SENT_AS_DOCUMENT_HINT": "Vídeos acima de 16 MB chegam ao cliente como arquivo para baixar, e não como vídeo que toca",
     "CAPTION_PLACEHOLDER": "Adicionar uma legenda...",
     "SEND": "Enviar",
     "CLOSE": "Fechar",
