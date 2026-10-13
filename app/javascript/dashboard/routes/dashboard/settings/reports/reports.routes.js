@@ -3,6 +3,7 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import ReportsWrapper from './components/ReportsWrapper.vue';
 import Index from './Index.vue';
+import ReportsPanel from './ReportsPanel.vue';
 
 import AgentReportsIndex from './AgentReportsIndex.vue';
 import AgentAssignmentReports from './AgentAssignmentReports.vue';
@@ -144,8 +145,14 @@ export default {
         {
           path: '',
           redirect: to => {
-            return { name: 'account_overview_reports', params: to.params };
+            return { name: 'reports_panel', params: to.params };
           },
+        },
+        {
+          path: 'painel',
+          name: 'reports_panel',
+          meta,
+          component: ReportsPanel,
         },
         {
           path: 'overview',

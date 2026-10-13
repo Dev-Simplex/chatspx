@@ -20,6 +20,30 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: build_summary(:bot_summary)
   end
 
+  # As conversas por tras de um numero do relatorio (painel de detalhe e o CSV dele).
+  DRILLDOWN_TYPES = %w[account agent inbox team label].freeze
+
+  def drilldown
+    # Antes do report_params: ele faz `params[:type].to_sym`, e sem tipo (ou com um invalido) virava 500.
+    return head :unprocessable_entity unless DRILLDOWN_TYPES.include?(params[:type].to_s)
+
+    builder = V2::Reports::Conversations::DrilldownBuilder.new(Current.account, report_params)
+    return head :unprocessable_entity unless builder.supported?
+
+    respond_to do |format|
+      format.json { render json: builder.page(params[:page]) }
+      format.csv { send_data builder.to_csv, filename: "#{params[:metric]}_#{Time.zone.today.iso8601}.csv", type: 'text/csv' }
+    end
+  end
+
+  # Um numero aberto por grupo (CSAT por agente, NPS por time, SLA por politica/time) para o painel.
+  def breakdown
+    builder = V2::Reports::BreakdownBuilder.new(Current.account, params.permit(:kind, :since, :until, :inbox_id))
+    return head :unprocessable_entity unless builder.supported?
+
+    render json: builder.build
+  end
+
   def agents
     @report_data = generate_agents_report
     generate_csv('agents_report', 'api/v2/accounts/reports/agents')

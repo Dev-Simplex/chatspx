@@ -14,7 +14,8 @@ import {
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import ActiveFilterChip from '../Filters/v3/ActiveFilterChip.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
-import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
+import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import {
   parseReportURLParams,
   parseFilterURLParams,
@@ -85,31 +86,14 @@ const getFilterOptions = type => {
 };
 
 const filterListMenuItems = computed(() => {
+  // Caixa, time e atendente moram no botao Filtros; aqui sobra a nota.
   const filterTypes = [
-    {
-      id: '1',
-      name: t('CSAT_REPORTS.FILTERS.AGENTS.LABEL'),
-      type: 'agents',
-    },
-    {
-      id: '2',
-      name: t('CSAT_REPORTS.FILTERS.INBOXES.LABEL'),
-      type: 'inboxes',
-    },
     {
       id: '3',
       name: t('CSAT_REPORTS.FILTERS.RATINGS.LABEL'),
       type: 'ratings',
     },
   ];
-
-  if (props.showTeamFilter) {
-    filterTypes.splice(2, 0, {
-      id: '4',
-      name: t('CSAT_REPORTS.FILTERS.TEAMS.LABEL'),
-      type: 'teams',
-    });
-  }
 
   const activeFilterKeys = Object.keys(appliedFilters.value).filter(
     key => appliedFilters.value[key]
@@ -129,9 +113,7 @@ const filterListMenuItems = computed(() => {
 });
 
 const activeFilters = computed(() => {
-  const activeKeys = Object.keys(appliedFilters.value).filter(
-    key => appliedFilters.value[key]
-  );
+  const activeKeys = ['rating'].filter(key => appliedFilters.value[key]);
 
   return activeKeys.map(key => {
     const filterType = getFilterType(key, 'keyToType');
@@ -149,9 +131,7 @@ const activeFilters = computed(() => {
   });
 });
 
-const hasActiveFilters = computed(() =>
-  Object.values(appliedFilters.value).some(value => value !== null)
-);
+const hasActiveFilters = computed(() => !!appliedFilters.value.rating);
 
 const isAllFilterSelected = computed(() => !filterListMenuItems.value.length);
 
@@ -190,6 +170,28 @@ const emitChange = () => {
   });
 };
 
+// Botao Filtros (Caixa, Time, Atendente) ligado aos mesmos appliedFilters.
+const popoverSelection = computed({
+  get: () => ({
+    inbox: appliedFilters.value.inbox_id || null,
+    team: appliedFilters.value.team_id || null,
+    agent: appliedFilters.value.user_ids || null,
+  }),
+  set: value => {
+    appliedFilters.value = {
+      ...appliedFilters.value,
+      inbox_id: value.inbox,
+      team_id: value.team,
+      user_ids: value.agent,
+    };
+    emitChange();
+  },
+});
+const popoverGroups = computed(() =>
+  props.showTeamFilter ? ['inbox', 'team', 'agent'] : ['inbox', 'agent']
+);
+const countPeriod = computed(() => ({ since: from.value, until: to.value }));
+
 const closeDropdown = () => {
   showDropdownMenu.value = false;
 };
@@ -219,12 +221,7 @@ const removeFilter = type => {
 };
 
 const clearAllFilters = () => {
-  appliedFilters.value = {
-    user_ids: null,
-    inbox_id: null,
-    team_id: null,
-    rating: null,
-  };
+  appliedFilters.value = { ...appliedFilters.value, rating: null };
   emitChange();
   resetDropdown();
 };
@@ -254,10 +251,15 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col flex-wrap w-full gap-3 md:flex-row">
-    <WootDatePicker
+    <ReportPeriodPicker
       v-model:date-range="customDateRange"
       v-model:range-type="selectedDateRange"
       @date-range-changed="onDateRangeChange"
+    />
+    <ReportFiltersPopover
+      v-model="popoverSelection"
+      :groups="popoverGroups"
+      :period="countPeriod"
     />
 
     <div

@@ -1,5 +1,5 @@
 class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseController
-  before_action :load_conversations, only: [:conversation_metrics, :grouped_conversation_metrics]
+  before_action :load_conversations, only: [:conversation_metrics, :grouped_conversation_metrics, :conversation_list]
   before_action :set_group_scope, only: [:grouped_conversation_metrics]
 
   before_action :check_authorization
@@ -29,6 +29,17 @@ class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseControll
     end
 
     render json: group_metrics
+  end
+
+  # As conversas por tras de um numero da Visao geral (painel de detalhe e o CSV dele).
+  def conversation_list
+    builder = V2::Reports::LiveDrilldownBuilder.new(@conversations, metric: params[:metric], assignee_id: params[:assignee_id])
+    return head :unprocessable_entity unless builder.supported?
+
+    respond_to do |format|
+      format.json { render json: builder.page(params[:page]) }
+      format.csv { send_data builder.to_csv, filename: "#{params[:metric]}_#{Time.zone.today.iso8601}.csv", type: 'text/csv' }
+    end
   end
 
   def in_service_overview

@@ -5,13 +5,15 @@ import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
 import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
+import ReportTabs from 'dashboard/components-next/reports/ui/ReportTabs.vue';
+import { REPORTS_WALLPAPER } from 'dashboard/components-next/reports/ui/styles';
 import { duracao, instante } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
 
 const { t } = useI18n();
 const router = useRouter();
-const { accountId } = useAccount();
+const { accountId, currentAccount } = useAccount();
 
 const loading = ref(true);
 const loadError = ref(false);
@@ -282,7 +284,36 @@ const abrirDetalhe = async lead => {
 
 // Montado aqui, e não no template, porque texto solto em template é erro de lint no projeto —
 // nada de string crua fora do i18n. O "#" saiu a pedido: o número do lead se lê sozinho.
-const conversa = displayId => `${displayId}`;
+// O que cada coluna da tabela quer dizer, embaixo dela.
+const LEGENDA = [
+  'RECEIVED',
+  'ROTATION',
+  'CONTINUITY',
+  'PREFERENCE',
+  'HANDOFF',
+  'MANUAL',
+  'OPEN',
+];
+const conversa = displayId => `#${displayId}`;
+const conversaUrl = displayId =>
+  `/app/accounts/${accountId.value}/conversations/${displayId}`;
+
+// O periodo em frases: quantos leads, entre quantos consultores, quem recebeu mais, por que caminho e se ha parados.
+const resumo = computed(() => {
+  const ativos = linhas.value.filter(linha => linha.recebidos > 0);
+  const top = [...ativos].sort((a, b) => b.recebidos - a.recebidos)[0];
+  const contar = chave => totais.value.por_motivo?.[chave] || 0;
+  return {
+    recebidos: totais.value.recebidos || 0,
+    consultores: ativos.length,
+    top,
+    rodizio: contar('rodizio'),
+    continuidade: contar('continuidade'),
+    preferencia: contar('preferencia_cliente'),
+    repasse: contar('repasse_sla'),
+    gestor: contar('manual_gestor') + contar('escalado_gestor'),
+  };
+});
 
 // ---------------------------------------------------------------- linha do tempo
 
@@ -473,10 +504,22 @@ const irParaPolitica = () =>
   <!-- `w-full h-full` porque esta tela deixou de ser filha do AgentsPageView: agora
        ela e o proprio filho do <main> do Dashboard (flex row, overflow-hidden), e sem
        isso encolheria para a largura do conteudo e nao rolaria. -->
-  <div class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-medium text-n-slate-12">
+  <div
+    class="flex flex-col w-full h-full gap-4 px-6 pt-6 pb-12 overflow-y-auto bg-n-surface-1 bg-repeat"
+    :class="REPORTS_WALLPAPER"
+  >
+    <header
+      class="flex flex-wrap items-start justify-between gap-4 p-5 relative z-40 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    >
+      <div class="min-w-0">
+        <p
+          class="m-0 text-xs font-semibold tracking-wider uppercase text-n-slate-10 truncate"
+        >
+          {{ currentAccount?.name }}
+        </p>
+        <h1
+          class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
+        >
           {{ t('AGENTS_RODIZIO.TITLE') }}
         </h1>
         <p class="mt-1 text-sm text-n-slate-11">
@@ -485,6 +528,7 @@ const irParaPolitica = () =>
             {{ periodoLegivel }}
           </span>
         </p>
+        <ReportTabs class="mt-2" />
       </div>
       <div class="flex items-center gap-2">
         <!-- `mb-0` mata o `mb-4` que a regra global de `select` traz pelo `field-base`: com ela a
@@ -525,41 +569,40 @@ const irParaPolitica = () =>
           {{ t('AGENTS_RODIZIO.CONFIGURE') }}
         </button>
       </div>
+      <!-- As duas datas ganham linha própria: espremidas na fila de botões elas ficavam de alturas
+           diferentes, sem rótulo, e a segunda aparecia como "dd/mm/aaaa" solto no meio da barra.
+           Aqui cabem rótulo, limites (fim nunca antes do início, nada no futuro) e o aviso de que
+           falta escolher — e a linha some quando o período não é personalizado. -->
+      <div
+        v-if="periodo === 'personalizado'"
+        class="flex flex-wrap items-center justify-end w-full gap-3"
+      >
+        <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+          {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
+          <input
+            v-model="de"
+            type="date"
+            :max="ate || hoje"
+            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            @change="trocarIntervalo"
+          />
+        </label>
+        <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+          {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
+          <input
+            v-model="ate"
+            type="date"
+            :min="de"
+            :max="hoje"
+            class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+            @change="trocarIntervalo"
+          />
+        </label>
+        <span v-if="!de || !ate" class="text-xs text-n-slate-10">
+          {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
+        </span>
+      </div>
     </header>
-
-    <!-- As duas datas ganham linha própria: espremidas na fila de botões elas ficavam de alturas
-         diferentes, sem rótulo, e a segunda aparecia como "dd/mm/aaaa" solto no meio da barra.
-         Aqui cabem rótulo, limites (fim nunca antes do início, nada no futuro) e o aviso de que
-         falta escolher — e a linha some quando o período não é personalizado. -->
-    <div
-      v-if="periodo === 'personalizado'"
-      class="flex flex-wrap items-center justify-end gap-3 px-3 py-2 -mt-2 border rounded-xl border-n-weak bg-n-solid-1 dark:bg-n-solid-2"
-    >
-      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
-        {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
-        <input
-          v-model="de"
-          type="date"
-          :max="ate || hoje"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
-          @change="trocarIntervalo"
-        />
-      </label>
-      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
-        {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
-        <input
-          v-model="ate"
-          type="date"
-          :min="de"
-          :max="hoje"
-          class="h-9 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
-          @change="trocarIntervalo"
-        />
-      </label>
-      <span v-if="!de || !ate" class="text-xs text-n-slate-10">
-        {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
-      </span>
-    </div>
 
     <p v-if="loading" class="text-sm text-n-slate-11">
       {{ t('AGENTS_RODIZIO.LOADING') }}
@@ -569,24 +612,82 @@ const irParaPolitica = () =>
     </p>
 
     <template v-else>
-      <section class="flex flex-wrap gap-4">
-        <div
-          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+      <section
+        v-if="resumo.recebidos"
+        class="relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] p-5"
+      >
+        <h2
+          class="m-0 text-[15px] font-extrabold tracking-[-0.015em] text-n-slate-12"
         >
-          <p class="text-xs uppercase text-n-slate-10">
+          {{ t('AGENTS_RODIZIO.PLAIN_SUMMARY.TITLE') }}
+        </h2>
+        <ul
+          class="mt-3 flex flex-col gap-3 text-base leading-relaxed text-n-slate-12"
+        >
+          <li class="flex gap-3">
+            <span class="i-lucide-users size-5 mt-1 shrink-0 text-n-brand" />
+            <span class="min-w-0">
+              {{
+                t('AGENTS_RODIZIO.PLAIN_SUMMARY.VOLUME', {
+                  recebidos: resumo.recebidos,
+                  consultores: resumo.consultores,
+                })
+              }}
+              <template v-if="resumo.top">
+                {{
+                  t('AGENTS_RODIZIO.PLAIN_SUMMARY.TOP', {
+                    nome: resumo.top.nome,
+                    recebidos: resumo.top.recebidos,
+                  })
+                }}
+              </template>
+            </span>
+          </li>
+          <li class="flex gap-3">
+            <span class="i-lucide-route size-5 mt-1 shrink-0 text-n-brand" />
+            <span class="min-w-0">
+              {{ t('AGENTS_RODIZIO.PLAIN_SUMMARY.HOW', resumo) }}
+            </span>
+          </li>
+          <li class="flex gap-3">
+            <span
+              class="i-lucide-alarm-clock size-5 mt-1 shrink-0 text-n-brand"
+            />
+            <span class="min-w-0">
+              {{
+                parados.total
+                  ? t('AGENTS_RODIZIO.PLAIN_SUMMARY.STALLED', {
+                      total: parados.total,
+                      min: parados.limiar_minutos,
+                    })
+                  : t('AGENTS_RODIZIO.PLAIN_SUMMARY.NONE_STALLED')
+              }}
+            </span>
+          </li>
+        </ul>
+      </section>
+      <section class="flex flex-wrap gap-3">
+        <div
+          class="flex flex-col gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
+        >
+          <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.TOTAL_RECEIVED') }}
           </p>
-          <p class="text-xl font-medium text-n-slate-12">
+          <p
+            class="m-0 text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
+          >
             {{ totais.recebidos || 0 }}
           </p>
         </div>
         <div
-          class="px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="flex flex-col gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-[10rem]"
         >
-          <p class="text-xs uppercase text-n-slate-10">
+          <p class="text-sm text-n-slate-11">
             {{ t('AGENTS_RODIZIO.STALLED.TITLE') }}
           </p>
-          <p class="text-xl font-medium text-n-slate-12">
+          <p
+            class="m-0 text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-n-slate-12"
+          >
             {{ parados.total }}
           </p>
           <p class="text-xs text-n-slate-10">
@@ -601,10 +702,10 @@ const irParaPolitica = () =>
              da tabela, que é a seção que encolhe quando a tela não cabe. Pelo mesmo motivo é
              baixa: título e explicação numa linha só, e três leads visíveis antes de rolar. -->
         <div
-          class="flex flex-col flex-1 min-w-[20rem] gap-1 px-4 py-2 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+          class="flex flex-col flex-1 min-w-[20rem] gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
         >
           <div class="flex flex-wrap items-baseline gap-x-2">
-            <h2 class="text-xs uppercase text-n-slate-10">
+            <h2 class="text-sm font-medium text-n-slate-11">
               {{ t('AGENTS_RODIZIO.STALLED.LIST_TITLE') }}
             </h2>
             <p class="text-xs text-n-slate-10">
@@ -637,9 +738,14 @@ const irParaPolitica = () =>
               <span v-if="lead.produto" class="text-xs text-n-slate-10">
                 {{ lead.produto }}
               </span>
-              <span class="text-xs tabular-nums text-n-slate-10">
+              <a
+                :href="conversaUrl(lead.display_id)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-xs tabular-nums text-n-brand hover:underline"
+              >
                 {{ conversa(lead.display_id) }}
-              </span>
+              </a>
               <button
                 class="ml-auto text-xs underline text-n-slate-11"
                 @click="abrirDetalhe(lead)"
@@ -654,7 +760,7 @@ const irParaPolitica = () =>
       <!-- O "Por que este?" abre logo abaixo da lista que o chamou, e não no pé da página. -->
       <section
         v-if="detalhe"
-        class="flex flex-col gap-2 p-4 bg-white border rounded-xl dark:bg-n-solid-2 border-n-weak"
+        class="flex flex-col gap-2 p-5 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
       >
         <div class="flex items-center justify-between">
           <h2 class="text-base font-medium text-n-slate-12">
@@ -800,8 +906,11 @@ const irParaPolitica = () =>
         </template>
       </section>
 
-      <section v-show="aba === 'consultores'" class="overflow-x-auto">
-        <table class="w-full text-sm border rounded-xl border-n-weak">
+      <section
+        v-show="aba === 'consultores'"
+        class="overflow-x-auto relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+      >
+        <table class="w-full text-sm">
           <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">
             <tr>
               <th class="px-3 py-2 font-medium text-left">
@@ -897,7 +1006,7 @@ const irParaPolitica = () =>
               <tr v-if="expandido === linha.user_id">
                 <td colspan="10" class="p-0">
                   <div
-                    class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 dark:bg-n-solid-2 border-n-weak"
+                    class="flex flex-col gap-3 px-4 py-4 border-t bg-n-solid-1 border-n-weak"
                   >
                     <div
                       class="flex flex-wrap items-baseline justify-between gap-2"
@@ -976,6 +1085,11 @@ const irParaPolitica = () =>
             </template>
           </tbody>
         </table>
+        <ul class="flex flex-col gap-1 px-4 py-3 text-sm text-n-slate-11">
+          <li v-for="item in LEGENDA" :key="item">
+            {{ t(`AGENTS_RODIZIO.LEGEND.${item}`) }}
+          </li>
+        </ul>
       </section>
     </template>
   </div>

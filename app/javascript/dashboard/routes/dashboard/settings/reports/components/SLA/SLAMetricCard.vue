@@ -3,6 +3,7 @@ import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 
 export default {
   props: {
+    icon: { type: String, default: '' },
     label: {
       type: String,
       required: true,
@@ -38,11 +39,15 @@ export default {
 
 <template>
   <div
-    class="flex flex-col gap-2 items-start justify-center min-w-[10rem] bg-n-solid-1 border border-n-weak rounded-xl p-5"
+    class="flex flex-col gap-1 p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] min-w-0"
   >
     <span
-      class="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-n-slate-10"
+      v-if="icon"
+      class="flex items-center justify-center mb-2 rounded-lg size-9 bg-n-alpha-2 text-n-slate-11"
     >
+      <span class="size-5" :class="icon" />
+    </span>
+    <span class="inline-flex items-center gap-1 text-sm text-n-slate-11">
       {{ label }}
       <fluent-icon
         v-tooltip.right="toolTip"
@@ -59,7 +64,7 @@ export default {
 
     <span
       v-else
-      class="text-2xl font-semibold text-n-slate-12 tabular-nums mt-1"
+      class="text-2xl sm:text-[30px] font-extrabold leading-none tracking-[-0.035em] text-n-slate-12 tabular-nums"
     >
       {{ value }}
     </span>

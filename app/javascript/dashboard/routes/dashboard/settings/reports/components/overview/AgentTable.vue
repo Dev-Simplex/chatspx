@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h } from 'vue';
+import { computed, h, ref } from 'vue';
 import {
   useVueTable,
   createColumnHelper,
@@ -7,6 +7,7 @@ import {
   getPaginationRowModel,
 } from '@tanstack/vue-table';
 import { useI18n } from 'vue-i18n';
+import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 
 import Spinner from 'shared/components/Spinner.vue';
@@ -15,7 +16,7 @@ import Table from 'dashboard/components/table/Table.vue';
 import Pagination from 'dashboard/components/table/Pagination.vue';
 import AgentCell from './AgentCell.vue';
 
-const { agents, agentMetrics } = defineProps({
+const props = defineProps({
   agents: {
     type: Array,
     default: () => [],
@@ -27,6 +28,10 @@ const { agents, agentMetrics } = defineProps({
   isLoading: {
     type: Boolean,
     default: false,
+  },
+  inboxId: {
+    type: [Number, String],
+    default: null,
   },
 });
 
@@ -46,13 +51,14 @@ const handlePageSizeChange = pageSize => {
 };
 
 const getAgentMetrics = id =>
-  agentMetrics.find(metrics => metrics.assignee_id === Number(id)) || {};
+  props.agentMetrics.find(metrics => metrics.assignee_id === Number(id)) || {};
 
 const tableData = computed(() =>
-  agents
+  props.agents
     .map(agent => {
       const metric = getAgentMetrics(agent.id);
       return {
+        id: agent.id,
         agent: agent.available_name || agent.name,
         email: agent.email,
         thumbnail: agent.thumbnail,
@@ -72,17 +78,29 @@ const tableData = computed(() =>
     })
 );
 
-const defaulSpanRender = cellProps =>
-  h(
-    'span',
-
+// Abertas e nao atendidas de cada linha abrem as conversas (ReportDrilldownPanel ao vivo).
+const drilldown = ref(null);
+const liveCell = (metric, headerKey) => cellProps => {
+  const value = cellProps.getValue();
+  if (!value) return h('span', { class: 'text-n-slate-11' }, '---');
+  const row = cellProps.row.original;
+  return h(
+    'button',
     {
-      class: cellProps.getValue()
-        ? 'capitalize text-n-slate-12'
-        : 'capitalize text-n-slate-11',
+      type: 'button',
+      class:
+        'p-0 m-0 text-[length:inherit] tabular-nums text-n-slate-12 underline decoration-dotted underline-offset-4 hover:text-n-brand',
+      title: t('REPORT.DRILLDOWN.OPEN'),
+      onClick: () => {
+        drilldown.value = {
+          metric: { key: metric, name: `${row.agent} · ${t(headerKey)}` },
+          filters: { assigneeId: row.id, inboxId: props.inboxId },
+        };
+      },
     },
-    cellProps.getValue() ? cellProps.getValue() : '---'
+    value
   );
+};
 
 const columnHelper = createColumnHelper();
 const columns = [
@@ -94,12 +112,18 @@ const columns = [
   }),
   columnHelper.accessor('open', {
     header: t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.OPEN'),
-    cell: defaulSpanRender,
+    cell: liveCell(
+      'open',
+      'OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.OPEN'
+    ),
     size: 100,
   }),
   columnHelper.accessor('unattended', {
     header: t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.UNATTENDED'),
-    cell: defaulSpanRender,
+    cell: liveCell(
+      'unattended',
+      'OVERVIEW_REPORTS.AGENT_CONVERSATIONS.TABLE_HEADER.UNATTENDED'
+    ),
     size: 100,
   }),
 ];
@@ -122,7 +146,7 @@ const table = useVueTable({
 
 <template>
   <div
-    class="flex flex-col flex-1 bg-n-solid-1 border border-n-weak rounded-xl overflow-hidden"
+    class="flex flex-col flex-1 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] overflow-hidden"
   >
     <Table
       :table="table"
@@ -148,6 +172,13 @@ const table = useVueTable({
     <EmptyState
       v-else-if="!isLoading && !agents.length"
       :title="$t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.NO_AGENTS')"
+    />
+    <ReportDrilldownPanel
+      v-if="drilldown"
+      :metric="drilldown.metric"
+      :filters="drilldown.filters"
+      source="live"
+      @close="drilldown = null"
     />
   </div>
 </template>
