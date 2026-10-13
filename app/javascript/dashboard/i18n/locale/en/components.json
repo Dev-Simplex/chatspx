@@ -27,8 +27,8 @@
   },
   "PHONE_INPUT": {
     "SEARCH_PLACEHOLDER": "Search country",
-    "ERROR": "Phone number should be empty or in E.164 format",
-    "DIAL_CODE_ERROR": "Please select a dial code from the list"
+    "ERROR": "Invalid number. Type the area code and the number, for example 65 98877-9055.",
+    "DIAL_CODE_ERROR": "Choose the country on the button next to the number."
   },
   "THUMBNAIL": {
     "AUTHOR": {

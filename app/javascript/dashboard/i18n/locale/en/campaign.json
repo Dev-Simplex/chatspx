@@ -198,6 +198,33 @@
           "unknown": "Uncatalogued error"
         }
       },
+      "UNDELIVERED": {
+        "TITLE": "Not sent",
+        "DESCRIPTION": "Who did not receive this campaign and why. Fix the contact and send again.",
+        "EXPORT": "Export CSV",
+        "EXPORT_ERROR": "Could not export the list.",
+        "ERROR": "Could not load the recipients that were not sent.",
+        "EMPTY": "Everyone in this filter received the campaign.",
+        "FILTER": {
+          "ALL": "All",
+          "FAILED": "Failed",
+          "BLOCKED": "Blocked"
+        },
+        "STATUS": {
+          "FAILED": "Failed",
+          "SKIPPED": "Blocked",
+          "CANCELLED": "Cancelled"
+        },
+        "TABLE": {
+          "CONTACT": "Contact",
+          "STATUS": "Status",
+          "REASON": "Reason",
+          "DATE": "Date",
+          "OPEN": "Open"
+        },
+        "OPEN_CONVERSATION": "Conversation",
+        "OPEN_CONTACT": "Contact"
+      },
       "CREATE": {
         "TITLE": "Create WhatsApp campaign",
         "CANCEL_BUTTON_TEXT": "Cancel",

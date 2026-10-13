@@ -163,6 +163,7 @@ pt_BR:
         invalid: E-mail inválido
       phone_number:
         invalid: deve estar no formato e164
+        taken: Este número de telefone está em uso para outro contato.
       whatsapp_validation:
         not_registered: Este número não está registrado no WhatsApp.
         unavailable: Não foi possível validar o número do WhatsApp. Tente novamente.
@@ -730,6 +731,56 @@ pt_BR:
       agente_inexistente: 'Este agente não existe nesta conta.'
       agente_nao_elegivel: '%{agente} não está habilitado na inbox alvo, então o lead entraria sem ninguém atribuído.'
       time_inexistente: 'Este time não existe nesta conta.'
+  campaigns:
+    undelivered:
+      csv:
+        name: 'Nome'
+        phone: 'Telefone'
+        status: 'Situação'
+        reason: 'Motivo'
+        detail: 'Detalhe do erro'
+        date: 'Data'
+        conversation: 'Conversa'
+      statuses:
+        failed: 'Falhou'
+        skipped: 'Bloqueado'
+        cancelled: 'Cancelado'
+      reasons:
+        caixa_somente_leitura: 'A caixa ficou somente leitura durante o disparo'
+        atendimento_ativo: 'Contato já estava em atendimento'
+        cancelado: 'Cancelado antes do envio'
+        erro_envio: 'Erro no envio (sem código da Meta)'
+        desconhecido: 'Motivo não registrado'
+        template: 'Problema no template (errado, pausado ou recusado pela Meta)'
+        meta_131026: 'Número não recebe mensagens (sem WhatsApp ou app desatualizado)'
+        meta_131047: 'Fora da janela de 24h: só template pode ser enviado'
+        meta_470: 'Fora da janela de 24h: só template pode ser enviado'
+        meta_131049: 'Segurado pela Meta para proteger o engajamento (excesso de marketing)'
+        meta_130472: 'Número em experimento da Meta, não recebe marketing'
+        meta_131050: 'Contato optou por não receber mensagens de marketing'
+        meta_131051: 'Tipo de mensagem não suportado'
+        meta_131052: 'Não foi possível baixar a mídia'
+        meta_131053: 'Não foi possível enviar a mídia'
+        meta_131048: 'Limite de spam atingido no número'
+        meta_131056: 'Muitas mensagens para o mesmo número em pouco tempo'
+        meta_131042: 'Problema de pagamento na conta da Meta'
+        meta_131031: 'Conta do WhatsApp Business bloqueada'
+        meta_131000: 'Erro genérico da Meta'
+        meta_131008: 'Falta um parâmetro obrigatório do template'
+        meta_131009: 'Parâmetro inválido'
+        meta_131016: 'Serviço da Meta indisponível'
+        meta_130429: 'Limite de envio da Meta atingido'
+        meta_80007: 'Limite de requisições da Meta atingido'
+        meta_133010: 'Número não registrado na API do WhatsApp'
+        meta_368: 'Conta bloqueada temporariamente por violação de política'
+        meta_190: 'Token de acesso do canal inválido ou expirado'
+        meta_132000: 'Quantidade de variáveis do template não confere'
+        meta_132001: 'Template não existe ou não está aprovado neste idioma'
+        meta_132005: 'Texto do template longo demais depois de preencher as variáveis'
+        meta_132007: 'Template viola a política de conteúdo da Meta'
+        meta_132012: 'Variável do template em formato inválido'
+        meta_132015: 'Template pausado pela Meta por baixa qualidade'
+        meta_132016: 'Template desativado pela Meta'
   agent_bots:
     captain_mirror_immutable: 'Bots-espelho de agentes IA são gerenciados automaticamente e não podem ser alterados.'
   agent_capacity_policy:
