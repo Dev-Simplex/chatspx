@@ -17,7 +17,7 @@ module Concerns::Agentable
   end
 
   def agent_instructions(context = nil)
-    enhanced_context = prompt_context.merge(time_awareness)
+    enhanced_context = prompt_context.merge(time_awareness(caixa_da_conversa(context)))
 
     if context
       state = context.context[:state] || {}
@@ -38,6 +38,10 @@ module Concerns::Agentable
   end
 
   private
+
+  def caixa_da_conversa(context)
+    context&.context&.dig(:state, :conversation, :inbox_id)
+  end
 
   # Nome do canal que o agente deve pedir quando o ATUAL nao alcanca a pessoa depois que a
   # janela fecha (Instagram). Devolve `nil` — e o bloco do prompt nem renderiza — sempre que
@@ -87,7 +91,10 @@ module Concerns::Agentable
 
   # Injeta data/hora atual e status do horário comercial no contexto do prompt,
   # pra o agente não adivinhar/alucinar horário (ex: dizer "volta segunda" numa quarta).
-  def time_awareness
+  def time_awareness(inbox_id = nil)
+    unidade = unidade_da_caixa(inbox_id)
+    return horario_da_unidade(unidade) if unidade
+
     asst = is_a?(Captain::Assistant) ? self : assistant
     bh = asst.behavior['business_hours'] || {}
     tz = ActiveSupport::TimeZone[bh['timezone'].presence || 'America/Cuiaba'] || ActiveSupport::TimeZone['UTC']
@@ -118,6 +125,92 @@ module Concerns::Agentable
     {}
   end
 
+  DIAS_POR_EXTENSO = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado].freeze
+  # Até onde a agenda olha pra frente: cobre "semana que vem" e um feriado prolongado.
+  DIAS_DA_AGENDA = 14
+
+  # A unidade (/units) é a fonte do horário quando a caixa da conversa tem uma com grade:
+  # é o dado que a tela edita, com feriado e evento, e o mesmo que a `buscar_unidades`
+  # responde. Sem unidade, vale o `business_hours` do assistente. Foi por ler só o
+  # `business_hours` que a IA disse "estamos abertos" no feriado de 12/10/2026 com o
+  # feriado cadastrado na unidade.
+  def unidade_da_caixa(inbox_id)
+    return if inbox_id.blank?
+
+    unidade = Unit.da_caixa(Inbox.find_by(id: inbox_id))
+    unidade if unidade&.horario_cadastrado?
+  end
+
+  def horario_da_unidade(unidade)
+    agora = Time.current.in_time_zone(unidade.zona)
+    excecoes = UnitException.where(unit_id: unidade.id).to_a
+    agenda = (0..DIAS_DA_AGENDA).map { |dias| unidade.estado_em(agora.to_date + dias, escopo_excecoes: excecoes) }
+    {
+      current_datetime: "#{DIAS_POR_EXTENSO[agora.wday]}, #{agora.strftime('%d/%m/%Y às %H:%M')}",
+      business_status: [status_da_unidade(agenda, agora), datas_especiais(unidade, agenda)].compact.join('. '),
+      business_hours_text: grade_da_unidade(unidade)
+    }
+  end
+
+  def status_da_unidade(agenda, agora)
+    hoje = agenda.first
+    return 'dentro do horário comercial, com atendentes disponíveis agora' if hoje.aberta_em?((agora.hour * 60) + agora.min)
+
+    reabre = proxima_abertura(agenda, agora)
+    fechado = rotulo_de_fechado(hoje)
+    return "#{fechado}; sem horário de reabertura cadastrado nos próximos dias" if reabre.nil?
+
+    hora = reabre.strftime('%H:%M')
+    dia = "#{DIAS_POR_EXTENSO[reabre.wday]}, #{reabre.strftime('%d/%m')}"
+    if reabre.to_date == agora.to_date
+      "em pausa no momento (fora do horário), mas os atendentes voltam HOJE às #{hora} — o retorno é hoje à tarde, não amanhã"
+    elsif reabre.to_date == agora.to_date + 1
+      "#{fechado}; os atendentes voltam amanhã (#{dia}) às #{hora}"
+    else
+      "#{fechado}; os atendentes só voltam #{dia}, às #{hora}"
+    end
+  end
+
+  def rotulo_de_fechado(hoje)
+    return 'fechado no momento' unless hoje.por_excecao? && !hoje.aberta?
+
+    hoje.motivo ? "fechado hoje (#{hoje.motivo})" : 'fechado hoje'
+  end
+
+  def proxima_abertura(agenda, agora)
+    agenda.each do |estado|
+      meia_noite = estado.data.in_time_zone(agora.time_zone)
+      estado.faixas.map(&:inicio).sort.each do |inicio|
+        abre = meia_noite + inicio.minutes
+        return abre if abre > agora
+      end
+    end
+    nil
+  end
+
+  # Datas em que a unidade funciona diferente do normal (feriado, evento com horário próprio).
+  # Sem isto, numa sexta aberta a IA não sabe que a segunda é feriado e confirma visita nela.
+  def datas_especiais(unidade, agenda)
+    linhas = agenda.filter_map do |estado|
+      linha_especial(estado) if estado.por_excecao? && estado.faixas != unidade.faixas_padrao(estado.data.wday)
+    end
+    return if linhas.empty?
+
+    "Datas com funcionamento diferente do normal: #{linhas.join('; ')}"
+  end
+
+  def linha_especial(estado)
+    horario = estado.aberta? ? "aberto só das #{estado.faixas.map(&:to_s).join(' e das ')}" : 'fechado o dia todo'
+    motivo = estado.motivo ? " (#{estado.motivo})" : ''
+    "#{DIAS_POR_EXTENSO[estado.data.wday]}, #{estado.data.strftime('%d/%m')}: #{horario}#{motivo}"
+  end
+
+  def grade_da_unidade(unidade)
+    agrupar_grade([1, 2, 3, 4, 5, 6, 0].index_with do |dia|
+      unidade.faixas_padrao(dia).map { |faixa| "das #{hora_de(faixa.inicio)} às #{hora_de(faixa.fim)}" }
+    end)
+  end
+
   # Horário de funcionamento em texto, montado a partir da agenda do config da
   # conta (business_hours). Agrupa dias com a mesma faixa ("segunda a sexta, das
   # 7h30 às 11h30 e das 13h30 às 17h30; sábado, das 9h às 11h30"). Assim cada
@@ -128,16 +221,21 @@ module Concerns::Agentable
     sched = bh['schedule'] || []
     return nil if sched.blank?
 
-    dias = %w[domingo segunda terça quarta quinta sexta sábado]
     ordem = [1, 2, 3, 4, 5, 6, 0]
-    sig = ordem.index_with do |d|
+    agrupar_grade(ordem.index_with do |d|
       entry = sched.find { |e| e['day'] == d }
       Array(entry && entry['ranges']).filter_map do |r|
         next if r['start'].blank? || r['end'].blank?
 
         "das #{format_hora(r['start'])} às #{format_hora(r['end'])}"
       end
-    end
+    end)
+  end
+
+  # `sig` = faixas em texto por dia, na ordem de leitura (segunda a domingo).
+  def agrupar_grade(sig)
+    dias = %w[domingo segunda terça quarta quinta sexta sábado]
+    ordem = sig.keys
     partes = []
     i = 0
     while i < ordem.size
@@ -157,6 +255,12 @@ module Concerns::Agentable
 
   def format_hora(hhmm)
     h, m = hhmm.split(':').map(&:to_i)
+    hora_de((h * 60) + m)
+  end
+
+  def hora_de(minutos)
+    h = (minutos / 60) % 24
+    m = minutos % 60
     m.zero? ? "#{h}h" : format('%<h>dh%<m>02d', h: h, m: m)
   end
 
