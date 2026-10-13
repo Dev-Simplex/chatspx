@@ -30,9 +30,9 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 |---|---|---|---|
 | `feat/*`, `spx/*` | **Unidade de trabalho** — 1 branch por task/feature | qualquer dev | VM de teste do dev |
 | ~~`paulao`~~ | **Desativada em 16/09/2026.** Era a branch de dev do Paulo | — | VM `192.168.8.100` fora do ar |
-| `nicolas` | **Branch de dev do Nicolas** | Nicolas | VM Dev `nicolas` (na frota Almirante) |
+| `desenvolvimento` | **Branch da VM de dev única** (desde 13/10/2026). Só recebe merge das tarefas para aparecer na tela; nunca vira PR | Nicolas e Thalysson | VM Dev `192.168.8.98`, https://dev.chatspx.app |
+| ~~`nicolas`~~, ~~`thalysson`~~ | **Aposentadas em 13/10/2026.** Eram as branches de dev de cada um; a `nicolas` virou a `desenvolvimento` | — | a VM `192.168.8.167` vai ser desligada |
 | `walisson` | **Branch de dev do Walisson** (tech lead) | Walisson | VM Dev `192.168.8.46` (sandbox, desde 16/09/2026) |
-| `thalysson` | **Branch de dev do Thalysson** | Thalysson | VM Dev `192.168.8.167` |
 | `homologacao` | **Staging** — integração antes de prod | via merge (não direto) | 1 VM `homologacao` (Proxmox) — contas 3/4/5 |
 | `producao` | **Produção** — o único que **replica** pras VMs de cliente | via merge (não direto) | **5 VMs CRÍTICAS**: `producao` · `catatau` · `sentinela` · `tozi` (c6) · `fabrica` (c1/2) |
 | `master` | Chatwoot upstream (open-source). **NÃO é o produto** — só a base do fork. Não tocar. | ninguém (só sync upstream) | — |
@@ -46,9 +46,9 @@ Todas as worktrees do `chatspx` **compartilham o mesmo `.git`** (mesmo históric
 ```
   feature branch (feat/*, spx/*)      ← onde o CÓDIGO é escrito, 1 por task
           │
-          │  dev testa na SUA VM (branch de dev: nicolas=Nicolas, walisson=Walisson)
+          │  dev testa na VM de dev (branch desenvolvimento; a do Walisson é a walisson)
           ▼
-     homologacao         staging (contas 3/4/5 — clientes reais leves)
+     homologacao         staging, só teste, espelho da producao (contas 3/4/5)
           │
           │  valida em homologação
           ▼

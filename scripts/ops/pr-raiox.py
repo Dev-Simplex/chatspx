@@ -75,11 +75,11 @@ USUARIO_SSH = {"ROCKET": "root"}
 # 18/09/2026 os 6 PRs do dia entraram pela `homologacao` e a .232 ficou 52
 # commits atras. Nas VMs dos devs o criterio e "contem o commit", nao "mesmo
 # commit": elas tem trabalho do dev por cima. A VM do Walisson (.46) fica fora a
-# pedido dele.
+# pedido dele. Desde 13/10/2026 os devs dividem uma VM so, a .98, na branch
+# `desenvolvimento`.
 VMS_FASE6 = [
     ("HOMOLOGACAO", "192.168.8.232", "homologacao"),
-    ("THALYSSON", "192.168.8.167", "thalysson"),
-    ("NICOLAS", "192.168.8.98", "nicolas"),
+    ("DEV", "192.168.8.98", "desenvolvimento"),
 ]
 # A chave e procurada em tres lugares, nesta ordem. O motivo esta na regra do
 # OpenSSH: ele recusa chave privada com bit de grupo ou de outros QUANDO o dono do
