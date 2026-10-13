@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🩺%3C/text%3E%3C/svg%3E">
+<title>Falha ao Enviar Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --paper:#f4f7f4; --surface:#fff; --surface-2:#eaefea;
+    --ink:#12211a; --ink-2:#45564d; --ink-3:#78877f;
+    --rule:#d8e0da;
+    --green:#2dc46f; --green-deep:#0d6b3b; --green-wash:#e2f5ea;
+    --red:#b6362b; --red-wash:#fbe9e7;
+    --amber:#8a6304; --amber-wash:#fbf1dc;
+    --display:"Fraunces","Iowan Old Style",Georgia,serif;
+    --body:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --paper:#0c130f; --surface:#131c17; --surface-2:#1b2620;
+    --ink:#e6ede8; --ink-2:#a9b8af; --ink-3:#78877f; --rule:#263329;
+    --green:#3ddc80; --green-deep:#7ceaa8; --green-wash:#122e1f;
+    --red:#ff8a7a; --red-wash:#2c1614;
+    --amber:#e0b451; --amber-wash:#2b2210;
+    color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0c130f; --surface:#131c17; --surface-2:#1b2620;
+    --ink:#e6ede8; --ink-2:#a9b8af; --ink-3:#78877f; --rule:#263329;
+    --green:#3ddc80; --green-deep:#7ceaa8; --green-wash:#122e1f;
+    --red:#ff8a7a; --red-wash:#2c1614;
+    --amber:#e0b451; --amber-wash:#2b2210;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--body)}
+  img{max-width:100%}[hidden]{display:none!important}
+  .wrap{max-width:720px;margin:0 auto;padding:0 20px}
+
+  header.top .wrap{padding-block:48px 12px}
+  .eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+  h1{font:600 clamp(32px,7vw,48px)/1.06 var(--display);margin:0 0 12px;letter-spacing:-.02em}
+  .sub{margin:0;color:var(--ink-2);max-width:56ch}
+
+  main .wrap{padding-block:24px 56px}
+
+  .step{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:24px;margin:0 0 16px}
+  .num{display:inline-grid;place-content:center;width:32px;height:32px;border-radius:50%;background:var(--green);color:#052e18;font:600 15px var(--mono);margin:0 0 14px}
+  .step h2{font:600 24px/1.25 var(--display);margin:0 0 10px;letter-spacing:-.01em}
+  .step p{margin:0 0 12px;color:var(--ink-2)}
+  .step p:last-child{margin-bottom:0}
+  strong{color:var(--ink);font-weight:600}
+  code{font:500 .88em var(--mono);background:var(--surface-2);padding:.15em .4em;border-radius:4px;color:var(--ink)}
+
+  .copy{background:var(--green-wash);border:1px solid var(--green);border-radius:10px;padding:18px 20px;margin:14px 0 0}
+  .copy .lbl{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--green-deep);margin:0 0 10px}
+  .copy p{color:var(--ink);margin:0 0 10px}
+  .copy p:last-child{margin:0}
+
+  .cmp{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin:14px 0 0}
+  @media (max-width:540px){.cmp{grid-template-columns:1fr}}
+  .cmp div{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;background:var(--surface-2)}
+  .cmp .t{font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;margin:0 0 8px;color:var(--ink-3)}
+  .cmp .msg{font-size:16px;color:var(--ink);margin:0}
+  .cmp .bad{border-color:var(--red);background:var(--red-wash)}
+  .cmp .bad .t{color:var(--red)}
+
+  .note{border-left:3px solid var(--amber);background:var(--amber-wash);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0 0}
+  .note p{margin:0;color:var(--ink);font-size:16px}
+
+  details{margin:28px 0 0;border-top:1px solid var(--rule);padding-top:20px}
+  summary{cursor:pointer;font:500 13px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--green)}
+  details[open] summary::before{content:"▾ "}
+  details .inner{padding-top:18px;font-size:15.5px;color:var(--ink-2)}
+  details h3{font:600 16px/1.3 var(--body);color:var(--ink);margin:18px 0 8px}
+  details h3:first-child{margin-top:0}
+  details ul{margin:0 0 12px;padding-left:20px}
+  details li{margin-bottom:6px}
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:10px;background:var(--surface);margin:0 0 14px}
+  table{border-collapse:collapse;width:100%;min-width:480px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);vertical-align:top;font-size:14.5px}
+  th{font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2)}
+  tr:last-child td{border-bottom:0}
+  td:first-child{white-space:nowrap;font:500 13px var(--mono)}
+  pre{margin:0 0 14px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;overflow-x:auto}
+  pre code{background:none;padding:0;font-size:12.5px;line-height:1.6;white-space:pre}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">Roteiro de suporte</p>
+    <h1>“Falha ao enviar”<br>num template</h1>
+    <p class="sub">A janela de 24 h fechou, o atendente mandou um template e a mensagem voltou em vermelho. Quase sempre é a mesma coisa.</p>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="step">
+    <div class="num">1</div>
+    <h2>Confirme que é o caso comum</h2>
+    <p>Olhe o <strong>texto da mensagem vermelha</strong>. Se tem dois asteriscos com um espaço no meio, a variável do template foi preenchida com espaço — é isso.</p>
+    <div class="cmp">
+      <div>
+        <p class="t">Como deveria sair</p>
+        <p class="msg">Olá <strong>João</strong>, Boa tarde! como vai?</p>
+      </div>
+      <div class="bad">
+        <p class="t">Como apareceu</p>
+        <p class="msg">Olá <strong>*&nbsp;*</strong>, Boa tarde! como vai?</p>
+      </div>
+    </div>
+    <div class="note"><p>Se o texto estiver normal, é outro erro: peça um print com <strong>o mouse parado em cima do triângulo ⚠</strong> e veja a tabela lá embaixo.</p></div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <h2>Resolva agora</h2>
+    <p>O atendente abre a conversa, clica em <strong>Enviar Template</strong>, escolhe o mesmo template e preenche o campo da variável com <strong>o primeiro nome do contato</strong>. Entrega na hora.</p>
+    <p style="margin-top:14px"><a href="/enviar-template-passo-a-passo.html" style="color:var(--green-deep);font-weight:600">Passo a passo com as telas →</a> (link para mandar direto ao cliente)</p>
+    <p>O botão ↻ da mensagem vermelha <strong>não resolve</strong> — ele reenvia o mesmo conteúdo quebrado.</p>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <h2>Evite que volte a acontecer</h2>
+    <p>Mande esta mensagem para o cliente:</p>
+    <div class="copy">
+      <p class="lbl">Copiar e enviar</p>
+      <p>Oi! Achamos o motivo: no template, o campo do nome foi preenchido com um espaço em branco, e o WhatsApp recusa a mensagem quando isso acontece. É só reenviar o template com o nome do contato preenchido que ela vai normalmente.</p>
+      <p>Para quando vocês não souberem o nome da pessoa, vale aprovar no WhatsApp Manager uma segunda versão da saudação <strong>sem nenhum campo de nome</strong> — por exemplo “Olá! Boa tarde, como vai?”. Aí é só escolher essa e não precisa preencher nada.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Detalhes técnicos</summary>
+    <div class="inner">
+
+      <h3>Se o erro for outro</h3>
+      <p>O triângulo ⚠ tem balão de hover com o erro cru da Meta.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Erro</th><th>O que fazer</th></tr></thead>
+          <tbody>
+            <tr><td>132000</td><td>Contagem de parâmetros — é o caso desta página.</td></tr>
+            <tr><td>Template not found</td><td>Erro nosso, nem chegou na Meta. Ressincronizar os templates da inbox.</td></tr>
+            <tr><td>132001</td><td>Nome ou idioma não batem com o aprovado. Ressincronizar.</td></tr>
+            <tr><td>132015</td><td>Template pausado por qualidade. Usar outro.</td></tr>
+            <tr><td>131047</td><td>Template não elegível fora da janela.</td></tr>
+            <tr><td>190</td><td>Access token da inbox expirado. Renovar credencial.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>O botão ↻ some 24 h depois da mensagem.</p>
+
+      <h3>Por que quebra</h3>
+      <p>O painel valida a variável por verdade simples, e <code>" "</code> passa. O backend trata espaço como vazio (<code>" ".blank?</code> é <code>true</code> no Rails) e <strong>descarta o parâmetro em silêncio</strong>. A Meta recebe um template que espera 1 parâmetro e chega 0, e rejeita com 132000.</p>
+      <p><strong>Defeito irmão, mais grave:</strong> com duas variáveis e só a primeira em branco, o descarte <strong>desloca a posição</strong> — a Meta aceita e o cliente recebe o texto trocado, sem erro nenhum. Procure por isso quando disserem “chegou a mensagem errada”.</p>
+
+      <h3>Se precisar do banco</h3>
+      <p>Suporte não entra em máquina de cliente. Mande o comando e peça a saída colada.</p>
+<pre><code># bundle exec rails runner
+Message.uncached do
+  Conversation.find_by(display_id: &lt;nº&gt;, account_id: &lt;conta&gt;)
+    .messages.where(status: :failed).last(5).each do |m|
+      puts "#{m.id} #{m.created_at} #{m.external_error.inspect}"
+      pp m.additional_attributes&amp;.dig('template_params')
+    end
+end</code></pre>
+      <p><code>uncached</code> é obrigatório — o query cache do <code>rails runner</code> devolve dado velho.</p>
+
+      <h3>Correções pendentes de PR</h3>
+      <ul>
+        <li>Validar com <code>trim</code> no painel, para barrar o espaço na hora.</li>
+        <li>Parar de descartar parâmetro em branco no backend — resolve também o deslocamento silencioso.</li>
+        <li>Pré-preencher a variável com o primeiro nome do contato.</li>
+      </ul>
+      <p>Arquivos: <code>templateHelper.js:18</code> · <code>MessageError.vue</code> · <code>template_processor_service.rb:83</code> · <code>providers/base_service.rb</code></p>
+
+    </div>
+  </details>
+
+</div>
+</main>
+
+</body>
+</html>

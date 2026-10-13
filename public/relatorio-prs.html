@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Relatório de PRs — ChatSPX</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📊</text></svg>">
+<style>
+  :root{
+    --bg:#0b1017; --surface:#151d26; --surface2:#111922; --border:#26333f;
+    --text:#e8eef4; --muted:#93a4b5; --muted2:#6b7b8c;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+    --ok:#22c55e; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif}
+  img{max-width:100%} [hidden]{display:none!important}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 16px 90px}
+  h1{font-size:28px;margin:0 0 8px;letter-spacing:-.02em}
+  h2{font-size:22px;margin:52px 0 4px;letter-spacing:-.01em}
+  h3{font-size:16px;margin:28px 0 4px}
+  .sub{color:var(--muted);margin:0;font-size:15px}
+  .leia{color:var(--muted);font-size:14px;margin:10px 0 0;padding-left:14px;border-left:2px solid var(--border)}
+  .leia b{color:var(--text)}
+
+  .resumo{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px 24px;margin:28px 0}
+  .resumo h2{margin:0 0 12px;font-size:18px}
+  .resumo ol{margin:0;padding-left:22px}
+  .resumo li{margin:10px 0;color:var(--muted);font-size:15px}
+  .resumo li b{color:var(--text)}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:22px 0}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+  .tile .n{font-size:30px;font-weight:650;letter-spacing:-.02em;line-height:1.1}
+  .tile .l{color:var(--muted);font-size:13.5px;margin-top:4px}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin:16px 0}
+  .note{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--s1);
+        border-radius:0 12px 12px 0;padding:16px 18px;margin:16px 0;color:var(--muted);font-size:14.5px}
+  .note b{color:var(--text)}
+  .note.warn{border-left-color:var(--warn)}
+
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted2);
+     font-weight:600;padding:0 12px 10px 0}
+  td{padding:12px 12px 12px 0;border-top:1px solid var(--border);vertical-align:middle}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .who{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-weight:600}
+  .dot{width:10px;height:10px;border-radius:3px;flex:none}
+  .muted{color:var(--muted)}
+  .scroll{overflow-x:auto}
+
+  .bars{display:flex;flex-direction:column;gap:10px;margin:16px 0 4px}
+  .row{display:grid;grid-template-columns:120px 1fr auto;align-items:center;gap:12px}
+  .row .lab{font-size:14px;color:var(--muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .track{background:#1b2732;border-radius:4px;height:16px;overflow:hidden}
+  .fill{height:100%;border-radius:0 4px 4px 0}
+  .row .val{font-size:14px;font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+  .stack{display:flex;height:16px;border-radius:4px;overflow:hidden;background:#1b2732;gap:2px}
+  .seg{height:100%}
+  .seg:first-child{border-radius:4px 0 0 4px} .seg:last-child{border-radius:0 4px 4px 0}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 2px;font-size:13.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+
+  ul{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:14.5px}
+  li{margin:7px 0} li b{color:var(--text)}
+  a{color:var(--s1)}
+  code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:13.5px;color:var(--text)}
+  .pessoas{display:grid;gap:14px;margin-top:14px}
+  .p{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 22px}
+  .p h4{margin:0 0 2px;font-size:17px;display:flex;align-items:center;gap:9px}
+  .p .frase{margin:8px 0 0;font-size:15px;color:var(--muted)}
+  .p .frase b{color:var(--text)}
+  .p .linha{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .p .linha div{font-size:13.5px;color:var(--muted2)}
+  .p .linha b{display:block;color:var(--text);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+  details{margin-top:14px} summary{cursor:pointer;color:var(--muted);font-size:14px}
+  details[open] summary{margin-bottom:10px}
+  footer{margin-top:56px;color:var(--muted2);font-size:13px;border-top:1px solid var(--border);padding-top:18px}
+  .tt{position:fixed;pointer-events:none;background:#0a1420;border:1px solid var(--border);border-radius:8px;
+      padding:8px 11px;font-size:13px;color:var(--text);opacity:0;transition:opacity .1s;z-index:20;
+      box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:290px}
+  .tt.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Como o time entregou nos últimos 4 meses</h1>
+  <p class="sub" id="cabecalho"></p>
+
+  <div class="resumo">
+    <h2>O essencial, em 5 frases</h2>
+    <ol id="essencial"></ol>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="note">
+    <b>Uma entrega = um PR.</b> PR é o pacote de código que alguém manda para entrar no sistema.
+    Este relatório olha os <b id="qtd-prs"></b> pacotes do período e responde: quem entregou quanto, quem
+    entrega pacotes maiores, e o que precisou voltar para conserto depois de pronto.
+  </div>
+
+  <section>
+    <h2>Quem entregou quanto</h2>
+    <div class="card">
+      <div class="bars" id="g-prs"></div>
+      <p class="leia" id="leia-prs"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Quem faz entregas maiores</h2>
+    <div class="card">
+      <div class="bars" id="g-tamanho"></div>
+      <p class="leia"><b>Como ler:</b> é o tamanho do pacote do meio — metade das entregas da pessoa é menor
+        que isso, metade é maior. Pacote pequeno é mais fácil de conferir e de desfazer; pacote grande carrega
+        mais coisa de uma vez.</p>
+      <details>
+        <summary>Ver também o tamanho dos pacotes grandes de cada um</summary>
+        <div class="bars" id="g-p90"></div>
+        <p class="leia">Aqui é o tamanho a partir do qual está 1 em cada 10 pacotes da pessoa — ou seja,
+          o quanto os maiores dela costumam pesar.</p>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <h2>Quanto tempo a entrega espera para entrar</h2>
+    <div class="card">
+      <div class="bars" id="g-tempo"></div>
+      <p class="leia" id="leia-tempo"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que voltou para conserto</h2>
+    <p class="sub">Aqui está a parte mais próxima de "erro" que dá para medir com honestidade.</p>
+    <div class="note">
+      <b>O que conta como conserto:</b> uma entrega com a palavra <code>fix</code> que mexe na mesma área de
+      uma entrega anterior. Exemplo real: o <b>#210</b> consertou o <b>#189</b>, na área de mensagens, 3 dias
+      depois. <b>Nem todo conserto é erro</b> — parte é melhoria e parte é problema que só aparece com o
+      cliente usando. Mas quando muitos consertos caem na mesma área, ali tem um ponto fraco de verdade.
+    </div>
+    <div class="card">
+      <h3>De cada 100 entregas, quantas voltaram para conserto</h3>
+      <div class="bars" id="g-retrabalho"></div>
+      <p class="leia" id="leia-retrabalho"></p>
+    </div>
+    <div class="card">
+      <h3>Quem conserta o trabalho de quem</h3>
+      <div class="scroll"><table id="t-quem-conserta"></table></div>
+      <p class="leia"><b>Como ler:</b> cada linha é uma dupla. "Consertou o próprio trabalho" quer dizer que a
+        pessoa voltou na área dela mesma logo depois — isso é iteração normal, não conta como problema
+        de qualidade.</p>
+    </div>
+    <div class="card">
+      <h3>As áreas que mais dão trabalho</h3>
+      <div class="bars" id="g-escopos"></div>
+      <p class="leia"><b>Este é o dado mais útil do relatório:</b> ele aponta o código, não a pessoa. Área que
+        aparece no topo é onde vale revisar antes de a próxima entrega chegar.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>O ritmo, mês a mês</h2>
+    <div class="card">
+      <div class="legend" id="leg-mensal"></div>
+      <div class="bars" id="g-mensal"></div>
+      <p class="leia" id="leia-mensal"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pessoa por pessoa</h2>
+    <div class="pessoas" id="pessoas"></div>
+  </section>
+
+  <section>
+    <h2>Os casos extremos</h2>
+    <div class="card">
+      <details open>
+        <summary>As 8 maiores entregas do período</summary>
+        <div class="scroll"><table id="t-maiores"></table></div>
+      </details>
+      <details>
+        <summary>As que mais demoraram para entrar</summary>
+        <div class="scroll"><table id="t-demorados"></table></div>
+      </details>
+      <details>
+        <summary id="sum-descartados">As que foram abertas e nunca entraram</summary>
+        <div class="scroll"><table id="t-descartados"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <h2>Antes de usar estes números</h2>
+    <div class="note warn">
+      <ul style="margin-top:0">
+        <li><b>Tamanho não é valor.</b> Uma correção de 40 linhas que destrava um cliente vale mais que uma
+          entrega de 2.000 linhas que só reorganiza arquivos. Nada aqui mede a importância do que foi feito.</li>
+        <li><b>Quem entrega mais aparece mais nos consertos.</b> É aritmética, não descuido.</li>
+        <li><b>A conta <code>simplex</code> não é uma pessoa</b>, é um login compartilhado. O que passa por ela
+          fica sem dono.</li>
+        <li><b>16% das entregas ficaram sem nome</b> porque a branch foi apagada e não deu para saber quem fez.
+          Elas contam no total, mas não nas linhas de cada pessoa.</li>
+        <li><b>Não existe teste automático rodando no período</b>, então não dá para dizer quantas entregas
+          quebraram algo — só quantas precisaram de conserto depois.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer id="rodape"></footer>
+</div>
+
+<div class="tt" id="tt"></div>
+
+<script>
+const D = {"gerado_em": "24/09/2026 21:07", "total": 233, "periodo": ["2026-05-13", "2026-09-24"], "estados": {"CLOSED": 17, "MERGED": 216}, "cobertura": 84, "sem_dono": 37, "pessoas": [{"pessoa": "Nicolas", "prs": 63, "mesclados": 63, "descartados": 0, "prs_trabalho": 62, "promocoes": 1, "churn_mediano_trabalho": 85, "churn_p90": 733, "churn_total_trabalho": 18832, "arquivos_mediano_trabalho": 4, "commits_mediano": 1, "horas_mediana_trabalho": 18.4, "horas_max": 74.2, "recebeu_fix": 23, "fez_fix": 22, "taxa_retrabalho": 37, "tipos": [["fix", 45], ["feat", 16], ["promove", 1], ["chore", 1]], "escopos": [["unidades", 7], ["rodizio", 7], ["whatsapp", 4], ["catalogo", 4], ["ops", 3], ["captain", 3], ["flows", 3], ["profile", 2]], "primeiro": "2026-08-28", "ultimo": "2026-09-23", "por_mes": {"2026-08": 2, "2026-09": 61}}, {"pessoa": "Paulo", "prs": 61, "mesclados": 59, "descartados": 2, "prs_trabalho": 60, "promocoes": 1, "churn_mediano_trabalho": 173, "churn_p90": 1860, "churn_total_trabalho": 28125, "arquivos_mediano_trabalho": 4, "commits_mediano": 2, "horas_mediana_trabalho": 13.7, "horas_max": 310.7, "recebeu_fix": 17, "fez_fix": 15, "taxa_retrabalho": 28, "tipos": [["fix", 31], ["feat", 23], ["integração", 3], ["docs", 2], ["promove", 1], ["refactor", 1]], "escopos": [["captain", 21], ["busca", 7], ["eval", 6], ["campanhas", 3], ["instagram", 3], ["unidades", 3], ["whatsapp/captain", 1], ["meta-leads", 1]], "primeiro": "2026-05-30", "ultimo": "2026-09-22", "por_mes": {"2026-05": 1, "2026-07": 2, "2026-08": 22, "2026-09": 36}}, {"pessoa": "Thalysson", "prs": 37, "mesclados": 36, "descartados": 1, "prs_trabalho": 37, "promocoes": 0, "churn_mediano_trabalho": 98, "churn_p90": 495, "churn_total_trabalho": 7668, "arquivos_mediano_trabalho": 5, "commits_mediano": 1, "horas_mediana_trabalho": 18.5, "horas_max": 72.8, "recebeu_fix": 6, "fez_fix": 10, "taxa_retrabalho": 16, "tipos": [["fix", 28], ["feat", 9]], "escopos": [["pwa", 4], ["catalogo", 3], ["notificacoes", 2], ["conversas", 2], ["tempo-real", 2], ["ui", 2], ["teams", 1], ["erros 500", 1]], "primeiro": "2026-09-10", "ultimo": "2026-09-24", "por_mes": {"2026-09": 37}}, {"pessoa": "conta simplex", "prs": 24, "mesclados": 16, "descartados": 8, "prs_trabalho": 20, "promocoes": 4, "churn_mediano_trabalho": 70, "churn_p90": 315, "churn_total_trabalho": 2666, "arquivos_mediano_trabalho": 3, "commits_mediano": 1.0, "horas_mediana_trabalho": 0.1, "horas_max": 14.6, "recebeu_fix": 6, "fez_fix": 4, "taxa_retrabalho": 25, "tipos": [["fix", 9], ["feat", 6], ["perf", 3], ["chore", 3], ["merge", 2], ["docs", 1]], "escopos": [["distribuicao", 3], ["db", 2], ["workers", 1], ["deploy", 1], ["redis", 1], ["observability", 1], ["audio", 1], ["auto-update", 1]], "primeiro": "2026-05-13", "ultimo": "2026-09-24", "por_mes": {"2026-05": 8, "2026-06": 1, "2026-08": 4, "2026-09": 11}}, {"pessoa": "Walisson", "prs": 10, "mesclados": 10, "descartados": 0, "prs_trabalho": 10, "promocoes": 0, "churn_mediano_trabalho": 348, "churn_p90": 627, "churn_total_trabalho": 3309, "arquivos_mediano_trabalho": 6, "commits_mediano": 1.0, "horas_mediana_trabalho": 2.1, "horas_max": 5.8, "recebeu_fix": 0, "fez_fix": 0, "taxa_retrabalho": 0, "tipos": [["feat", 10]], "escopos": [["messages", 2], ["conversations", 2], ["events", 1], ["webapp", 1], ["reactions", 1], ["users", 1], ["attachments", 1], ["audio", 1]], "primeiro": "2026-05-14", "ultimo": "2026-05-14", "por_mes": {"2026-05": 10}}], "maiores": [{"n": 79, "titulo": "feat(unidades): a agenda passa a valer na caixa, com atalhos, aviso de amanha e lembrete", "estado": "MERGED", "conta": "Dev-Simplex", "autores": {"Nicolas": 12}, "dono": "Nicolas", "commits": 12, "criado": "2026-08-31", "mes": "2026-08", "horas": 67.1, "adicoes": 5700, "remocoes": 183, "churn": 5883, "arquivos": 69, "base": "homologacao", "branch": "nicolas", "url": "https://github.com/Dev-Simplex/chatspx/pull/79", "tipo": "feat", "escopo": "unidades", "promocao": false}, {"n": 19, "titulo": "feat: subir branch paulao — pré-venda Tozi (funil + cadência HSM), Meta Lead Ads e RAG por chunk", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 21}, "dono": "Paulo", "commits": 21, "criado": "2026-05-30", "mes": "2026-05", "horas": 0.3, "adicoes": 4018, "remocoes": 27, "churn": 4045, "arquivos": 58, "base": "producao", "branch": "paulao", "url": "https://github.com/Dev-Simplex/chatspx/pull/19", "tipo": "feat", "escopo": null, "promocao": false}, {"n": 42, "titulo": "docs(orquestracao): a prática do Orca e o estado do dia 12/08", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 6}, "dono": "Paulo", "commits": 6, "criado": "2026-08-12", "mes": "2026-08", "horas": 310.7, "adicoes": 2691, "remocoes": 0, "churn": 2691, "arquivos": 14, "base": "homologacao", "branch": "conciliacao/higiene-11ago", "url": "https://github.com/Dev-Simplex/chatspx/pull/42", "tipo": "docs", "escopo": "orquestracao", "promocao": false}, {"n": 26, "titulo": "Integração 03/08 — seis frentes: não-lida, janela do follow-up, quiet_hours, leads do site", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 23}, "dono": "Paulo", "commits": 23, "criado": "2026-08-03", "mes": "2026-08", "horas": 2.6, "adicoes": 2293, "remocoes": 206, "churn": 2499, "arquivos": 55, "base": "producao", "branch": "integra/tudo-03ago", "url": "https://github.com/Dev-Simplex/chatspx/pull/26", "tipo": "integração", "escopo": null, "promocao": false}, {"n": 123, "titulo": "feat(unidades): uma só tela e uma só fonte de verdade na frota", "estado": "MERGED", "conta": "Dev-Simplex", "autores": {"Nicolas": 5}, "dono": "Nicolas", "commits": 5, "criado": "2026-09-10", "mes": "2026-09", "horas": 0.0, "adicoes": 742, "remocoes": 1741, "churn": 2483, "arquivos": 46, "base": "producao", "branch": "spx/unidades-fonte-unica-producao", "url": "https://github.com/Dev-Simplex/chatspx/pull/123", "tipo": "feat", "escopo": "unidades", "promocao": false}, {"n": 223, "titulo": "docs(state): trazer o registro que ficou preso na branch de conciliação", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 1}, "dono": "Paulo", "commits": 1, "criado": "2026-09-22", "mes": "2026-09", "horas": 0.2, "adicoes": 2106, "remocoes": 1, "churn": 2107, "arquivos": 1, "base": "homologacao", "branch": "PauloSeze/state-consolidado", "url": "https://github.com/Dev-Simplex/chatspx/pull/223", "tipo": "docs", "escopo": "state", "promocao": false}, {"n": 226, "titulo": "fix(captain): falha de ferramenta deixa de chegar ao modelo como ausência de dado", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 10}, "dono": "Paulo", "commits": 10, "criado": "2026-09-22", "mes": "2026-09", "horas": 0.5, "adicoes": 1943, "remocoes": 109, "churn": 2052, "arquivos": 19, "base": "homologacao", "branch": "fix/tool-result-tipado", "url": "https://github.com/Dev-Simplex/chatspx/pull/226", "tipo": "fix", "escopo": "captain", "promocao": false}, {"n": 35, "titulo": "fix(captain): a cutucada respeita a janela de 24h e a fila de encerramento para de varrer quem já espera humano", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 7}, "dono": "Paulo", "commits": 7, "criado": "2026-08-12", "mes": "2026-08", "horas": 18.3, "adicoes": 1858, "remocoes": 2, "churn": 1860, "arquivos": 14, "base": "homologacao", "branch": "spx/followup", "url": "https://github.com/Dev-Simplex/chatspx/pull/35", "tipo": "fix", "escopo": "captain", "promocao": false}], "demorados": [{"n": 42, "titulo": "docs(orquestracao): a prática do Orca e o estado do dia 12/08", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 6}, "dono": "Paulo", "commits": 6, "criado": "2026-08-12", "mes": "2026-08", "horas": 310.7, "adicoes": 2691, "remocoes": 0, "churn": 2691, "arquivos": 14, "base": "homologacao", "branch": "conciliacao/higiene-11ago", "url": "https://github.com/Dev-Simplex/chatspx/pull/42", "tipo": "docs", "escopo": "orquestracao"}, {"n": 29, "titulo": "Integração 05/08 — áudio decidido pelo conteúdo e IA que não inventa telefone", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 5}, "dono": "Paulo", "commits": 5, "criado": "2026-08-06", "mes": "2026-08", "horas": 130.7, "adicoes": 584, "remocoes": 28, "churn": 612, "arquivos": 10, "base": "producao", "branch": "integra/audio-conteudo-contato", "url": "https://github.com/Dev-Simplex/chatspx/pull/29", "tipo": "integração", "escopo": null}, {"n": 30, "titulo": "feat(captain): contexto por episódio — a IA para de ressuscitar atendimento antigo", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 3}, "dono": "Paulo", "commits": 3, "criado": "2026-08-07", "mes": "2026-08", "horas": 91.4, "adicoes": 339, "remocoes": 16, "churn": 355, "arquivos": 7, "base": "homologacao", "branch": "spx/eval", "url": "https://github.com/Dev-Simplex/chatspx/pull/30", "tipo": "feat", "escopo": "captain"}, {"n": 181, "titulo": "fix(captain): agente de IA passa a usar a chave da propria conta", "estado": "MERGED", "conta": "Dev-Simplex", "autores": {"Nicolas": 1}, "dono": "Nicolas", "commits": 1, "criado": "2026-09-18", "mes": "2026-09", "horas": 74.2, "adicoes": 29, "remocoes": 2, "churn": 31, "arquivos": 3, "base": "homologacao", "branch": "spx/t25-chave-por-conta", "url": "https://github.com/Dev-Simplex/chatspx/pull/181", "tipo": "fix", "escopo": "captain"}, {"n": 135, "titulo": "feat(captain): ficha do imóvel quando o lead cola o link", "estado": "MERGED", "conta": "PauloSeze", "autores": {"Paulo": 3}, "dono": "Paulo", "commits": 3, "criado": "2026-09-12", "mes": "2026-09", "horas": 74.0, "adicoes": 171, "remocoes": 8, "churn": 179, "arquivos": 2, "base": "homologacao", "branch": "PauloSeze/ficha-imovel-por-link", "url": "https://github.com/Dev-Simplex/chatspx/pull/135", "tipo": "feat", "escopo": "captain"}, {"n": 185, "titulo": "fix(nps): so humano assumindo a conversa cancela a pesquisa", "estado": "MERGED", "conta": "Dev-Simplex", "autores": {"Nicolas": 1}, "dono": "Nicolas", "commits": 1, "criado": "2026-09-18", "mes": "2026-09", "horas": 72.9, "adicoes": 82, "remocoes": 4, "churn": 86, "arquivos": 2, "base": "homologacao", "branch": "spx/t28-nps-so-humano-cancela", "url": "https://github.com/Dev-Simplex/chatspx/pull/185", "tipo": "fix", "escopo": "nps"}, {"n": 184, "titulo": "feat(audio): player desenha a onda do áudio com os picos já calculados (T35)", "estado": "MERGED", "conta": "Dev-Simplex", "autores": {"Thalysson": 1}, "dono": "Thalysson", "commits": 1, "criado": "2026-09-18", "mes": "2026-09", "horas": 72.8, "adicoes": 137, "remocoes": 1, "churn": 138, "arquivos": 4, "base": "homologacao", "branch": "feat/t35-onda-no-player-de-audio", "url": "https://github.com/Dev-Simplex/chatspx/pull/184", "tipo": "feat", "escopo": "audio"}, {"n": 186, "titulo": "fix(tempo-real): gap-fill usa o tempo real de silêncio do stream (Q-4)", "estado": "MERGED", "conta": "Dev-Simplex", "autores": {"Thalysson": 1}, "dono": "Thalysson", "commits": 1, "criado": "2026-09-18", "mes": "2026-09", "horas": 72.0, "adicoes": 67, "remocoes": 10, "churn": 77, "arquivos": 4, "base": "homologacao", "branch": "fix/q4-gapfill-pelo-silencio", "url": "https://github.com/Dev-Simplex/chatspx/pull/186", "tipo": "fix", "escopo": "tempo-real"}], "descartados": [{"n": 1, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "perf(workers): queue weights and webhook retry tuning", "estado": "CLOSED"}, {"n": 2, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "chore(deploy): cleanup stale vite assets", "estado": "CLOSED"}, {"n": 3, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "perf(db): autovacuum tuning + index cleanup", "estado": "CLOSED"}, {"n": 4, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "chore(redis): separate logical dbs for cache/cable/sidekiq", "estado": "CLOSED"}, {"n": 5, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "feat(observability): sentry release and source maps", "estado": "CLOSED"}, {"n": 6, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "feat(audio): resilience for recording and upload", "estado": "CLOSED"}, {"n": 7, "dono": "conta simplex", "criado": "2026-05-13", "titulo": "feat(auto-update): replace forced reload with opt-in toast", "estado": "CLOSED"}, {"n": 31, "dono": null, "criado": "2026-08-10", "titulo": "fix(captain): harden Fabrica MTM tool handling", "estado": "CLOSED"}, {"n": 56, "dono": "Paulo", "criado": "2026-08-16", "titulo": "fix(instagram): falha de envio por exceção para de passar por enviada", "estado": "CLOSED"}, {"n": 71, "dono": "conta simplex", "criado": "2026-08-27", "titulo": "merge(reconciliacao): o redesenho do widget da .232 volta pro git", "estado": "CLOSED"}, {"n": 98, "dono": null, "criado": "2026-09-03", "titulo": "fix(eval): URGENTE — o juiz estoura em TODO episódio com atendimento desde 01/09", "estado": "CLOSED"}, {"n": 100, "dono": null, "criado": "2026-09-03", "titulo": "fix(busca): a alternativa de outro bairro parava sempre nos mesmos imóveis", "estado": "CLOSED"}, {"n": 102, "dono": null, "criado": "2026-09-03", "titulo": "fix(busca): código lido de foto não é fato, e o rótulo negativo continha o positivo", "estado": "CLOSED"}, {"n": 119, "dono": null, "criado": "2026-09-09", "titulo": "chore(deploy): promove a nicolas para a producao (09/09/2026)", "estado": "CLOSED"}, {"n": 121, "dono": "Paulo", "criado": "2026-09-09", "titulo": "feat(units): a IA passa a consultar as unidades — endereço, telefone e agenda", "estado": "CLOSED"}, {"n": 146, "dono": "Thalysson", "criado": "2026-09-16", "titulo": "fix: T09 e T10, endpoints que respondiam 500 em toda chamada", "estado": "CLOSED"}, {"n": 170, "dono": null, "criado": "2026-09-17", "titulo": "fix(captain): moldes compartilhados de prompt deixam de citar Sinop e o vertical imobiliario", "estado": "CLOSED"}], "matriz": {"conta simplex": {"conta simplex": 3, "Paulo": 1, "Nicolas": 2}, "Paulo": {"Paulo": 11, "Nicolas": 5, "conta simplex": 1}, "Nicolas": {"Nicolas": 13, "outros": 1, "Paulo": 3, "Thalysson": 6}, "Thalysson": {"Thalysson": 4, "Nicolas": 2}}, "pares": [{"de": "conta simplex", "para": "conta simplex", "fix": 22, "origem": 3, "escopo": "db", "titulo": "fix(db): incorporar FK cascade da rollout (único commit exclusivo da AWS)", "origem_titulo": "perf(db): autovacuum tuning + index cleanup", "dias": 29}, {"de": "Paulo", "para": "Paulo", "fix": 33, "origem": 32, "escopo": "captain", "titulo": "fix(captain): tira o maquinário da conversa do contexto do agente", "origem_titulo": "feat(captain): prioridade de crédito no handoff e guarda no link do imóvel", "dias": 1}, {"de": "Paulo", "para": "Paulo", "fix": 35, "origem": 33, "escopo": "captain", "titulo": "fix(captain): a cutucada respeita a janela de 24h e a fila de encerramento para ", "origem_titulo": "fix(captain): tira o maquinário da conversa do contexto do agente", "dias": 0}, {"de": "Paulo", "para": "Paulo", "fix": 49, "origem": 45, "escopo": "captain", "titulo": "fix(captain): fotos da IA no Instagram — carrossel gateado por canal e trava ace", "origem_titulo": "feat(captain): camada mídia → contexto para imagem (opt-in por conta)", "dias": 1}, {"de": "Paulo", "para": "Paulo", "fix": 52, "origem": 50, "escopo": "captain", "titulo": "fix(captain): o rastro que mente — 4 specs parados no tempo e a falha que se pas", "origem_titulo": "feat(captain): vídeo do Instagram vira contexto — quadros e transcrição, opt-in ", "dias": 1}, {"de": "Paulo", "para": "Paulo", "fix": 55, "origem": 54, "escopo": "captain", "titulo": "fix(captain): menção de story não acorda a IA (hotfix para a produção da Tozi)", "origem_titulo": "fix(captain): menção de story não acorda a IA", "dias": 0}, {"de": "Paulo", "para": "Paulo", "fix": 83, "origem": 82, "escopo": "eval", "titulo": "fix(eval): o digest do eval sai às 7h, não às 11h", "origem_titulo": "fix(eval): o digest do eval sai às 7h, não às 11h", "dias": 0}, {"de": "Paulo", "para": "Paulo", "fix": 90, "origem": 87, "escopo": "busca", "titulo": "fix(busca): a lista para de mentir que é tudo, e o anúncio de portal acha o imóv", "origem_titulo": "feat(busca): filtrar por suíte — o cliente pede e a ferramenta ignorava", "dias": 1}, {"de": "conta simplex", "para": "Paulo", "fix": 93, "origem": 91, "escopo": "busca", "titulo": "fix(busca): URGENTE — 50 é o teto do Vista; com 60 a busca devolve VAZIO", "origem_titulo": "perf(busca): registrar o link só do que vai ao cliente, não dos 60 buscados", "dias": 0}, {"de": "Paulo", "para": "Paulo", "fix": 94, "origem": 93, "escopo": "busca", "titulo": "fix(busca): 50 é o teto do Vista — com 60 a busca devolve VAZIO", "origem_titulo": "fix(busca): URGENTE — 50 é o teto do Vista; com 60 a busca devolve VAZIO", "dias": 0}, {"de": "Paulo", "para": "Paulo", "fix": 108, "origem": 103, "escopo": "busca", "titulo": "fix(busca): imóvel que vem de portal para de virar 'não temos' — por título e po", "origem_titulo": "fix(busca): código lido de foto não é fato, e o rótulo negativo continha o posit", "dias": 5}, {"de": "Nicolas", "para": "Nicolas", "fix": 109, "origem": 106, "escopo": "profile", "titulo": "fix(profile): tornar Enter o atalho padrao de envio", "origem_titulo": "fix(profile): tornar Enter o atalho padrao de envio", "dias": 0}, {"de": "Paulo", "para": "Paulo", "fix": 111, "origem": 86, "escopo": "instagram", "titulo": "fix(instagram): foto de imóvel para de ser prometida e não entregue", "origem_titulo": "fix(instagram): o corpo sai em JSON — array aninhado chegava desmontado na Meta", "dias": 8}, {"de": "conta simplex", "para": "Nicolas", "fix": 113, "origem": 2, "escopo": "deploy", "titulo": "fix(deploy): parar de relatar sucesso sem ter entregue", "origem_titulo": "chore(deploy): cleanup stale vite assets", "dias": 119}, {"de": "Paulo", "para": "Nicolas", "fix": 117, "origem": 88, "escopo": "unidades", "titulo": "fix(unidades): uma so tela de Unidades, com coordenadas geograficas", "origem_titulo": "feat(unidades): parser recusa em vez de errar a data, e a unidade ganha coordena", "dias": 8}, {"de": "Paulo", "para": "Paulo", "fix": 120, "origem": 116, "escopo": "captain", "titulo": "fix(captain): endereço do escritório dito de memória é corrigido antes de sair", "origem_titulo": "feat(captain): busca fora da finalidade manda passar pro especialista certo", "dias": 0}, {"de": "Nicolas", "para": "outros", "fix": 122, "origem": 117, "escopo": "unidades", "titulo": "fix(unidades): uma só fonte de verdade — a IA passa a ler a mesma unidade da tel", "origem_titulo": "fix(unidades): uma so tela de Unidades, com coordenadas geograficas", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 124, "origem": 123, "escopo": "unidades", "titulo": "fix(unidades): a task de unificar chamava a variável pelo nome antigo", "origem_titulo": "feat(unidades): uma só tela e uma só fonte de verdade na frota", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 125, "origem": 124, "escopo": "unidades", "titulo": "fix(unidades): a cópia gravava o horário em UTC, e a loja abriria 4h mais tarde", "origem_titulo": "fix(unidades): a task de unificar chamava a variável pelo nome antigo", "dias": 0}, {"de": "Paulo", "para": "Nicolas", "fix": 127, "origem": 120, "escopo": "captain", "titulo": "fix(captain): guarda de endereço age quando a pergunta foi sobre a empresa", "origem_titulo": "fix(captain): endereço do escritório dito de memória é corrigido antes de sair", "dias": 1}, {"de": "Nicolas", "para": "Paulo", "fix": 128, "origem": 127, "escopo": "captain", "titulo": "fix(captain): o aviso de finalidade alcança a busca por código", "origem_titulo": "fix(captain): guarda de endereço age quando a pergunta foi sobre a empresa", "dias": 0}, {"de": "Paulo", "para": "Nicolas", "fix": 137, "origem": 108, "escopo": "busca", "titulo": "fix(busca): conversa sem mensagem visivel para de derrubar a busca com 500", "origem_titulo": "fix(busca): imóvel que vem de portal para de virar 'não temos' — por título e po", "dias": 7}, {"de": "Paulo", "para": "Nicolas", "fix": 138, "origem": 136, "escopo": "captain", "titulo": "fix(captain): pipeline de midia chamava o servico de transcricao errado", "origem_titulo": "refactor(captain): domínio do site vira config da conta, sem default de cliente", "dias": 3}, {"de": "Nicolas", "para": "Paulo", "fix": 141, "origem": 140, "escopo": "unidades", "titulo": "fix(unidades): unidade fechada chega ao retorno, mesmo sem data pedida", "origem_titulo": "feat(unidades): feriados nacionais ja vem no calendario de toda unidade", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 150, "origem": 148, "escopo": "whatsapp", "titulo": "fix(whatsapp): falha ao processar inbound parava de apagar a mensagem para sempr", "origem_titulo": "fix(whatsapp): ficha duplicada na mesma caixa parava de partir o atendimento em ", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 152, "origem": 151, "escopo": "whatsapp", "titulo": "fix(whatsapp): trava por contato deixa de expirar no meio e de liberar a trava d", "origem_titulo": "feat(whatsapp): inbound descartado passa a ser contado e aparece na saude da cai", "dias": 0}, {"de": "Thalysson", "para": "Thalysson", "fix": 154, "origem": 133, "escopo": "notificacoes", "titulo": "fix(notificacoes): recolhe aviso de conversa nova de quem perdeu o acesso (T43)", "origem_titulo": "fix(notificacoes): abrir uma notificacao a marca como lida e o contador cai um", "dias": 5}, {"de": "Nicolas", "para": "Nicolas", "fix": 155, "origem": 139, "escopo": "transcricao", "titulo": "fix(transcricao): um audio, um Whisper — o Captain e dono e o pipeline OSS fica ", "origem_titulo": "fix(transcricao): arquivo temporario unico por execucao, em vez de um por anexo", "dias": 1}, {"de": "conta simplex", "para": "conta simplex", "fix": 158, "origem": 145, "escopo": "distribuicao", "titulo": "fix(distribuicao): repasse por SLA não tira o lead de quem já atendia", "origem_titulo": "fix(distribuicao): o rodízio para de tirar o lead de quem já está com ele", "dias": 2}, {"de": "Nicolas", "para": "Thalysson", "fix": 160, "origem": 138, "escopo": "captain", "titulo": "fix(captain): tira cidade e vertical de cliente dos moldes compartilhados (T17)", "origem_titulo": "fix(captain): pipeline de midia chamava o servico de transcricao errado", "dias": 2}, {"de": "Nicolas", "para": "Thalysson", "fix": 161, "origem": 156, "escopo": "conversas", "titulo": "fix(conversas): reetiqueta mensagens por lote e só as que mudaram de time (T11)", "origem_titulo": "fix(conversas): perder a corrida pela trava deixa de devolver nil e dar 500 ao c", "dias": 1}, {"de": "conta simplex", "para": "conta simplex", "fix": 163, "origem": 158, "escopo": "distribuicao", "titulo": "fix(distribuicao): RepasseJob usa a mesma regra de engajamento do RepasseService", "origem_titulo": "fix(distribuicao): repasse por SLA não tira o lead de quem já atendia", "dias": 0}, {"de": "Thalysson", "para": "Thalysson", "fix": 164, "origem": 161, "escopo": "conversas", "titulo": "fix(conversas): encerramento automático não trava em conversa sem time (T32)", "origem_titulo": "fix(conversas): reetiqueta mensagens por lote e só as que mudaram de time (T11)", "dias": 0}, {"de": "Paulo", "para": "conta simplex", "fix": 168, "origem": 95, "escopo": "barra-lateral", "titulo": "fix(barra-lateral): Campanhas sai do menu e fica so por link direto", "origem_titulo": "feat(barra-lateral): Campanhas volta ao menu, com os filhos por dado", "dias": 14}, {"de": "conta simplex", "para": "Nicolas", "fix": 169, "origem": 163, "escopo": "distribuicao", "titulo": "fix(distribuicao): modo \"So quem esta online\" fica travado e avisa que ainda nao", "origem_titulo": "fix(distribuicao): RepasseJob usa a mesma regra de engajamento do RepasseService", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 176, "origem": 144, "escopo": "rodizio", "titulo": "fix(rodizio): salvar a tela do time deixa de apagar o vista_corretor do pool", "origem_titulo": "feat(rodizio): periodo, aba por lead, situacao em selo, 'por que este' em palavr", "dias": 2}, {"de": "Nicolas", "para": "Nicolas", "fix": 178, "origem": 176, "escopo": "rodizio", "titulo": "fix(rodizio): repasse do modo assignee volta a respeitar o fail-closed do expedi", "origem_titulo": "fix(rodizio): salvar a tela do time deixa de apagar o vista_corretor do pool", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 179, "origem": 177, "escopo": "flows", "titulo": "fix(flows): voto em enquete WAHA volta a casar o ramo do menu interativo", "origem_titulo": "fix(flows): menu de espera sem prazo deixa de sequestrar mensagem semanas depois", "dias": 1}, {"de": "Paulo", "para": "Nicolas", "fix": 185, "origem": 37, "escopo": "nps", "titulo": "fix(nps): so humano assumindo a conversa cancela a pesquisa", "origem_titulo": "fix(nps)+feat(captain): filtro jsonb que invertia o sentido e cidade fixa nas bu", "dias": 37}, {"de": "Thalysson", "para": "Thalysson", "fix": 186, "origem": 173, "escopo": "tempo-real", "titulo": "fix(tempo-real): gap-fill usa o tempo real de silêncio do stream (Q-4)", "origem_titulo": "fix(tempo-real): vigia anti-F5 roda sem foco e zera a queda após reconectar (T34", "dias": 1}, {"de": "Nicolas", "para": "Nicolas", "fix": 187, "origem": 179, "escopo": "flows", "titulo": "fix(flows): desativar para na hora, pilulas do canvas voltam e agendamento sai d", "origem_titulo": "fix(flows): voto em enquete WAHA volta a casar o ramo do menu interativo", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 191, "origem": 137, "escopo": "busca", "titulo": "fix(busca): busca global passa a respeitar o time da conversa, como a lista", "origem_titulo": "fix(busca): conversa sem mensagem visivel para de derrubar a busca com 500", "dias": 3}, {"de": "Nicolas", "para": "Nicolas", "fix": 192, "origem": 190, "escopo": "anexos", "titulo": "fix(anexos): miniatura pedida antes do arquivo chegar ao disco deixa de quebrar", "origem_titulo": "fix(anexos): video e arquivo grande que ja passaram pelo WhatsApp deixam de ser ", "dias": 0}, {"de": "Thalysson", "para": "Nicolas", "fix": 193, "origem": 184, "escopo": "audio", "titulo": "fix(audio): onda e transcricao deixam de apagar uma a outra no meta do anexo", "origem_titulo": "feat(audio): player desenha a onda do áudio com os picos já calculados (T35)", "dias": 0}, {"de": "Nicolas", "para": "Nicolas", "fix": 194, "origem": 178, "escopo": "rodizio", "titulo": "fix(rodizio): colunas da contabilizacao fecham com Recebidos e a varredura ganha", "origem_titulo": "fix(rodizio): repasse do modo assignee volta a respeitar o fail-closed do expedi", "dias": 1}, {"de": "Nicolas", "para": "Thalysson", "fix": 210, "origem": 189, "escopo": "mensagens", "titulo": "fix(mensagens): resposta dada pelo celular aparece como mensagem enviada (T-03)", "origem_titulo": "fix(mensagens): resposta dada pelo celular numa caixa WAHA conta como resposta", "dias": 3}, {"de": "Nicolas", "para": "Thalysson", "fix": 212, "origem": 185, "escopo": "nps", "titulo": "fix(nps): card de bloqueados e follow-up ao detrator contam a coisa certa (T-06)", "origem_titulo": "fix(nps): so humano assumindo a conversa cancela a pesquisa", "dias": 3}, {"de": "Nicolas", "para": "Thalysson", "fix": 219, "origem": 194, "escopo": "rodizio", "titulo": "fix(rodizio): tela de distribuição para de prometer aviso que não existe (T45)", "origem_titulo": "fix(rodizio): colunas da contabilizacao fecham com Recebidos e a varredura ganha", "dias": 3}, {"de": "Nicolas", "para": "Thalysson", "fix": 220, "origem": 112, "escopo": "ui", "titulo": "fix(ui): ações de lida, kanban e pré-chat avisam quando falham (T-04)", "origem_titulo": "fix(ui): checkbox vazando por cima de dropdown aberto", "dias": 12}, {"de": "Thalysson", "para": "Nicolas", "fix": 225, "origem": 164, "escopo": "conversas", "titulo": "fix(conversas): nova conversa nao escreve mais dentro do atendimento alheio", "origem_titulo": "fix(conversas): encerramento automático não trava em conversa sem time (T32)", "dias": 5}, {"de": "Nicolas", "para": "Paulo", "fix": 226, "origem": 181, "escopo": "captain", "titulo": "fix(captain): falha de ferramenta deixa de chegar ao modelo como ausência de dad", "origem_titulo": "fix(captain): agente de IA passa a usar a chave da propria conta", "dias": 4}, {"de": "Thalysson", "para": "Thalysson", "fix": 254, "origem": 220, "escopo": "ui", "titulo": "fix(ui): troca hover:scale por feedback sem escala e tira verde cru da tela WAHA", "origem_titulo": "fix(ui): ações de lida, kanban e pré-chat avisam quando falham (T-04)", "dias": 3}], "mensal": {"2026-05": {"conta simplex": 8, "Walisson": 10, "Paulo": 1}, "2026-06": {"conta simplex": 1}, "2026-07": {"Paulo": 2}, "2026-08": {"Paulo": 22, "conta simplex": 4, "Nicolas": 2}, "2026-09": {"Paulo": 36, "conta simplex": 11, "Nicolas": 61, "Thalysson": 37}}, "escopos_fix": [["captain", 11], ["busca", 6], ["unidades", 5], ["rodizio", 4], ["distribuicao", 3], ["conversas", 3], ["whatsapp", 2], ["flows", 2], ["nps", 2], ["ui", 2]], "tipos_geral": [["fix", 131], ["feat", 79], ["chore", 5], ["perf", 4], ["docs", 4], ["integração", 3], ["promove", 2], ["merge", 2]], "por_mes": {"2026-05": 19, "2026-06": 3, "2026-07": 3, "2026-08": 55, "2026-09": 153}, "vereditos": [{"pessoa": "Nicolas", "tag": "maior volume, lotes pequenos", "texto": "<b>63 PRs</b>, o maior número do período, e os menores do time: metade mexe em até <b>85 linhas</b>. Recebeu <b>23 consertos</b>, a maior conta absoluta — mas <b>13 deles são dele mesmo</b> corrigindo o próprio trabalho em seguida, e 6 vieram do Thalysson. Mediana de 18.4 h entre abrir e mesclar. Perfil de quem fatia a entrega e itera rápido; o preço é a taxa de retrabalho mais alta (37%).", "simples": "Entrega muito, e em pedaços pequenos: <b>63 pacotes</b>, metade com menos de 85 linhas. É quem mais aparece na lista de consertos (23), mas <b>13 são dele mesmo</b> voltando na própria entrega logo depois — hábito de ajustar até ficar do jeito certo, não erro de outra pessoa. Quando alguém de fora arruma algo dele, quase sempre é o Thalysson."}, {"pessoa": "Paulo", "tag": "PRs grandes, merge rápido", "texto": "<b>61 PRs</b> e o <b>maior volume de código</b>: mediana de 173 linhas (o dobro do time) e 28.125 linhas no total. Um em cada dez passa de 1.860 linhas. e é dele o PR que mais demorou para mesclar (310 h). Ainda assim tem a <b>menor mediana de tempo até o merge</b> (13.7 h). 17 consertos recebidos (28%). sendo 11 feitos por ele mesmo.", "simples": "Manda os pacotes mais pesados do time: <b>173 linhas</b> na entrega do meio, o dobro dos outros, e um em cada dez passa de 1.860 linhas. Ainda assim é o que <b>entra mais rápido</b> (13 horas). Dos 17 consertos na área dele, 11 foram feitos por ele mesmo."}, {"pessoa": "Thalysson", "tag": "menor retrabalho", "texto": "<b>37 PRs</b> com a <b>menor taxa de retrabalho do time</b>: 16%, contra 28% e 37% dos outros dois. Tamanho no meio do caminho (98 linhas de mediana). Fez <b>10 consertos</b>, a maioria em trabalho de outras pessoas (6 sobre PRs do Nicolas) — é quem mais entra para arrumar o que já estava no ar.", "simples": "O mais constante: <b>37 entregas</b> e a <b>menor necessidade de refazer</b> — 16 de cada 100, contra 28 e 37 dos outros dois. Também é quem mais entra para arrumar trabalho dos colegas (6 consertos em entregas do Nicolas)."}, {"pessoa": "conta simplex", "tag": "conta compartilhada", "texto": "<b>24 PRs</b>, mas <b>não é uma pessoa</b>: é a conta genérica <code>dev@simplexsolucoes.com.br</code>. Concentra <b>8 dos 17 PRs descartados</b> do período — quase todos de 13/05, um lote de proposta que nunca entrou. Também é onde estão os merges de reconciliação, os maiores do repositório. Enquanto o time usar essa conta, o que passa por ela fica sem dono no relatório.", "simples": "<b>Não é uma pessoa</b>: é o login compartilhado <code>dev@simplexsolucoes.com.br</code>. Concentra <b>8 das 17 entregas descartadas</b> (um lote de maio que nunca entrou) e os merges gigantes de reconciliação. Enquanto o time usar esse login, o que passa por ele fica sem dono no relatório."}, {"pessoa": "Walisson", "tag": "entrada recente", "texto": "<b>10 PRs</b>, todos recentes, com mediana de 348 linhas — os maiores por PR depois do Paulo. Mescla rápido (2.1 h de mediana) e <b>ainda não recebeu nenhum conserto</b>, o que pode significar código estável ou simplesmente pouco tempo de exposição. Rever daqui a um mês.", "simples": "Chegou há pouco: <b>10 entregas</b>, todas recentes, e <b>nenhuma precisou de conserto</b> até agora. Os pacotes são grandes (348 linhas) e entram rápido (2 horas). Com pouco tempo de estrada, vale reavaliar daqui a um mês."}]};
+
+const PALETA = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)','var(--s5)'];
+const COR = {};
+D.pessoas.forEach((p,i) => { COR[p.pessoa] = PALETA[i % PALETA.length]; });
+const cor = n => COR[n] || 'var(--muted2)';
+
+const tt = document.getElementById('tt');
+function comDica(el, texto){
+  el.addEventListener('mousemove', e => {
+    tt.textContent = texto; tt.classList.add('on');
+    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 310) + 'px';
+    tt.style.top = (e.clientY - 44) + 'px';
+  });
+  el.addEventListener('mouseleave', () => tt.classList.remove('on'));
+}
+const nf = n => n == null ? '—' : n.toLocaleString('pt-BR');
+const tempo = h => h == null ? '—' : (h < 24 ? `${Math.round(h)} horas` : `${(h/24).toFixed(1).replace('.', ',')} dias`);
+const dm = s => s.split('-').reverse().slice(0,2).join('/');
+
+const P = Object.fromEntries(D.pessoas.map(p => [p.pessoa, p]));
+const [ini, fim] = D.periodo;
+document.getElementById('cabecalho').textContent =
+  `${D.total} entregas de código entre ${dm(ini)} e ${dm(fim)} de 2026 · relatório gerado em ${D.gerado_em}`;
+document.getElementById('qtd-prs').textContent = D.total;
+
+// ---- essencial ----
+const maisEntregas = D.pessoas[0];
+const segundo = D.pessoas[1];
+const maiorDosDois = maisEntregas.churn_mediano_trabalho >= segundo.churn_mediano_trabalho ? maisEntregas : segundo;
+const menorDosDois = maiorDosDois === maisEntregas ? segundo : maisEntregas;
+const menorRetrab = [...D.pessoas].filter(p => p.prs >= 20).sort((a,b) => a.taxa_retrabalho - b.taxa_retrabalho)[0];
+const areaTop = D.escopos_fix[0];
+const proprios = D.pares.filter(x => x.de === x.para).length;
+document.getElementById('essencial').innerHTML = [
+  `<b>${maisEntregas.pessoa} e ${segundo.pessoa} entregam quase a mesma quantidade</b>
+   (${maisEntregas.prs} e ${segundo.prs} pacotes), mas de tamanhos bem diferentes: o pacote típico do
+   ${maiorDosDois.pessoa} tem <b>${nf(maiorDosDois.churn_mediano_trabalho)} linhas</b>, contra
+   ${nf(menorDosDois.churn_mediano_trabalho)} do ${menorDosDois.pessoa}.`,
+  `<b>${menorRetrab.pessoa} é quem menos precisa refazer:</b> ${menorRetrab.taxa_retrabalho} de cada 100 entregas
+   voltaram para conserto, contra ${D.pessoas[0].taxa_retrabalho} e ${D.pessoas[1].taxa_retrabalho} dos outros dois.`,
+  `<b>Mais da metade dos consertos é a própria pessoa voltando no que acabou de fazer</b>
+   (${proprios} de ${D.pares.length}). Isso é ajuste fino, não erro de outra pessoa.`,
+  `<b>A área que mais dá trabalho é <code>${areaTop[0]}</code></b>, com ${areaTop[1]} consertos —
+   quase o dobro da segunda colocada. O problema ali é do código, não de quem mexeu nele.`,
+  `<b>Quase tudo que é aberto entra:</b> ${Math.round(100*D.estados.MERGED/D.total)}% das entregas foram aceitas.
+   As ${D.estados.CLOSED} descartadas se concentram num lote antigo, de maio.`,
+].map(t => `<li>${t}</li>`).join('');
+
+document.getElementById('tiles').innerHTML = [
+  {n: D.total, l: 'entregas no período'},
+  {n: D.pessoas.length, l: 'pessoas entregando'},
+  {n: D.pares.length, l: 'voltaram para conserto'},
+  {n: D.estados.CLOSED, l: 'foram descartadas'},
+].map(t => `<div class="tile"><div class="n">${t.n}</div><div class="l">${t.l}</div></div>`).join('');
+
+// ---- barras ----
+function barras(alvo, itens, fmt){
+  const max = Math.max(...itens.map(i => i.v)) || 1;
+  const el = document.getElementById(alvo);
+  if (!el) return;
+  el.innerHTML = itens.map(i => `
+    <div class="row">
+      <div class="lab">${i.k}</div>
+      <div class="track"><div class="fill" data-dica="${i.dica || ''}" style="width:${Math.max(2, 100*i.v/max)}%;background:${i.cor || 'var(--s1)'}"></div></div>
+      <div class="val">${fmt ? fmt(i.v) : nf(i.v)}</div>
+    </div>`).join('');
+  el.querySelectorAll('.fill').forEach(f => f.dataset.dica && comDica(f, f.dataset.dica));
+}
+
+barras('g-prs', D.pessoas.map(p => ({k: p.pessoa, v: p.prs, cor: cor(p.pessoa),
+  dica: `${p.prs} entregas, de ${dm(p.primeiro)} a ${dm(p.ultimo)}`})), v => v + ' entregas');
+document.getElementById('leia-prs').innerHTML =
+  `<b>Como ler:</b> cada barra é o número de pacotes que a pessoa mandou no período.
+   A conta <code>simplex</code> aparece aqui porque é um login usado por mais de uma pessoa — não é alguém do time.`;
+
+barras('g-tamanho', D.pessoas.map(p => ({k: p.pessoa, v: p.churn_mediano_trabalho, cor: cor(p.pessoa),
+  dica: `metade das entregas de ${p.pessoa} mexe em até ${nf(p.churn_mediano_trabalho)} linhas`})), v => nf(v) + ' linhas');
+barras('g-p90', D.pessoas.map(p => ({k: p.pessoa, v: p.churn_p90, cor: cor(p.pessoa)})), v => nf(v) + ' linhas');
+
+barras('g-tempo', D.pessoas.map(p => ({k: p.pessoa, v: p.horas_mediana_trabalho || 0, cor: cor(p.pessoa),
+  dica: `metade das entregas de ${p.pessoa} entra em até ${tempo(p.horas_mediana_trabalho)}`})), tempo);
+document.getElementById('leia-tempo').innerHTML =
+  `<b>Como ler:</b> tempo entre mandar o pacote e ele entrar no sistema. Tempo curto quer dizer que a fila
+   anda; tempo longo pode ser entrega grande, dúvida ou espera por uma decisão. A entrega mais demorada do
+   período levou <b>${tempo(D.demorados[0].horas)}</b> (a #${D.demorados[0].n}).`;
+
+barras('g-retrabalho', D.pessoas.map(p => ({k: p.pessoa, v: p.taxa_retrabalho, cor: cor(p.pessoa),
+  dica: `${p.recebeu_fix} consertos sobre ${p.prs} entregas`})), v => v + ' de 100');
+const topRetrab = [...D.pessoas].sort((a,b) => b.taxa_retrabalho - a.taxa_retrabalho)[0];
+document.getElementById('leia-retrabalho').innerHTML =
+  `<b>Cuidado ao comparar:</b> quem entrega mais e mexe nas áreas mais movimentadas naturalmente aparece mais
+   aqui. ${topRetrab.pessoa} lidera com ${topRetrab.taxa_retrabalho} de 100,
+   mas <b>${D.matriz[topRetrab.pessoa] ? (D.matriz[topRetrab.pessoa][topRetrab.pessoa] || 0) : 0} desses consertos
+   são dele mesmo</b>, feitos logo depois da entrega.`;
+
+barras('g-escopos', D.escopos_fix.slice(0,8).map(([esc, n]) => ({k: esc, v: n,
+  dica: `${n} consertos na área ${esc}`})), v => v + (v === 1 ? ' conserto' : ' consertos'));
+
+// ---- quem conserta quem (lista, mais fácil que matriz) ----
+const duplas = [];
+Object.entries(D.matriz).forEach(([de, linha]) => {
+  Object.entries(linha).forEach(([para, n]) => duplas.push({de, para, n}));
+});
+duplas.sort((a,b) => b.n - a.n);
+document.getElementById('t-quem-conserta').innerHTML =
+  '<thead><tr><th>Trabalho de</th><th>Consertado por</th><th class="num">Vezes</th></tr></thead><tbody>' +
+  duplas.map(d => `<tr>
+    <td><span class="who"><span class="dot" style="background:${cor(d.de)}"></span>${d.de}</span></td>
+    <td>${d.de === d.para
+      ? '<span class="muted">consertou o próprio trabalho</span>'
+      : `<span class="who"><span class="dot" style="background:${cor(d.para)}"></span>${d.para}</span>`}</td>
+    <td class="num">${d.n}</td></tr>`).join('') + '</tbody>';
+
+// ---- mensal ----
+const meses = Object.keys(D.mensal).sort();
+const nomes = D.pessoas.map(p => p.pessoa);
+document.getElementById('leg-mensal').innerHTML = nomes.map(n =>
+  `<span><span class="dot" style="background:${cor(n)}"></span>${n}</span>`).join('');
+const maxMes = Math.max(...meses.map(m => Object.values(D.mensal[m]).reduce((a,b)=>a+b,0)));
+const MES = {'05':'maio','06':'junho','07':'julho','08':'agosto','09':'setembro'};
+document.getElementById('g-mensal').innerHTML = meses.map(m => {
+  const dados = D.mensal[m], total = Object.values(dados).reduce((a,b)=>a+b,0);
+  const segs = nomes.filter(n => dados[n]).map(n =>
+    `<div class="seg" data-dica="${MES[m.slice(5)]}: ${dados[n]} entregas de ${n}" style="width:${100*dados[n]/maxMes}%;background:${cor(n)}"></div>`).join('');
+  return `<div class="row"><div class="lab">${MES[m.slice(5)] || m}</div><div class="stack">${segs}</div>
+    <div class="val">${total} entregas</div></div>`;
+}).join('');
+document.querySelectorAll('#g-mensal .seg').forEach(s => comDica(s, s.dataset.dica));
+const pico = meses.reduce((a,b) => Object.values(D.mensal[b]).reduce((x,y)=>x+y,0) > Object.values(D.mensal[a]).reduce((x,y)=>x+y,0) ? b : a);
+document.getElementById('leia-mensal').innerHTML =
+  `<b>Como ler:</b> a barra é o mês inteiro, e cada cor é uma pessoa. O mês mais cheio foi
+   <b>${MES[pico.slice(5)]}</b>. Setembro conta só até o dia ${fim.slice(8)}.`;
+
+// ---- pessoa por pessoa ----
+document.getElementById('pessoas').innerHTML = D.vereditos.map(v => {
+  const p = P[v.pessoa];
+  const metricas = p ? `
+    <div class="linha">
+      <div><b>${p.prs}</b> entregas</div>
+      <div><b>${nf(p.churn_mediano_trabalho)}</b> linhas por entrega</div>
+      <div><b>${tempo(p.horas_mediana_trabalho)}</b> até entrar</div>
+      <div><b>${p.recebeu_fix}</b> voltaram para conserto</div>
+      <div><b>${p.fez_fix}</b> consertos que ela fez</div>
+    </div>` : '';
+  return `<div class="p"><h4><span class="dot" style="background:${cor(v.pessoa)}"></span>${v.pessoa}</h4>
+    <p class="frase">${v.simples}</p>${metricas}</div>`;
+}).join('');
+
+// ---- extremos ----
+function tabela(alvo, lista, colunas){
+  const el = document.getElementById(alvo);
+  if (!el) return;
+  el.innerHTML = '<thead><tr>' + colunas.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('') +
+    '</tr></thead><tbody>' + lista.map(p => '<tr>' + colunas.map(c => `<td class="${c[2]||''}">${c[1](p)}</td>`).join('') + '</tr>').join('') + '</tbody>';
+}
+const link = p => `<a href="https://github.com/Dev-Simplex/chatspx/pull/${p.n}" target="_blank" rel="noopener">#${p.n}</a>`;
+const quem = p => p.dono ? `<span class="who" style="font-weight:500"><span class="dot" style="background:${cor(p.dono)}"></span>${p.dono}</span>` : '<span class="muted">sem nome</span>';
+const oque = p => `<span class="muted">${p.titulo.length > 62 ? p.titulo.slice(0,62) + '…' : p.titulo}</span>`;
+
+tabela('t-maiores', D.maiores, [['Entrega', link], ['Quem', quem], ['Linhas', p => nf(p.churn), 'num'], ['O que era', oque]]);
+tabela('t-demorados', D.demorados, [['Entrega', link], ['Quem', quem], ['Esperou', p => tempo(p.horas), 'num'], ['O que era', oque]]);
+tabela('t-descartados', D.descartados, [['Entrega', link], ['Quem', quem], ['Aberta em', p => dm(p.criado), 'num'], ['O que era', oque]]);
+document.getElementById('sum-descartados').textContent =
+  `As ${D.descartados.length} que foram abertas e nunca entraram`;
+
+document.getElementById('rodape').innerHTML =
+  `Fonte: os ${D.total} pull requests do repositório <code>Dev-Simplex/chatspx</code> e os commits de cada um.
+   Período de ${dm(ini)} a ${dm(fim)} de 2026. Esta página é pública: quem tiver o endereço abre, sem senha.`;
+</script>
+</body>
+</html>

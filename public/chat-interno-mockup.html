@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E✨%3C/text%3E%3C/svg%3E">
+<style>html{color-scheme:light dark}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Chat Interno, Hoje e Depois</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    /* chrome da página — mesma identidade do relatório */
+    --paper:       #f4f7f4;
+    --surface:     #ffffff;
+    --surface-2:   #eaefea;
+    --ink:         #12211a;
+    --ink-2:       #45564d;
+    --ink-3:       #78877f;
+    --rule:        #d8e0da;
+    --rule-strong: #b9c5bd;
+    --green:       #2dc46f;
+    --green-deep:  #0d6b3b;
+    --green-wash:  #e2f5ea;
+    --red:         #b6362b;
+    --red-wash:    #fbe9e7;
+
+    /* tokens REAIS do produto (_wa-skin.scss) */
+    --app-chrome:    #ffffff;
+    --app-chrome-2:  #f5f6f6;
+    --app-chat-bg:   #efeae2;
+    --bubble-out:    #d9fdd3;
+    --bubble-in:     #ffffff;
+    --app-text:      #111b21;
+    --app-text-2:    #5a6a73;
+    --app-brand:     #2dc46f;
+    --app-border:    #e3e6e4;
+    --app-hover:     #f0f2f1;
+
+    --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --body:    "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --app-font:"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:       #0c130f;
+      --surface:     #131c17;
+      --surface-2:   #1b2620;
+      --ink:         #e6ede8;
+      --ink-2:       #a9b8af;
+      --ink-3:       #78877f;
+      --rule:        #263329;
+      --rule-strong: #3a4a3f;
+      --green:       #3ddc80;
+      --green-deep:  #7ceaa8;
+      --green-wash:  #122e1f;
+      --red:         #ff8a7a;
+      --red-wash:    #2c1614;
+
+      --app-chrome:   #111b21;
+      --app-chrome-2: #202c33;
+      --app-chat-bg:  #0b141a;
+      --bubble-out:   #005c4b;
+      --bubble-in:    #202c33;
+      --app-text:     #e9edef;
+      --app-text-2:   #8696a0;
+      --app-brand:    #2dc46f;
+      --app-border:   #222d34;
+      --app-hover:    #202c33;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:       #0c130f;
+    --surface:     #131c17;
+    --surface-2:   #1b2620;
+    --ink:         #e6ede8;
+    --ink-2:       #a9b8af;
+    --ink-3:       #78877f;
+    --rule:        #263329;
+    --rule-strong: #3a4a3f;
+    --green:       #3ddc80;
+    --green-deep:  #7ceaa8;
+    --green-wash:  #122e1f;
+    --red:         #ff8a7a;
+    --red-wash:    #2c1614;
+
+    --app-chrome:   #111b21;
+    --app-chrome-2: #202c33;
+    --app-chat-bg:  #0b141a;
+    --bubble-out:   #005c4b;
+    --bubble-in:    #202c33;
+    --app-text:     #e9edef;
+    --app-text-2:   #8696a0;
+    --app-brand:    #2dc46f;
+    --app-border:   #222d34;
+    --app-hover:    #202c33;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1160px; margin: 0 auto; padding: 0 22px 88px; }
+
+  h1, h2 { font-family: var(--display); font-weight: 600; margin: 0; line-height: 1.14; text-wrap: balance; }
+  p { margin: 0; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  }
+
+  header.masthead {
+    padding: 56px 0 30px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  header.masthead h1 {
+    font-size: clamp(36px, 6vw, 56px);
+    letter-spacing: -.02em;
+    font-variation-settings: "SOFT" 20, "WONK" 1;
+  }
+  .standfirst { font-size: 18px; color: var(--ink-2); max-width: 64ch; }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- interruptor ---------- */
+  .switchbar {
+    position: sticky; top: 0; z-index: 40;
+    background: var(--paper);
+    padding: 14px 0 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px;
+  }
+  .seg {
+    display: inline-flex; padding: 3px; gap: 3px;
+    background: var(--surface-2); border: 1px solid var(--rule);
+    border-radius: 999px;
+  }
+  .seg button {
+    font-family: var(--body); font-size: 14.5px; font-weight: 600;
+    border: 0; background: transparent; color: var(--ink-2);
+    padding: 8px 18px; border-radius: 999px; cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .seg button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .switch-note { font-size: 14.5px; color: var(--ink-2); }
+  .switch-note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- palco ---------- */
+  .stage-wrap { margin-top: 26px; overflow-x: auto; padding: 4px 4px 8px; }
+
+  .app {
+    width: 1000px;
+    height: 620px;
+    display: flex;
+    border: 1px solid var(--rule-strong);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--app-chrome);
+    font-family: var(--app-font);
+    color: var(--app-text);
+    box-shadow: 0 2px 4px rgba(18,33,26,.06), 0 24px 60px -30px rgba(18,33,26,.45);
+  }
+
+  /* --- barra lateral do app --- */
+  .side { width: 340px; flex-shrink: 0; border-right: 1px solid var(--app-border); display: flex; flex-direction: column; background: var(--app-chrome); }
+  .side-top { padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 11px; border-bottom: 1px solid var(--app-border); }
+  .side-title { display: flex; align-items: center; justify-content: space-between; }
+  .side-title h3 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+  .side-icons { display: flex; gap: 5px; }
+  .ic {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--app-text-2); font-size: 15px; background: transparent;
+  }
+  .searchbox {
+    display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 11px; border-radius: 10px;
+    background: var(--app-chrome-2); font-size: 13px; color: var(--app-text-2);
+  }
+  .searchbox .typed { color: var(--app-text); font-weight: 500; }
+  .caret { display:inline-block; width:1px; height:14px; background: var(--app-brand); vertical-align:-2px; }
+  .filters { display: flex; gap: 7px; }
+  .chip {
+    font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    background: var(--app-chrome-2); color: var(--app-text-2);
+  }
+  .chip.on { background: var(--app-brand); color: #08301c; }
+
+  .side-list { flex: 1; overflow: hidden; padding: 6px 8px; display: flex; flex-direction: column; gap: 1px; }
+
+  /* padding-right maior abre a calha onde os alfinetes ficam sem encostar no badge */
+  .row { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 20px 9px 8px; border-radius: 11px; }
+  .row.active { background: var(--app-hover); }
+  .av {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; color: #fff; position: relative;
+  }
+  .av.g { background: #6b8f7a; }
+  .av.b { background: #5b7f9e; }
+  .av.p { background: #8a6f9e; }
+  .av.t { background: var(--app-chrome-2); color: var(--app-text-2); font-size: 15px; }
+  .av .dot {
+    position: absolute; right: -1px; bottom: -1px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--app-brand); border: 2px solid var(--app-chrome);
+  }
+  .row-body { flex: 1; min-width: 0; }
+  .row-l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .row-name { font-size: 13.5px; font-weight: 500; color: var(--app-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.unread .row-name { font-weight: 700; }
+  .row-time { font-size: 11px; color: var(--app-text-2); flex-shrink: 0; }
+  .row.unread .row-time { color: var(--app-brand); font-weight: 600; }
+  .row-l2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 1px; }
+  .row-prev { font-size: 12px; color: var(--app-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.unread .row-prev { color: var(--app-text); }
+  .badge {
+    min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px;
+    background: var(--app-brand); color: #08301c;
+    font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .side-empty { padding: 34px 14px; text-align: center; font-size: 12.5px; color: var(--app-text-2); }
+  .grouplabel {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--app-text-2); padding: 10px 8px 4px;
+  }
+
+  /* --- painel da conversa --- */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--app-chat-bg); }
+  .main-head {
+    height: 56px; flex-shrink: 0; padding: 0 16px;
+    display: flex; align-items: center; gap: 11px;
+    background: var(--app-chrome); border-bottom: 1px solid var(--app-border);
+  }
+  .main-head .who { flex: 1; min-width: 0; }
+  .main-head .who b { display: block; font-size: 14px; font-weight: 600; }
+  .main-head .who span { font-size: 11.5px; color: var(--app-text-2); }
+
+  .thread { flex: 1; overflow: hidden; padding: 14px 22px; display: flex; flex-direction: column; gap: 8px; }
+  .daysep { align-self: center; font-size: 10.5px; font-weight: 600; color: var(--app-text-2); background: var(--app-chrome); padding: 3px 11px; border-radius: 999px; margin: 2px 0 4px; }
+  .loadmore {
+    align-self: center; font-size: 11.5px; font-weight: 600; color: var(--app-brand);
+    background: var(--app-chrome); padding: 5px 14px; border-radius: 999px;
+    border: 1px solid var(--app-border); position: relative;
+  }
+  .unreadsep { display: flex; align-items: center; gap: 10px; margin: 4px 0; position: relative; }
+  .unreadsep i { flex: 1; height: 1px; background: var(--app-brand); opacity: .45; }
+  .unreadsep span { font-size: 10.5px; font-weight: 700; color: var(--app-brand); letter-spacing: .04em; }
+
+  .msg { max-width: 76%; position: relative; }
+  .msg.out { align-self: flex-end; }
+  .msg.in  { align-self: flex-start; }
+  .bub {
+    border-radius: 9px; padding: 7px 10px 5px;
+    font-size: 13.5px; line-height: 1.45;
+    box-shadow: 0 1px 1px rgba(11,20,26,.12);
+    position: relative;
+  }
+  .msg.out .bub { background: var(--bubble-out); border-top-right-radius: 3px; }
+  .msg.in  .bub { background: var(--bubble-in);  border-top-left-radius: 3px; }
+  .author { display: block; font-size: 11.5px; font-weight: 700; color: #7a9c86; margin-bottom: 1px; }
+  .meta { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 2px; font-size: 10.5px; color: var(--app-text-2); }
+  .tick { font-weight: 700; letter-spacing: -1px; }
+  .tick.read { color: #53bdeb; }
+  .deadlink { color: inherit; }
+  .livelink { color: #2a7fbf; text-decoration: underline; text-underline-offset: 2px; }
+  :root[data-theme="dark"] .livelink,
+  :root:not([data-theme="light"]) .livelink { color: #53bdeb; }
+  .mention-plain { color: inherit; }
+  .mention-live {
+    background: rgba(45,196,111,.2); color: var(--app-text);
+    font-weight: 600; border-radius: 4px; padding: 0 3px;
+  }
+
+  /* card da conversa compartilhada */
+  .convcard {
+    display: flex; align-items: center; gap: 10px;
+    margin: 2px 0 5px; padding: 8px 10px;
+    background: rgba(0,0,0,.05); border-left: 3px solid var(--app-brand);
+    border-radius: 6px;
+  }
+  :root[data-theme="dark"] .convcard,
+  :root:not([data-theme="light"]) .convcard { background: rgba(255,255,255,.07); }
+  .convcard .cc-id { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--app-brand); }
+  .convcard .cc-b { min-width: 0; }
+  .convcard .cc-b b { display: block; font-size: 12.5px; font-weight: 600; }
+  .convcard .cc-b span { font-size: 11px; color: var(--app-text-2); }
+  .convcard .cc-go { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--app-brand); white-space: nowrap; }
+
+  /* composer */
+  .composer {
+    flex-shrink: 0; padding: 9px 14px 12px;
+    background: var(--app-chrome); border-top: 1px solid var(--app-border);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .composer .field {
+    flex: 1; min-height: 38px; border-radius: 10px;
+    background: var(--app-chrome-2); padding: 9px 13px;
+    font-size: 13.5px; color: var(--app-text-2); position: relative;
+  }
+  .composer .field.filled { color: var(--app-text); }
+  .composer .send {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    background: var(--app-brand); color: #08301c;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+  }
+  .mentionpop {
+    /* ancorado à direita: à esquerda ficaria por cima do balão com o link */
+    position: absolute; right: 4px; bottom: calc(100% + 10px); width: 200px;
+    background: var(--app-chrome); border: 1px solid var(--app-border);
+    border-radius: 10px; padding: 5px; box-shadow: 0 8px 26px -10px rgba(0,0,0,.5);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .mentionpop div { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; font-size: 12.5px; color: var(--app-text); }
+  .mentionpop div.sel { background: var(--app-hover); }
+  .mentionpop .mini { width: 22px; height: 22px; border-radius: 50%; font-size: 10px; }
+
+  /* --- alfinetes de anotação --- */
+  .pin {
+    position: absolute; z-index: 20;
+    width: 21px; height: 21px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: #fff; box-shadow: 0 0 0 2.5px var(--app-chrome), 0 2px 5px rgba(0,0,0,.3);
+  }
+  .pin.bad  { background: #c0392f; }
+  .pin.good { background: #128a4d; }
+  .pin.r { right: -8px; top: 50%; transform: translateY(-50%); }
+  .pin.l { left: -9px; top: 50%; transform: translateY(-50%); }
+  .pin.tr { right: -8px; top: -8px; }
+
+  /* --- legenda --- */
+  .legend { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px 26px; }
+  .lg { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; }
+  .lg .n {
+    width: 22px; height: 22px; border-radius: 50%; margin-top: 2px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700; color: #fff;
+  }
+  .lg.bad  .n { background: #c0392f; }
+  .lg.good .n { background: #128a4d; }
+  .lg p { font-size: 14.5px; color: var(--ink-2); }
+  .lg p b { color: var(--ink); font-weight: 600; }
+  .lg p em { font-style: normal; font-family: var(--mono); font-size: 12px; color: var(--ink-3); display: block; margin-top: 1px; }
+
+  .legend-head { margin-top: 34px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--rule-strong); }
+  .legend-head h2 { font-size: 24px; }
+  .legend-head .tag { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; }
+  .legend-head .tag.bad  { color: var(--red); }
+  .legend-head .tag.good { color: var(--green-deep); }
+
+  /* --- rodapé de escopo --- */
+  .scope {
+    margin-top: 44px; padding: 24px 26px;
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .scope h2 { font-size: 21px; }
+  .scope p { font-size: 15px; color: var(--ink-2); }
+  .scope p strong { color: var(--ink); font-weight: 600; }
+  .scope a { color: var(--green-deep); }
+  .costline { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .costline span {
+    font-family: var(--mono); font-size: 11.5px; padding: 4px 10px; border-radius: 999px;
+    background: var(--green-wash); color: var(--green-deep);
+  }
+
+  footer.method {
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ink-3);
+  }
+
+  code {
+    font-family: var(--mono); font-size: .85em;
+    background: var(--surface-2); border-radius: 4px;
+    padding: .1em .36em; color: var(--ink-2);
+  }
+  .lg p em code, footer.method code { background: transparent; padding: 0; color: inherit; }
+
+  [hidden] { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">ChatSPX · mockup da auditoria de 08/09/2026</div>
+    <h1>Chat Interno, Hoje e Depois</h1>
+    <p class="standfirst">
+      A mesma tela, com os mesmos dados, nos dois estados. À esquerda do interruptor está o que
+      o time vê hoje; à direita, o que ele veria depois dos <strong>lotes 0, 1 e 2</strong> —
+      dois dias e quinze minutos de trabalho. Os alfinetes numerados marcam cada mudança.
+    </p>
+  </header>
+
+  <div class="switchbar">
+    <div class="seg" role="group" aria-label="Escolher o estado da tela">
+      <button type="button" id="btn-hoje" aria-pressed="true">Hoje</button>
+      <button type="button" id="btn-depois" aria-pressed="false">Depois dos lotes 0–2</button>
+    </div>
+    <p class="switch-note" id="switch-note"><b>10 defeitos</b> visíveis numa única tela.</p>
+  </div>
+
+  <div class="stage-wrap">
+
+    <!-- ================= HOJE ================= -->
+    <div class="app" id="view-hoje">
+      <div class="side">
+        <div class="side-top">
+          <div class="side-title">
+            <h3>Chat interno</h3>
+            <div class="side-icons">
+              <span class="ic">⌕</span><span class="ic">✎</span>
+            </div>
+          </div>
+          <div class="searchbox" style="position:relative">
+            <span>⌕</span><span class="typed">Ana</span><span class="caret"></span>
+            <span class="pin bad r" style="right:-9px">4</span>
+          </div>
+          <div class="filters">
+            <span class="chip on">Todas</span>
+            <span class="chip">Não lidas</span>
+            <span class="chip">Favoritas 0</span>
+          </div>
+        </div>
+        <div class="side-list">
+          <div class="side-empty" style="padding:14px 10px 18px">Nenhuma conversa encontrada.</div>
+
+          <div class="grouplabel" style="opacity:.55">↓ e a lista, quando você desiste da busca</div>
+
+          <div class="row">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">pos-venda</span><span class="row-time"></span></span>
+              <span class="row-l2"><span class="row-prev">Nenhuma mensagem</span></span>
+            </span>
+            <span class="pin bad r">6</span>
+          </div>
+          <div class="row">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">vendas</span><span class="row-time"></span></span>
+              <span class="row-l2"><span class="row-prev">Nenhuma mensagem</span></span>
+            </span>
+          </div>
+          <div class="row">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">suporte</span><span class="row-time"></span></span>
+              <span class="row-l2"><span class="row-prev">Nenhuma mensagem</span></span>
+            </span>
+          </div>
+
+          <div class="row active unread">
+            <span class="av g">AP</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">Ana Paula</span><span class="row-time">anteontem</span></span>
+              <span class="row-l2"><span class="row-prev">tá bom, valeu</span><span class="badge">3</span></span>
+            </span>
+            <span class="pin bad r">1</span>
+          </div>
+
+          <div class="row">
+            <span class="av b">CM</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">Carla Menezes</span><span class="row-time">ontem</span></span>
+              <span class="row-l2"><span class="row-prev">beleza, fecho hoje</span></span>
+            </span>
+            <span class="pin bad r">2</span>
+          </div>
+
+          <div class="row">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">locacao</span><span class="row-time"></span></span>
+              <span class="row-l2"><span class="row-prev">Nenhuma mensagem</span></span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="main-head">
+          <span class="av g" style="width:34px;height:34px;font-size:12px">AP</span>
+          <span class="who"><b>Ana Paula</b><span>ver informações da conversa</span></span>
+          <span class="ic">⌕</span><span class="ic">⋮</span>
+        </div>
+
+        <div class="thread">
+          <div class="daysep" style="position:relative">
+            HOJE
+            <span class="pin bad" style="left:-11px;top:50%;transform:translateY(-50%)">7</span>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              vc viu o cliente do orçamento que sumiu?
+              <div class="meta">09:10</div>
+            </div>
+          </div>
+
+          <div class="msg out">
+            <div class="bub">
+              vou olhar agora
+              <div class="meta">09:11 <span class="tick read">✓✓</span></div>
+              <span class="pin bad tr">3</span>
+            </div>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              olha esse aqui
+              <div class="meta">09:24</div>
+              <span class="pin bad tr">8</span>
+            </div>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              <span class="mention-plain">@Ana Paula</span> consegue assumir esse?
+              <div class="meta">09:25</div>
+              <span class="pin bad tr">5</span>
+            </div>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              <span class="deadlink">https://nicolas.chatspx.app/app/accounts/1/conversations/4821</span>
+              <div class="meta">09:26</div>
+              <span class="pin bad tr">9</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <span class="ic">😊</span><span class="ic">📎</span>
+          <div class="field">Digite uma mensagem
+            <span class="pin bad" style="right:10px;top:50%;transform:translateY(-50%)">10</span>
+          </div>
+          <span class="send">➤</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= DEPOIS ================= -->
+    <div class="app" id="view-depois" hidden>
+      <div class="side">
+        <div class="side-top">
+          <div class="side-title">
+            <h3>Chat interno</h3>
+            <div class="side-icons">
+              <span class="ic">⌕</span><span class="ic">✎</span>
+            </div>
+          </div>
+          <div class="searchbox" style="position:relative">
+            <span>⌕</span><span class="typed">Ana</span><span class="caret"></span>
+            <span class="pin good r" style="right:-9px">4</span>
+          </div>
+          <div class="filters">
+            <span class="chip on">Todas</span>
+            <span class="chip">Não lidas 3</span>
+            <span class="chip">Grupos</span>
+          </div>
+        </div>
+        <div class="side-list">
+          <div class="grouplabel">Pessoas</div>
+          <div class="row">
+            <span class="av g">AP<span class="dot"></span></span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">Ana Paula</span></span>
+              <span class="row-l2"><span class="row-prev">ana.paula@simplexsolucoes.com.br · online</span></span>
+            </span>
+          </div>
+          <div class="row">
+            <span class="av p">AR</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">Ana Ribeiro</span></span>
+              <span class="row-l2"><span class="row-prev">ana.ribeiro@simplexsolucoes.com.br · ocupada</span></span>
+            </span>
+          </div>
+
+          <div class="grouplabel">Conversas</div>
+
+          <div class="row active unread">
+            <span class="av g">AP<span class="dot"></span></span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">Ana Paula</span><span class="row-time">09:26</span></span>
+              <span class="row-l2"><span class="row-prev">Ana: https://nicolas.chatspx…</span><span class="badge">3</span></span>
+            </span>
+            <span class="pin good r">1</span>
+          </div>
+
+          <div class="row">
+            <span class="av b">CM</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">Carla Menezes</span><span class="row-time">ontem</span></span>
+              <span class="row-l2"><span class="row-prev">Você: beleza, fecho hoje</span></span>
+            </span>
+            <span class="pin good r">2</span>
+          </div>
+
+          <div class="row">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">vendas</span><span class="row-time">ontem</span></span>
+              <span class="row-l2"><span class="row-prev">João: alguém pega a #4821?</span></span>
+            </span>
+          </div>
+
+          <div class="grouplabel">Salas de time sem conversa</div>
+          <div class="row" style="opacity:.62">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">suporte</span></span>
+              <span class="row-l2"><span class="row-prev">Nenhuma mensagem</span></span>
+            </span>
+            <span class="pin good r">6</span>
+          </div>
+          <div class="row" style="opacity:.62">
+            <span class="av t">#</span>
+            <span class="row-body">
+              <span class="row-l1"><span class="row-name">pos-venda</span></span>
+              <span class="row-l2"><span class="row-prev">Nenhuma mensagem</span></span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="main-head">
+          <span class="av g" style="width:34px;height:34px;font-size:12px">AP<span class="dot"></span></span>
+          <span class="who"><b>Ana Paula</b><span>online</span></span>
+          <span class="ic">⌕</span><span class="ic">⋮</span>
+        </div>
+
+        <div class="thread">
+          <div class="loadmore">
+            ↑ Carregar mensagens anteriores
+            <span class="pin good" style="right:-9px;top:50%;transform:translateY(-50%)">7</span>
+          </div>
+
+          <div class="daysep">HOJE</div>
+
+          <div class="msg in">
+            <div class="bub">
+              vc viu o cliente do orçamento que sumiu?
+              <div class="meta">09:10</div>
+            </div>
+          </div>
+
+          <div class="msg out">
+            <div class="bub">
+              vou olhar agora
+              <div class="meta">09:11 <span class="tick">✓</span></div>
+              <span class="pin good tr">3</span>
+            </div>
+          </div>
+
+          <div class="unreadsep">
+            <i></i><span>NOVAS MENSAGENS</span><i></i>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              <div class="convcard">
+                <span class="cc-id">#4821</span>
+                <span class="cc-b"><b>João Silva</b><span>WhatsApp Vendas · aberta</span></span>
+                <span class="cc-go">abrir ›</span>
+              </div>
+              olha esse aqui
+              <div class="meta">09:24</div>
+              <span class="pin good tr">8</span>
+            </div>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              <span class="mention-live">@Ana Paula</span> consegue assumir esse?
+              <div class="meta">09:25</div>
+              <span class="pin good tr">5</span>
+            </div>
+          </div>
+
+          <div class="msg in">
+            <div class="bub">
+              <span class="livelink">nicolas.chatspx.app/…/conversations/4821</span>
+              <div class="meta">09:26</div>
+              <span class="pin good tr">9</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <span class="ic">😊</span><span class="ic">📎</span>
+          <div class="field filled">
+            <div class="mentionpop">
+              <div class="sel"><span class="av g mini">AP</span> Ana Paula</div>
+              <div><span class="av p mini">AR</span> Ana Ribeiro</div>
+            </div>
+            já peguei, <span class="mention-live">@Ana</span><span class="caret"></span>
+            <span class="pin good" style="right:10px;top:50%;transform:translateY(-50%)">10</span>
+          </div>
+          <span class="send">➤</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= LEGENDAS ================= -->
+
+  <div id="leg-hoje">
+    <div class="legend-head">
+      <h2>O que está errado nessa tela</h2>
+      <span class="tag bad">10 alfinetes · tudo verificado no código</span>
+    </div>
+    <div class="legend">
+      <div class="lg bad"><span class="n">1</span><p><b>A conversa com 3 não lidas está no meio da lista</b>, abaixo de três salas vazias — e a prévia mostra "tá bom, valeu", de anteontem.<em>a lista não ordena por mensagem recente</em></p></div>
+      <div class="lg bad"><span class="n">2</span><p><b>Falta o "Você:"</b> na prévia — não dá para saber se o colega respondeu ou se você falou por último.<em>o campo que a tela procura não existe no JSON</em></p></div>
+      <div class="lg bad"><span class="n">3</span><p><b>✓✓ de "lida" na mensagem</b>, mesmo com a Ana sem ter aberto nada. O tique é falso em toda mensagem enviada.<em>read: m.status !== 'progress'</em></p></div>
+      <div class="lg bad"><span class="n">4</span><p><b>Digitar "Ana" não acha a Ana</b> — a busca só procura conversa que já existe. Beco sem saída.<em>filtro local sobre a lista de canais</em></p></div>
+      <div class="lg bad"><span class="n">5</span><p><b>"@Ana Paula" é texto puro.</b> Não notifica, não destaca, não entra na caixa de menções.<em>o composer não tem gatilho de @</em></p></div>
+      <div class="lg bad"><span class="n">6</span><p><b>Dez salas de time vazias</b> dominam a lista — 10 de 16 linhas dizendo "Nenhuma mensagem".<em>criadas automaticamente, uma por time</em></p></div>
+      <div class="lg bad"><span class="n">7</span><p><b>A conversa começa aqui e pronto.</b> Sem "carregar mais": o histórico para nas últimas 30 mensagens.<em>a paginação existe no servidor e ninguém chama</em></p></div>
+      <div class="lg bad"><span class="n">8</span><p><b>A conversa compartilhada chegou como nota solta.</b> Sem o número, sem o cliente, sem como abrir.<em>0 de 32 mensagens têm conversa anexada</em></p></div>
+      <div class="lg bad"><span class="n">9</span><p><b>O link não é clicável.</b> Tem que selecionar e copiar na mão.<em>o balão renderiza texto cru</em></p></div>
+      <div class="lg bad"><span class="n">10</span><p><b>O campo está vazio e sem foco.</b> Se você tinha escrito algo e trocou de conversa, sumiu — com os anexos junto.<em>e é preciso mais um clique para digitar</em></p></div>
+    </div>
+  </div>
+
+  <div id="leg-depois" hidden>
+    <div class="legend-head">
+      <h2>O que muda, e em qual lote</h2>
+      <span class="tag good">tudo com peça pronta no servidor — é ligar fio</span>
+    </div>
+    <div class="legend">
+      <div class="lg good"><span class="n">1</span><p><b>Conversa mais recente no topo</b>, com a prévia e a hora certas, atualizando sozinha quando chega mensagem.<em>lote 1 · um sort + uma mutation nova</em></p></div>
+      <div class="lg good"><span class="n">2</span><p><b>"Você:" e o nome de quem falou</b> aparecem na prévia. O servidor já manda o dado.<em>lote 1 · uma linha no jbuilder</em></p></div>
+      <div class="lg good"><span class="n">3</span><p><b>✓ simples até alguém abrir de verdade.</b> O recibo real já circula em tempo real e ninguém usava.<em>lote 1 · calcular por last_read_at</em></p></div>
+      <div class="lg good"><span class="n">4</span><p><b>A busca encontra pessoas</b>, por nome e e-mail, com a presença certa. Um clique abre a conversa.<em>lote 1 · 4 cliques viram 2</em></p></div>
+      <div class="lg good"><span class="n">5</span><p><b>@menção de verdade</b> — destacada, com som e aviso próprios, e entra na caixa de menções de quem foi chamado.<em>lote 2 · o backend inteiro já existe</em></p></div>
+      <div class="lg good"><span class="n">6</span><p><b>Salas vazias vão para o fim</b>, agrupadas. A lista passa a mostrar conversa, não inventário de times.<em>lote 1 · ordenação por última mensagem</em></p></div>
+      <div class="lg good"><span class="n">7</span><p><b>"Carregar mensagens anteriores"</b> e uma linha marcando onde suas não lidas começam.<em>lote 3 · a paginação já está pronta e correta</em></p></div>
+      <div class="lg good"><span class="n">8</span><p><b>Card da conversa, clicável</b>: número, cliente e caixa de entrada. Abre o atendimento em um clique.<em>lote 2 · o card já está escrito na tela antiga</em></p></div>
+      <div class="lg good"><span class="n">9</span><p><b>Link clicável</b>, e <code>#4821</code> vira atalho para a conversa.<em>lote 2 · portar o tokenizador</em></p></div>
+      <div class="lg good"><span class="n">10</span><p><b>O rascunho fica guardado por conversa</b> e o campo já nasce com o cursor dentro.<em>lote 1 · subir o rascunho para a página</em></p></div>
+    </div>
+  </div>
+
+  <div class="scope">
+    <h2>O que este mockup não inventa</h2>
+    <p>
+      Todos os dez itens saíram da auditoria e têm arquivo e linha no relatório. Nenhum precisa de
+      tabela nova no banco: <strong>o servidor e o store já têm 100% das peças</strong> — card da
+      conversa, validação de menção, paginação, recibo de leitura e presença estão prontos e sem
+      consumidor desde 02/07.
+    </p>
+    <p>
+      Ficaram <strong>fora</strong> deste mockup, de propósito, as coisas que não aparecem numa
+      captura de tela: o push do navegador (lote 4, o que faz a mensagem chegar com o Chatwoot
+      fechado), as 18 queries por abertura de tela (lote 3) e o aviso de que o administrador lê as
+      conversas. Elas continuam valendo.
+    </p>
+    <div class="costline">
+      <span>lote 0 · 15 min</span>
+      <span>lote 1 · ~1 dia</span>
+      <span>lote 2 · ~1 dia</span>
+      <span>= 8 dos 10 alfinetes</span>
+    </div>
+  </div>
+
+  <footer class="method">
+    Mockup fiel à tela real: mesma largura de barra lateral (340&nbsp;px), mesma paleta de balões
+    (<code>#d9fdd3</code> claro, <code>#005c4b</code> escuro) e mesmo fundo de conversa
+    (<code>#efeae2</code> / <code>#0b141a</code>) do <code>_wa-skin.scss</code> do projeto.
+    Nomes e conversas são exemplos; os números de uso são medidos.
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var bHoje = document.getElementById('btn-hoje');
+    var bDep  = document.getElementById('btn-depois');
+    var vHoje = document.getElementById('view-hoje');
+    var vDep  = document.getElementById('view-depois');
+    var lHoje = document.getElementById('leg-hoje');
+    var lDep  = document.getElementById('leg-depois');
+    var note  = document.getElementById('switch-note');
+
+    function show(which) {
+      var depois = which === 'depois';
+      vHoje.hidden = depois;  vDep.hidden = !depois;
+      lHoje.hidden = depois;  lDep.hidden = !depois;
+      bHoje.setAttribute('aria-pressed', String(!depois));
+      bDep.setAttribute('aria-pressed', String(depois));
+      note.innerHTML = depois
+        ? '<b>8 dos 10</b> saem com os lotes 0, 1 e 2.'
+        : '<b>10 defeitos</b> visíveis numa única tela.';
+    }
+
+    bHoje.addEventListener('click', function () { show('hoje'); });
+    bDep.addEventListener('click', function () { show('depois'); });
+    show('hoje');
+  })();
+</script>
+
+</body>
+</html>

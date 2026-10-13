@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E👤%3C/text%3E%3C/svg%3E">
+<title>Criar um Novo Usuário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f1f4f2; --surface:#fff; --surface-2:#eef1ef;
+    --ink:#101c16; --ink-2:#47574f; --ink-3:#7b8981;
+    --rule:#dbe2dd;
+    --green:#2dc46f; --green-ink:#04351c; --green-deep:#0d6b3b; --green-wash:#e4f6ec;
+    --red:#b6362b; --red-wash:#fbe9e7;
+    --amber:#8a6304; --amber-wash:#fbf1dc;
+    --blue:#1f6f9e; --blue-wash:#e7f1f8;
+
+    --ui-bg:#fff; --ui-bg-2:#f7f9f8; --ui-bg-3:#eef1ef;
+    --ui-border:#e1e6e3; --ui-border-2:#cfd7d2;
+    --ui-text:#1b2924; --ui-muted:#6d7c74; --ui-accent:#2dc46f;
+
+    --display:"Fraunces","Iowan Old Style",Georgia,serif;
+    --body:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    --ui-font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --paper:#0b120e; --surface:#141c18; --surface-2:#1c2621;
+    --ink:#e7ede9; --ink-2:#a9b8b0; --ink-3:#7b8981; --rule:#27332d;
+    --green:#3ddc80; --green-ink:#04351c; --green-deep:#7cebaa; --green-wash:#112e1f;
+    --red:#ff8d7d; --red-wash:#2c1614;
+    --amber:#e2b654; --amber-wash:#2b2210;
+    --blue:#6fb6dd; --blue-wash:#102530;
+    --ui-bg:#151d19; --ui-bg-2:#1b2520; --ui-bg-3:#232e28;
+    --ui-border:#2a352f; --ui-border-2:#3a463f;
+    --ui-text:#e7ede9; --ui-muted:#8d9b93; --ui-accent:#3ddc80;
+    color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0b120e; --surface:#141c18; --surface-2:#1c2621;
+    --ink:#e7ede9; --ink-2:#a9b8b0; --ink-3:#7b8981; --rule:#27332d;
+    --green:#3ddc80; --green-ink:#04351c; --green-deep:#7cebaa; --green-wash:#112e1f;
+    --red:#ff8d7d; --red-wash:#2c1614;
+    --amber:#e2b654; --amber-wash:#2b2210;
+    --blue:#6fb6dd; --blue-wash:#102530;
+    --ui-bg:#151d19; --ui-bg-2:#1b2520; --ui-bg-3:#232e28;
+    --ui-border:#2a352f; --ui-border-2:#3a463f;
+    --ui-text:#e7ede9; --ui-muted:#8d9b93; --ui-accent:#3ddc80;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--body)}
+  img{max-width:100%}[hidden]{display:none!important}
+  .wrap{max-width:760px;margin:0 auto;padding:0 20px}
+
+  header.top .wrap{padding-block:48px 8px}
+  .eyebrow{font:600 12px/1 var(--ui-font);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+  h1{font:600 clamp(31px,6.5vw,46px)/1.07 var(--display);margin:0 0 12px;letter-spacing:-.02em}
+  .sub{margin:0;color:var(--ink-2);max-width:56ch}
+
+  main .wrap{padding-block:26px 60px}
+
+  .step{margin:0 0 30px}
+  .step-head{display:flex;gap:14px;align-items:flex-start;margin:0 0 16px}
+  .num{flex:none;display:grid;place-content:center;width:34px;height:34px;border-radius:50%;background:var(--green);color:var(--green-ink);font:700 16px/1 var(--ui-font)}
+  .step-head h2{font:600 24px/1.3 var(--display);margin:2px 0 0;letter-spacing:-.01em}
+  .step>p{margin:0 0 14px;color:var(--ink-2)}
+  .step>p:last-child{margin-bottom:0}
+  strong{color:var(--ink);font-weight:600}
+
+  /* ---------- mockups ---------- */
+  .mock{font-family:var(--ui-font);background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 28px rgba(0,0,0,.06);margin:0 0 14px}
+  .mock-bar{display:flex;align-items:center;gap:7px;padding:9px 14px;background:var(--ui-bg-2);border-bottom:1px solid var(--ui-border)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ui-border-2)}
+  .mock-bar span{margin-left:6px;font-size:11.5px;color:var(--ui-muted);letter-spacing:.02em}
+  .mock-body{padding:16px}
+
+  /* menu lateral */
+  .nav{padding:10px;max-width:270px}
+  .nav .grp{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ui-muted);padding:8px 11px 5px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;font-size:13.5px;color:var(--ui-text);text-decoration:none}
+  .nav a.on{background:var(--green-wash);color:var(--green-deep);font-weight:600;outline:1px solid var(--ui-accent)}
+  .nav a i{font-style:normal;width:16px;text-align:center;opacity:.85}
+
+  /* cabeçalho da tela de agentes */
+  .pagehead{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
+  .pagehead h3{font:700 19px/1.3 var(--ui-font);color:var(--ui-text);margin:0 0 6px}
+  .pagehead p{font-size:13px;color:var(--ui-muted);margin:0;max-width:44ch;line-height:1.5}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:9px 16px;font:600 13px/1 var(--ui-font);cursor:default;white-space:nowrap}
+  .btn.primary{background:var(--ui-accent);color:var(--green-ink)}
+  .btn.plain{background:transparent;color:var(--ui-muted);border:1px solid var(--ui-border-2)}
+  .btn.round{border-radius:999px}
+
+  /* lista de agentes */
+  .alist{border:1px solid var(--ui-border);border-radius:11px;margin-top:15px}
+  .arow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px}
+  .arow+.arow{border-top:1px solid var(--ui-border)}
+  .arow.new{background:var(--green-wash)}
+  .who{display:flex;align-items:center;gap:12px;min-width:0}
+  .av{flex:none;width:38px;height:38px;border-radius:50%;background:var(--ui-bg-3);color:var(--ui-muted);display:grid;place-content:center;font:600 14px var(--ui-font)}
+  .av.g{background:var(--ui-accent);color:var(--green-ink)}
+  .who .nm{font:600 14.5px/1.3 var(--ui-font);color:var(--ui-text);margin:0 0 3px}
+  .who .meta{font-size:12.5px;color:var(--ui-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .who .meta i{font-style:normal;opacity:.45}
+  .pend{color:var(--amber);font-weight:600}
+  .verif{color:var(--green-deep);font-weight:600}
+  .acts{flex:none;display:flex;gap:8px;color:var(--ui-muted);font-size:14px}
+  .acts span{width:30px;height:30px;border-radius:8px;background:var(--ui-bg-2);display:grid;place-content:center}
+
+  /* formulário */
+  .mtitle{font-size:17px;font-weight:700;color:var(--ui-text);margin:0 0 3px}
+  .msub{font-size:13px;color:var(--ui-muted);margin:0 0 18px;line-height:1.5}
+  .field{margin:0 0 14px}
+  .field .lb{display:block;font:600 13px/1 var(--ui-font);color:var(--ui-text);margin:0 0 7px}
+  .input{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid var(--ui-border-2);border-radius:9px;background:var(--ui-bg);font-size:14px;color:var(--ui-muted)}
+  .input.filled{color:var(--ui-text);border-color:var(--ui-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--ui-accent) 16%,transparent)}
+  .input .chev{opacity:.5;font-size:11px}
+  .mfoot{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}
+
+  /* anotações */
+  .callout{display:flex;gap:11px;align-items:flex-start;border-radius:10px;padding:13px 16px;margin:0 0 14px;font-size:15.5px;line-height:1.55}
+  .callout .ic{flex:none;font-size:16px;line-height:1.5}
+  .callout p{margin:0;color:var(--ink)}
+  .callout p+p{margin-top:8px}
+  .callout.good{background:var(--green-wash);border:1px solid var(--green)}
+  .callout.warn{background:var(--amber-wash);border-left:3px solid var(--amber)}
+  .callout.info{background:var(--blue-wash);border-left:3px solid var(--blue)}
+
+  .roles{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin:0 0 14px}
+  @media (max-width:560px){.roles{grid-template-columns:1fr}}
+  .roles>div{border:1px solid var(--rule);border-radius:11px;padding:15px 17px;background:var(--surface)}
+  .roles .t{font:600 15px/1.3 var(--ui-font);color:var(--ink);margin:0 0 7px}
+  .roles p{margin:0;font-size:14.5px;color:var(--ink-2);line-height:1.5}
+
+  .closing{border-top:1px solid var(--rule);margin-top:40px;padding-top:26px}
+  .closing h2{font:600 22px/1.3 var(--display);margin:0 0 14px}
+  .closing h3{font:600 16px/1.3 var(--body);color:var(--ink);margin:20px 0 7px}
+  .closing p{margin:0 0 10px;color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">Passo a passo · Configurações</p>
+    <h1>Como criar um<br>novo usuário</h1>
+    <p class="sub">Para dar acesso a alguém da equipe, você cria o usuário e a própria pessoa escolhe a senha pelo e-mail que recebe. São quatro passos, e só quem é administrador consegue fazer.</p>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <!-- 1 -->
+  <div class="step">
+    <div class="step-head">
+      <div class="num">1</div>
+      <h2>Vá em Configurações → Agentes</h2>
+    </div>
+    <p>No menu lateral, abra <strong>Configurações</strong> e clique em <strong>Agentes</strong>.</p>
+    <div class="mock">
+      <div class="mock-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>Menu lateral · Configurações</span></div>
+      <div class="nav">
+        <div class="grp">Configurações</div>
+        <a href="#"><i>🏢</i> Conta</a>
+        <a class="on" href="#"><i>👤</i> Agentes</a>
+        <a href="#"><i>👥</i> Times</a>
+        <a href="#"><i>📥</i> Caixas de Entrada</a>
+        <a href="#"><i>🏷️</i> Etiquetas</a>
+      </div>
+    </div>
+    <div class="callout info"><span class="ic">ℹ️</span><p>Não encontrou “Agentes” no menu? Então sua conta não é de administrador. Peça para quem administra o sistema criar o usuário, ou promover você a administrador.</p></div>
+  </div>
+
+  <!-- 2 -->
+  <div class="step">
+    <div class="step-head">
+      <div class="num">2</div>
+      <h2>Clique em “Adicionar Agente”</h2>
+    </div>
+    <p>O botão fica no canto superior direito da tela.</p>
+    <div class="mock">
+      <div class="mock-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>Configurações · Agentes</span></div>
+      <div class="mock-body">
+        <div class="pagehead">
+          <div>
+            <h3>Agentes</h3>
+            <p>Um agente é um membro de seu time de atendimento ao cliente que pode visualizar e responder às mensagens de usuários.</p>
+          </div>
+          <span class="btn primary">Adicionar Agente</span>
+        </div>
+        <div class="alist">
+          <div class="arow">
+            <div class="who">
+              <div class="av">AL</div>
+              <div>
+                <p class="nm">Ana Lima</p>
+                <div class="meta"><span>ana.lima@empresa.com.br</span><i>|</i><span>Administrador</span><i>|</i><span class="verif">Verificado</span></div>
+              </div>
+            </div>
+            <div class="acts"><span>✎</span><span>🗑</span></div>
+          </div>
+          <div class="arow">
+            <div class="who">
+              <div class="av">CR</div>
+              <div>
+                <p class="nm">Carlos Rocha</p>
+                <div class="meta"><span>carlos.rocha@empresa.com.br</span><i>|</i><span>Agente</span><i>|</i><span class="verif">Verificado</span></div>
+              </div>
+            </div>
+            <div class="acts"><span>✎</span><span>🗑</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="step">
+    <div class="step-head">
+      <div class="num">3</div>
+      <h2>Preencha nome, função e e-mail</h2>
+    </div>
+    <p>Abre uma janela com três campos. Preencha os três e clique em <strong>Adicionar agente</strong>.</p>
+    <div class="mock">
+      <div class="mock-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>Adicionar agente</span></div>
+      <div class="mock-body">
+        <p class="mtitle">Adicionar agente a seu time</p>
+        <p class="msub">Você pode adicionar pessoas que poderão acompanhar o suporte de suas caixas de entrada.</p>
+        <div class="field">
+          <span class="lb">Nome do Agente</span>
+          <div class="input filled">Maria Souza</div>
+        </div>
+        <div class="field">
+          <span class="lb">Função</span>
+          <div class="input filled">Agente <span class="chev">▾</span></div>
+        </div>
+        <div class="field">
+          <span class="lb">Endereço de e-mail</span>
+          <div class="input filled">maria.souza@empresa.com.br</div>
+        </div>
+        <div class="mfoot">
+          <span class="btn plain">Cancelar</span>
+          <span class="btn primary">Adicionar agente</span>
+        </div>
+      </div>
+    </div>
+
+    <p>A <strong>função</strong> é o que decide o que a pessoa enxerga:</p>
+    <div class="roles">
+      <div>
+        <p class="t">Agente</p>
+        <p>Atende conversas, vê os contatos e os próprios números. Não entra em Configurações. É a escolha certa para quem vai atender.</p>
+      </div>
+      <div>
+        <p class="t">Administrador</p>
+        <p>Faz tudo o que o agente faz e ainda mexe em configurações: caixas de entrada, usuários, times, relatórios completos.</p>
+      </div>
+    </div>
+    <div class="callout warn"><span class="ic">⚠️</span><p>Use o <strong>e-mail real da pessoa</strong>, porque é por ele que chega o convite para criar a senha. E cada e-mail só pode existir uma vez — se aparecer aviso de e-mail já em uso, essa pessoa já tem cadastro.</p></div>
+  </div>
+
+  <!-- 4 -->
+  <div class="step">
+    <div class="step-head">
+      <div class="num">4</div>
+      <h2>Peça para a pessoa abrir o e-mail e criar a senha</h2>
+    </div>
+    <p>O usuário já aparece na lista, mas marcado como <strong>Verificação Pendente</strong>. Isso é normal:</p>
+    <div class="mock">
+      <div class="mock-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>Configurações · Agentes</span></div>
+      <div class="mock-body">
+        <div class="alist" style="margin-top:0">
+          <div class="arow new">
+            <div class="who">
+              <div class="av g">MS</div>
+              <div>
+                <p class="nm">Maria Souza</p>
+                <div class="meta"><span>maria.souza@empresa.com.br</span><i>|</i><span>Agente</span><i>|</i><span class="pend">Verificação Pendente</span></div>
+              </div>
+            </div>
+            <div class="acts"><span>✎</span><span>🗑</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p>A pessoa recebe um e-mail de confirmação, clica no link e escolhe a própria senha. <strong>Você não cria senha para ninguém</strong> — nem precisa saber a dela.</p>
+    <div class="callout good"><span class="ic">✅</span><p>Assim que ela confirmar, o aviso na lista muda para <strong>Verificado</strong> e o acesso está pronto.</p></div>
+  </div>
+
+  <div class="closing">
+    <h2>Se algo não sair como esperado</h2>
+
+    <h3>O e-mail não chegou</h3>
+    <p>Peça para conferir a <strong>caixa de spam ou lixo eletrônico</strong> primeiro. Se não estiver lá, na lista de Agentes clique no lápis (✎) ao lado do nome da pessoa e use <strong>Redefinir a senha</strong> — o sistema manda um novo e-mail com as instruções.</p>
+
+    <h3>Aparece “o e-mail já está em uso”</h3>
+    <p>Essa pessoa já tem cadastro no sistema, talvez em outra conta ou de um acesso antigo. Fale com o suporte para reaproveitar o cadastro em vez de criar outro.</p>
+
+    <h3>A pessoa entrou mas não vê nenhuma conversa</h3>
+    <p>Criar o usuário dá o acesso, mas não distribui o trabalho. Depois de verificada, ela ainda precisa ser incluída nas <strong>caixas de entrada</strong> e nos <strong>times</strong> em que vai atender.</p>
+
+    <h3>Alguém saiu da empresa</h3>
+    <p>Na lista de Agentes, use a lixeira (🗑) ao lado do nome. O histórico das conversas fica preservado.</p>
+  </div>
+
+</div>
+</main>
+
+</body>
+</html>
