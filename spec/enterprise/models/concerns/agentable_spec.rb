@@ -300,4 +300,86 @@ RSpec.describe Concerns::Agentable do
       expect(ctx['contato_alternativo']).to be_nil
     end
   end
+
+  # A unidade (/units) e a fonte do horario quando a caixa tem uma: em 12/10/2026 (feriado,
+  # segunda) a IA leu so o `business_hours` do assistente e confirmou retirada de chave as 10h.
+  describe 'horario vindo da unidade da caixa' do
+    let(:account) { create(:account) }
+    let(:unidade) { create(:unit, account: account) }
+    let(:inbox) { create(:inbox, account: account, unit: unidade) }
+    let(:cuiaba) { ActiveSupport::TimeZone['America/Cuiaba'] }
+
+    before do
+      unidade.working_hours.where(day_of_week: 1..5).find_each do |dia|
+        dia.update!(open_hour: 7, open_minutes: 30, close_hour: 17, close_minutes: 30,
+                    break_start_hour: 11, break_start_minutes: 30, break_end_hour: 13, break_end_minutes: 30)
+      end
+      unidade.working_hours.find_by(day_of_week: 6)
+             .update!(closed_all_day: false, open_hour: 9, open_minutes: 0, close_hour: 11, close_minutes: 30)
+      create(:unit_exception, unit: unidade, name: 'Nossa Senhora Aparecida', starts_on: Date.new(2026, 10, 12),
+                              frequency: :anual, closed_all_day: true)
+    end
+
+    def contexto_em(instante, inbox_id: inbox.id)
+      capturado = nil
+      allow(Captain::PromptRenderer).to receive(:render) do |_tpl, ctx|
+        capturado ||= ctx
+        'rendered_template'
+      end
+      travel_to(cuiaba.parse(instante)) do
+        dummy_instance.agent_instructions(Struct.new(:context).new({ state: { conversation: { inbox_id: inbox_id } } }))
+      end
+      capturado
+    end
+
+    it 'diz que esta fechado no feriado e que volta no proximo dia util' do
+      ctx = contexto_em('2026-10-12 08:41')
+
+      expect(ctx['business_status']).to start_with('fechado hoje (Nossa Senhora Aparecida); os atendentes voltam amanhã')
+      expect(ctx['business_status']).to include('terça-feira, 13/10) às 07:30')
+      expect(ctx['business_status']).not_to include('dentro do horário')
+    end
+
+    it 'no sabado antes do feriado, pula a segunda e avisa o feriado' do
+      ctx = contexto_em('2026-10-10 14:10')
+
+      expect(ctx['business_status']).to include('os atendentes só voltam terça-feira, 13/10, às 07:30')
+      expect(ctx['business_status']).to include('segunda-feira, 12/10: fechado o dia todo (Nossa Senhora Aparecida)')
+    end
+
+    it 'num dia aberto, avisa do feriado que vem pela frente' do
+      ctx = contexto_em('2026-10-09 10:00')
+
+      expect(ctx['business_status']).to start_with('dentro do horário comercial')
+      expect(ctx['business_status']).to include('segunda-feira, 12/10: fechado o dia todo')
+    end
+
+    it 'na pausa do almoco, volta hoje' do
+      ctx = contexto_em('2026-10-13 12:00')
+
+      expect(ctx['business_status']).to include('voltam HOJE às 13:30')
+    end
+
+    it 'monta o horario de funcionamento a partir da grade da unidade' do
+      ctx = contexto_em('2026-10-13 12:00')
+
+      expect(ctx['business_hours_text'])
+        .to eq('segunda a sexta, das 7h30 às 11h30 e das 13h30 às 17h30; sábado, das 9h às 11h30')
+    end
+
+    it 'sem unidade na conta, segue o business_hours do assistente' do
+      outra = create(:inbox)
+      dummy_instance.assistant = double('Assistant', behavior: {
+                                          'business_hours' => {
+                                            'enabled' => true, 'timezone' => 'America/Cuiaba',
+                                            'schedule' => [{ 'day' => 1, 'ranges' => [{ 'start' => '07:30', 'end' => '17:30' }] }]
+                                          }
+                                        })
+
+      ctx = contexto_em('2026-10-12 08:41', inbox_id: outra.id)
+
+      expect(ctx['business_status']).to start_with('dentro do horário comercial')
+      expect(ctx['business_hours_text']).to eq('segunda, das 7h30 às 17h30')
+    end
+  end
 end
