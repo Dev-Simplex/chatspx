@@ -17,10 +17,10 @@ module Concerns::Agentable
   end
 
   def agent_instructions(context = nil)
-    state = context ? (context.context[:state] || {}) : {}
-    enhanced_context = prompt_context.merge(time_awareness(state.dig(:conversation, :inbox_id)))
+    enhanced_context = prompt_context.merge(time_awareness(caixa_da_conversa(context)))
 
     if context
+      state = context.context[:state] || {}
       config = state[:assistant_config] || {}
       enhanced_context = enhanced_context.merge(
         conversation: state[:conversation] || {},
@@ -38,6 +38,10 @@ module Concerns::Agentable
   end
 
   private
+
+  def caixa_da_conversa(context)
+    context&.context&.dig(:state, :conversation, :inbox_id)
+  end
 
   # Nome do canal que o agente deve pedir quando o ATUAL nao alcanca a pessoa depois que a
   # janela fecha (Instagram). Devolve `nil` — e o bloco do prompt nem renderiza — sempre que
@@ -153,11 +157,7 @@ module Concerns::Agentable
     return 'dentro do horário comercial, com atendentes disponíveis agora' if hoje.aberta_em?((agora.hour * 60) + agora.min)
 
     reabre = proxima_abertura(agenda, agora)
-    fechado = if hoje.por_excecao? && !hoje.aberta?
-                hoje.motivo ? "fechado hoje (#{hoje.motivo})" : 'fechado hoje'
-              else
-                'fechado no momento'
-              end
+    fechado = rotulo_de_fechado(hoje)
     return "#{fechado}; sem horário de reabertura cadastrado nos próximos dias" if reabre.nil?
 
     hora = reabre.strftime('%H:%M')
@@ -169,6 +169,12 @@ module Concerns::Agentable
     else
       "#{fechado}; os atendentes só voltam #{dia}, às #{hora}"
     end
+  end
+
+  def rotulo_de_fechado(hoje)
+    return 'fechado no momento' unless hoje.por_excecao? && !hoje.aberta?
+
+    hoje.motivo ? "fechado hoje (#{hoje.motivo})" : 'fechado hoje'
   end
 
   def proxima_abertura(agenda, agora)
@@ -186,16 +192,17 @@ module Concerns::Agentable
   # Sem isto, numa sexta aberta a IA não sabe que a segunda é feriado e confirma visita nela.
   def datas_especiais(unidade, agenda)
     linhas = agenda.filter_map do |estado|
-      next unless estado.por_excecao?
-      next if estado.faixas == unidade.faixas_padrao(estado.data.wday)
-
-      horario = estado.aberta? ? "aberto só das #{estado.faixas.map(&:to_s).join(' e das ')}" : 'fechado o dia todo'
-      motivo = estado.motivo ? " (#{estado.motivo})" : ''
-      "#{DIAS_POR_EXTENSO[estado.data.wday]}, #{estado.data.strftime('%d/%m')}: #{horario}#{motivo}"
+      linha_especial(estado) if estado.por_excecao? && estado.faixas != unidade.faixas_padrao(estado.data.wday)
     end
     return if linhas.empty?
 
     "Datas com funcionamento diferente do normal: #{linhas.join('; ')}."
+  end
+
+  def linha_especial(estado)
+    horario = estado.aberta? ? "aberto só das #{estado.faixas.map(&:to_s).join(' e das ')}" : 'fechado o dia todo'
+    motivo = estado.motivo ? " (#{estado.motivo})" : ''
+    "#{DIAS_POR_EXTENSO[estado.data.wday]}, #{estado.data.strftime('%d/%m')}: #{horario}#{motivo}"
   end
 
   def grade_da_unidade(unidade)
