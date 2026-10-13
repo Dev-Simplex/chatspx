@@ -266,6 +266,8 @@ const isMediaOnlyMessage = message => {
   if (attachments.some(a => a.uploadStatus === 'uploading')) return false;
   if (message.contentAttributes?.deleted) return false;
   if (message.contentAttributes?.isUnsupported) return false;
+  // Video que saiu como documento (MIDIA-01) fica na bolha propria, que mostra o aviso; a grade o esconderia.
+  if (attachments.some(a => a.comoDocumento)) return false;
 
   return attachments.every(attachment =>
     [
