@@ -1,6 +1,8 @@
 {
   "CONVERSATION": {
-    "SENT_AS_DOCUMENT": "Sent as a document (over 16 MB)",
+    "SENT_AS_DOCUMENT_BADGE": "Document",
+    "SENT_AS_DOCUMENT": "Sent as a document",
+    "SENT_AS_DOCUMENT_HINT": "Over 16 MB: the customer gets a file to download, not a video that plays in the chat.",
     "WHATSAPP_PHONE_REPLY": "Sent directly from WhatsApp on the phone (agent not identified)",
     "REPLY_GATE_DIALOG": {
       "TITLE": {
