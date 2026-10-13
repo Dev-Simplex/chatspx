@@ -704,7 +704,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return content if marcadores.empty? || falas.none? { |linha| linha.strip.present? }
 
     log_behavior_event('unknown_marker', { content: marcadores.map(&:strip).join(' ').first(80), acao: 'removido' })
-    falas.join.strip
+    falas.join.gsub(/
+{3,}/, "
+
+").strip
   end
 
   # Re-roda UMA vez cobrando texto de verdade. Se insistir no marcador, chama gente em vez de
