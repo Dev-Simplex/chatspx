@@ -98,20 +98,29 @@ Também existem `pnpm test:watch`, `pnpm eslint` e `bundle exec rubocop -a`. Rod
 
 ## Ver a mudança na VM de desenvolvimento
 
-Estes comandos são somente para a VM de desenvolvimento do Thalysson. Nunca os execute em produção ou em VM de cliente.
+Desde 13/10/2026 a VM de desenvolvimento é uma só, a `192.168.8.98`, dividida por Nicolas e Thalysson. Estes comandos valem somente para ela. Nunca os execute em produção ou em VM de cliente.
 
-O systemd inicia Rails e Sidekiq com `RAILS_ENV=production` e `WorkingDirectory=/home/chatwoot/chatwoot`, conforme `deployment/chatwoot-web.1.service` e `deployment/chatwoot-worker.1.service`. Portanto, antes de validar, a revisão a testar precisa estar nesse checkout, na branch `thalysson`. Um restart feito enquanto a alteração existe apenas em outra worktree do Orca não muda o código servido.
+Nela roda um único SPX, em https://dev.chatspx.app. O systemd inicia Rails e Sidekiq com `RAILS_ENV=production` e `WorkingDirectory=/home/chatwoot/chatwoot`, conforme `deployment/chatwoot-web.1.service` e `deployment/chatwoot-worker.1.service`, e esse checkout fica na branch `desenvolvimento`. Cada dev escreve código na própria pasta e nas próprias worktrees, que não rodam SPX. Uma mudança só aparece na tela depois de entrar na `desenvolvimento` e chegar a esse checkout, e aparece para os dois ao mesmo tempo.
 
-Traga o trabalho da worktree para o checkout principal e confira o alvo antes de qualquer comando:
+Quem tem usuário Linux próprio mescla na própria pasta, onde o conflito se resolve, e o checkout do SPX só avança:
 
 ```bash
+# na sua pasta
+git switch desenvolvimento
+git pull --ff-only
+git merge <branch-da-tarefa>
+git push origin desenvolvimento
+
+# no checkout do SPX
+sudo -iu chatwoot
 cd /home/chatwoot/chatwoot
-git branch --show-current          # tem que ser thalysson
-git merge <branch-da-worktree>
-git status --short
+git branch --show-current          # tem que ser desenvolvimento
+git pull --ff-only                 # se não avançar sozinho, alguém commitou aqui: pare e combine
 ```
 
-Para mudança de frontend, gere os assets com 12288 MB de memória, confira migrations e reinicie somente o target da VM de desenvolvimento. Com 4096, valor que ainda aparece em `deployment/setup_spx_24.04.sh`, o build do front estoura memória. Se o build falhar no meio, o app continua servindo o front anterior; confira a saída do comando, não só o fim do log.
+Quem trabalha como `chatwoot` faz o `git merge` direto nesse checkout, com a árvore limpa, e publica a `desenvolvimento`. Para testes, cada dev usa um banco próprio: `POSTGRES_DATABASE=chatwoot_test_<nome>` no `.env` da própria pasta. Dois `rspec` no mesmo banco geram falhas fantasma.
+
+Para mudança de frontend, gere os assets com 12288 MB de memória, confira migrations e reinicie somente o target da VM de desenvolvimento. O restart derruba a tela dos dois por cerca de um minuto; avise antes. Com 4096, valor que ainda aparece em `deployment/setup_spx_24.04.sh`, o build do front estoura memória. Se o build falhar no meio, o app continua servindo o front anterior; confira a saída do comando, não só o fim do log.
 
 ```bash
 NODE_OPTIONS=--max-old-space-size=12288 RAILS_ENV=production bundle exec rake assets:precompile
@@ -131,9 +140,9 @@ systemctl status chatwoot-web.1 chatwoot-worker.1 --no-pager
 
 Se não houve migration, pule somente `db:migrate`, nunca a conferência `db:migrate:status`. O `Procfile.dev` também define Rails, Sidekiq e Vite, e `pnpm dev` o inicia; porém ele usa Rails na porta 3000 e pressupõe que o ambiente de desenvolvimento esteja preparado. Este checkout não contém `Procfile.worktree` nem `.codex/environments/environment.toml`, apesar da referência no `AGENTS.md`, então o caminho confirmado para esta VM é o build de produção servido pelo systemd.
 
-## Fluxo Git do Thalysson
+## Fluxo Git da VM de desenvolvimento
 
-Trabalhe em worktree separada por tarefa, criada pelo Orca, e confirme o caminho e a branch antes de editar. A linha de trabalho do Thalysson é `thalysson`; a entrega segue por PR de `thalysson` para `producao`. Não commite diretamente em `producao`, não use `main` ou `master` como destino e não faça deploy. O processo geral de worktrees está documentado em `docs/ORQUESTRACAO-ORCA.md`; o fluxo compartilhado do repo está em `docs/WORKFLOW-GIT-SPX.md`.
+Trabalhe em worktree separada por tarefa, criada a partir da `producao`, e confirme o caminho e a branch antes de editar. Informe a base: `git worktree add -b feat/x ../chatwoot-feat-x origin/producao`. Sem ela, a worktree nasce da branch aberta e leva junto tudo o que está na `desenvolvimento`. A `desenvolvimento` só recebe merge das tarefas para aparecer na tela; a entrega segue por PR da branch da tarefa para `producao`, nunca da `desenvolvimento`. Não commite diretamente em `producao`, não use `main` ou `master` como destino e não faça deploy. O processo geral de worktrees está documentado em `docs/ORQUESTRACAO-ORCA.md`; o fluxo compartilhado do repo está em `docs/WORKFLOW-GIT-SPX.md`.
 
 ## Armadilhas que evitam retrabalho
 
