@@ -73,15 +73,38 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     kpis = nps_kpis(calc, cohort)
 
     {
-      report_type: 'nps', title: 'Relatório de NPS', period: period_meta,
+      report_type: 'nps', title: 'Os clientes indicariam a empresa? (NPS)', period: period_meta,
       overline: 'Experiência do Cliente · Confidencial',
       subtitle: nps_subtitle(kpis),
       base_label: "#{kpis[:total]} avaliações válidas",
-      kpis: kpis,
+      kpis: kpis, headline: nps_headline(kpis),
       verdict: nps_verdict(calc),
+      plain_verdict: nps_plain_verdict(calc),
       distribution: nps_distribution(responded),
-      agents: nps_by_agent(responded)
+      agents: nps_by_agent(responded), detractors: nps_detractor_rows(responded)
     }
+  end
+
+  def nps_headline(kpis)
+    return { emoji: '🤔', text: 'Nenhum cliente respondeu a pesquisa de recomendação no período.' } if kpis[:total].to_i.zero?
+
+    { emoji: kpis[:nps_score].to_i >= 50 ? '💚' : '🧡',
+      text: "A nota de indicação (NPS) é #{kpis[:nps_score]}: #{kpis[:promoters]} clientes recomendariam a empresa " \
+            "e #{kpis[:detractors]} não recomendariam." }
+  end
+
+  NPS_DETRACTOR_LIMIT = 10
+
+  # Quem nao recomendaria (0 a 6), os mais recentes primeiro: e quem o gestor precisa procurar.
+  def nps_detractor_rows(responded)
+    responded.detractors.includes(:conversation, :contact, :assigned_agent).order(answered_at: :desc, id: :desc)
+             .limit(NPS_DETRACTOR_LIMIT).map { |row| nps_detractor_row(row) }
+  end
+
+  def nps_detractor_row(row)
+    { id: conversation_label(row.conversation), contact: row.contact&.name.presence || 'Sem nome',
+      agent: row.assigned_agent&.name || 'sem atendente', score: row.score,
+      comment: row.comment.presence&.truncate(160), date: format_date(row.answered_at || row.created_at) }
   end
 
   def nps_kpis(calc, cohort)
@@ -99,11 +122,23 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # Subtítulo com tendência em pontos (quando há período anterior comparável).
   def nps_subtitle(kpis)
-    base = "Net Promoter Score de #{kpis[:nps_score]} apurado sobre #{kpis[:total]} avaliações válidas no período."
+    base = "Nota de indicação (NPS) #{kpis[:nps_score]}, com #{kpis[:total]} clientes respondendo no período."
     return base if kpis[:delta].nil? || kpis[:delta].zero?
 
     arrow = kpis[:delta].positive? ? '▲' : '▼'
-    "#{base} #{arrow} #{kpis[:delta].abs} pts vs período anterior."
+    "#{base} #{arrow} #{kpis[:delta].abs} pontos #{kpis[:delta].positive? ? 'a mais' : 'a menos'} que no período de #{previous_period_label}."
+  end
+
+  # Frase do topo: com poucas respostas a nota ainda nao diz nada, entao a frase avisa isso em vez de julgar.
+  def nps_plain_verdict(calc)
+    return nil if calc.total.zero?
+
+    unless calc.reliable?
+      return { level: :warn, emoji: '😐', title: 'Ainda são poucas respostas.',
+               text: "Só #{calc.total} clientes deram nota. Com tão pouco, ainda não dá para confiar na nota de indicação." }
+    end
+
+    Reports::PdfPlainVerdict.from_entries([Reports::PdfPlainVerdict.entry(:nps, nps_verdict(calc))])
   end
 
   # Veredito neutro quando a amostra é baixa (não pinta vermelho um N=1).
@@ -156,6 +191,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     @nps_filtered_base ||= @account.nps_responses
                                    .filter_by_assigned_agent_id(@filters[:user_ids])
                                    .filter_by_inbox_id(@filters[:inbox_id])
+                                   .filter_by_team_id(@filters[:team_id])
   end
 
   # Coorte por created_at — mesma base do numerador e do denominador da taxa.
@@ -185,20 +221,25 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   # ======================= CSAT =======================
+  def csat_verdict(kpis)
+    metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Clientes satisfeitos')
+  end
+
   def csat_data
     scope = csat_scope
     total = scope.count
     by_rating = scope.group(:rating).count
     kpis = csat_kpis(total, by_rating)
     {
-      report_type: 'csat', title: 'Relatório de CSAT', period: period_meta,
+      report_type: 'csat', title: 'Satisfação dos clientes (CSAT)', period: period_meta,
       overline: 'Satisfação do Cliente · Confidencial',
-      subtitle: "Índice de satisfação de #{kpis[:satisfaction]}% (notas 4 e 5) sobre #{total} respostas no período.",
+      subtitle: "Índice de satisfação de #{br_number(kpis[:satisfaction])}% (notas 4 e 5) sobre #{total} respostas no período.",
       base_label: "#{total} respostas",
-      kpis: kpis,
-      verdict: metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{kpis[:satisfaction]}%", label: 'Satisfação'),
+      kpis: kpis, headline: csat_headline(kpis), comparison: csat_comparison(kpis),
+      verdict: csat_verdict(kpis),
+      plain_verdict: (Reports::PdfPlainVerdict.from_entries([Reports::PdfPlainVerdict.entry(:csat, csat_verdict(kpis))]) if total.positive?),
       distribution: csat_distribution(by_rating),
-      feedbacks: csat_feedbacks(scope),
+      feedbacks: csat_feedbacks(scope), low_ratings: csat_low_ratings(scope),
       agents: csat_by_agent(scope)
     }
   end
@@ -253,14 +294,66 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def csat_scope
-    @csat_scope ||= begin
-      scope = @account.csat_survey_responses.includes(:contact, :assigned_agent)
-      scope = scope.filter_by_created_at(range) if range.present?
-      scope = scope.filter_by_assigned_agent_id(@filters[:user_ids])
-      scope = scope.filter_by_inbox_id(@filters[:inbox_id])
-      scope = scope.filter_by_team_id(@filters[:team_id])
-      scope.filter_by_rating(@filters[:rating])
-    end
+    @csat_scope ||= csat_scope_for(range)
+  end
+
+  def csat_scope_for(window)
+    scope = @account.csat_survey_responses.includes(:contact, :assigned_agent)
+    scope = scope.filter_by_created_at(window) if window.present?
+    scope = scope.filter_by_assigned_agent_id(@filters[:user_ids])
+    scope = scope.filter_by_inbox_id(@filters[:inbox_id])
+    scope = scope.filter_by_team_id(@filters[:team_id])
+    scope.filter_by_rating(@filters[:rating])
+  end
+
+  # Mesma comparacao do PDF de Conversas: a janela anterior, de mesma duracao, com os mesmos filtros.
+  def csat_comparison(kpis)
+    prev = previous_csat_kpis
+    return {} if prev.nil?
+
+    { satisfaction: metric_delta(kpis[:satisfaction], prev[:satisfaction], lower_better: false),
+      total: metric_delta(kpis[:total], prev[:total], lower_better: false),
+      avg: metric_delta(kpis[:avg_rating], prev[:avg_rating], lower_better: false) }
+  end
+
+  def previous_csat_kpis
+    return nil if range.blank?
+
+    previous = csat_scope_for((range.first - (range.last - range.first))...range.first)
+    total = previous.count
+    total.zero? ? nil : csat_kpis(total, previous.group(:rating).count)
+  end
+
+  CSAT_MOOD = [[80, '😀'], [60, '😐'], [0, '😞']].freeze
+
+  def csat_headline(kpis)
+    return { emoji: '🤔', text: 'Nenhum cliente deu nota no período.' } if kpis[:total].zero?
+
+    emoji = CSAT_MOOD.find { |limit, _| kpis[:satisfaction] >= limit }.last
+    { emoji: emoji, text: "Os clientes deram #{kpis[:total]} notas e #{br_number(kpis[:satisfaction])}% ficaram satisfeitos " \
+                          "(nota 4 ou 5). #{kpis[:unsatisfied]} ficaram insatisfeitos." }
+  end
+
+  CSAT_LOW_LIMIT = 10
+
+  # As notas baixas (1 e 2), as mais recentes primeiro: e quem o gestor precisa procurar.
+  def csat_low_ratings(scope)
+    scope.where(rating: [1, 2]).includes(:conversation).order(created_at: :desc).limit(CSAT_LOW_LIMIT).map { |row| csat_low_row(row) }
+  end
+
+  def csat_low_row(row)
+    { id: conversation_label(row.conversation), contact: row.contact&.name.presence || 'Sem nome',
+      agent: row.assigned_agent&.name || 'sem atendente', rating: row.rating,
+      feedback: row.feedback_message.presence&.truncate(160), date: format_date(row.created_at) }
+  end
+
+  def conversation_label(conversation)
+    conversation ? "##{conversation.display_id}" : '—'
+  end
+
+  # 80.9 -> "80,9" (o PDF mostrava ponto decimal).
+  def br_number(value)
+    ActiveSupport::NumberHelper.number_to_rounded(value, precision: 1, separator: ',', delimiter: '.', strip_insignificant_zeros: true)
   end
 
   def csat_response_rate(total)
@@ -273,19 +366,31 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def bot_data
     metrics = V2::Reports::BotMetricsBuilder.new(@account, builder_params).metrics
     {
-      report_type: 'bot', title: 'Relatório do Bot', period: period_meta,
-      overline: 'Automação · Confidencial',
-      subtitle: "Taxa de resolução automática de #{metrics[:resolution_rate]}% em #{metrics[:conversation_count]} conversas atendidas pelo bot.",
+      report_type: 'bot', title: 'Relatório do Robô', period: period_meta,
+      overline: 'Atendimento automático · Confidencial',
+      subtitle: "O robô resolveu sozinho #{metrics[:resolution_rate]}% das #{metrics[:conversation_count]} conversas que passaram por ele.",
       base_label: "#{metrics[:conversation_count]} conversas",
       kpis: bot_kpis(metrics),
-      verdict: bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolução pelo bot'),
-      verdict_secondary: bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Transferência do bot'),
+      verdict: bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolveu sozinho'),
+      verdict_secondary: bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Passou para uma pessoa'),
+      plain_verdict: bot_plain_verdict(metrics),
       timeseries: {
         resolutions: count_series('bot_resolutions_count'),
         handoffs: count_series('bot_handoffs_count')
       },
-      inboxes: bot_by_inbox
+      inboxes: bot_by_inbox, handoffs: bot_handoff_rows
     }
+  end
+
+  BOT_HANDOFF_LIMIT = 10
+
+  # As ultimas conversas que o robo passou para uma pessoa (a mesma lista do numero da tela).
+  def bot_handoff_rows
+    drilldown('bot_handoffs_count').top(BOT_HANDOFF_LIMIT).map do |row|
+      { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
+        agent: row[:agent_name].presence || 'sem atendente', status: STATUS_PT.fetch(row[:status], row[:status]),
+        date: Time.zone.at(row[:created_at]).in_time_zone(TZ).strftime('%d/%m %H:%M') }
+    end
   end
 
   def bot_kpis(metrics)
@@ -295,6 +400,14 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       resolutions: bot_event_count('conversation_bot_resolved'),
       handoffs: bot_event_count('conversation_bot_handoff')
     }
+  end
+
+  def bot_plain_verdict(metrics)
+    resolved = bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolveu sozinho')
+    handed = bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Passou para uma pessoa')
+    Reports::PdfPlainVerdict.from_entries(
+      [Reports::PdfPlainVerdict.entry(:bot_resolution_rate, resolved), Reports::PdfPlainVerdict.entry(:bot_handoff_rate, handed)]
+    )
   end
 
   # Card de veredito de uma taxa do bot. Sem conversas com bot → nil (sem card).
@@ -340,18 +453,99 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       headline: conversations_headline(summary, comparison),
       kpis: conversations_kpis(summary),
       comparison: comparison,
-      highlight: conversations_highlight(signals),
-      attention: conversations_attention(signals),
+      **verdict_fields(signals),
       trends: account_trends,
-      heatmap: heatmap,
-      heatmap_insight: heatmap_peak_insight(heatmap),
-      table: conversations_table(summary)
+      heatmap: heatmap, heatmap_insight: heatmap_peak_insight(heatmap),
+      table: conversations_table(summary),
+      appendix: conversations_appendix(summary)
     }
+  end
+
+  # ---- Anexo: as conversas por tras dos numeros (o mesmo recorte do painel de detalhe da tela) ----
+  # Visual, para ler sem esforco: as mais demoradas em barras, e o periodo agrupado por dia (a data sai da linha),
+  # com tempo curto ("51 min") e a 1a resposta colorida pela meta.
+  APPENDIX_LIMIT = 100
+  APPENDIX_SLOWEST = 10
+  STATUS_PT = { 'open' => 'Aberta', 'resolved' => 'Resolvida', 'pending' => 'Pendente', 'snoozed' => 'Adiada' }.freeze
+  WEEKDAYS_PT = %w[Domingo Segunda Terça Quarta Quinta Sexta Sábado].freeze
+
+  def conversations_appendix(summary)
+    rows = drilldown('conversations_count').top(APPENDIX_LIMIT)
+    slowest = drilldown('avg_first_response_time').top(APPENDIX_SLOWEST)
+    times = appendix_times((rows + slowest).pluck(:id).uniq)
+    {
+      total: summary[:conversations_count].to_i, shown: rows.size,
+      goal: format_seconds(Reports::PdfBenchmarks.goal(:first_response)),
+      slowest: appendix_slowest(slowest, times), days: appendix_days(rows, times)
+    }
+  end
+
+  def drilldown(metric)
+    V2::Reports::Conversations::DrilldownBuilder.new(@account, builder_params(type: :account, metric: metric))
+  end
+
+  # 1a resposta e resolucao de cada conversa, na mesma coluna (com ou sem horario comercial) dos numeros.
+  def appendix_times(conversation_ids)
+    column = business_hours? ? :value_in_business_hours : :value
+    ReportingEvent.where(conversation_id: conversation_ids, name: %w[first_response conversation_resolved])
+                  .order(:created_at).pluck(:conversation_id, :name, column)
+                  .each_with_object({ first_response: {}, resolution: {} }) do |(conversation_id, name, value), times|
+      times[name == 'first_response' ? :first_response : :resolution][conversation_id] = value
+    end
+  end
+
+  def appendix_slowest(rows, times)
+    longest = rows.filter_map { |row| row[:value] }.max.to_f
+    rows.map do |row|
+      appendix_row(row, times).merge(bar_pct: longest.positive? ? ((row[:value].to_f / longest) * 100).round : 0)
+    end
+  end
+
+  def appendix_days(rows, times)
+    rows.group_by { |row| Time.zone.at(row[:created_at]).in_time_zone(TZ).to_date }.map do |date, day_rows|
+      { title: "#{WEEKDAYS_PT[date.wday]}, #{date.strftime('%d/%m')}", rows: day_rows.map { |row| appendix_row(row, times) } }
+    end
+  end
+
+  def appendix_row(row, times)
+    first = times[:first_response][row[:id]]
+    resolution = times[:resolution][row[:id]]
+    {
+      id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
+      agent: row[:agent_name].presence || 'Sem agente', status: STATUS_PT.fetch(row[:status], row[:status]),
+      status_key: row[:status], time: Time.zone.at(row[:created_at]).in_time_zone(TZ).strftime('%H:%M'),
+      first: first ? short_duration(first) : 'sem resposta', first_level: first_level(first),
+      resolution: resolution ? short_duration(resolution) : 'em aberto'
+    }
+  end
+
+  def first_level(seconds)
+    seconds ? Reports::PdfBenchmarks.status(seconds, :first_response)[:level] : :none
+  end
+
+  # "51 min", "1 h 20 min", "4 min 35 s", "3 dias e 2 h": no maximo duas unidades (o mesmo jeito da tela).
+  def short_duration(seconds)
+    total = seconds.to_f.round
+    return "#{total} s" if total < 60
+    return total < 600 && (total % 60).positive? ? "#{total / 60} min #{total % 60} s" : "#{total / 60} min" if total < 3600
+    return (total % 3600) >= 60 ? "#{total / 3600} h #{(total % 3600) / 60} min" : "#{total / 3600} h" if total < 86_400
+
+    short_days(total)
+  end
+
+  def short_days(total)
+    days = total / 86_400
+    hours = (total % 86_400) / 3600
+    "#{days} #{days == 1 ? 'dia' : 'dias'}#{" e #{hours} h" if hours.positive?}"
   end
 
   def conversations_subtitle(summary)
     with_inbox_scope(
-      "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}."
+      if summary[:avg_first_response_time].to_i.positive?
+        "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}."
+      else
+        "#{summary[:conversations_count]} conversas no período."
+      end
     )
   end
 
@@ -417,12 +611,18 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def conversations_signals(summary)
     rate = conversations_resolution_rate(summary)
     [
-      { label: '1ª resposta', value: summary[:avg_first_response_time].to_f,
+      { label: 'espera pela primeira resposta', value: summary[:avg_first_response_time].to_f,
         human: format_seconds(summary[:avg_first_response_time]), metric: :first_response, kind: :time },
-      { label: 'tempo de resolução', value: summary[:avg_resolution_time].to_f,
+      { label: 'tempo para resolver', value: summary[:avg_resolution_time].to_f,
         human: format_seconds(summary[:avg_resolution_time]), metric: :resolution, kind: :time },
-      { label: 'taxa de resolução', value: rate, human: "#{rate}%", metric: :resolution_rate, kind: :rate }
-    ].map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
+      { label: 'conversas resolvidas', value: rate, human: "#{rate}%", metric: :resolution_rate, kind: :rate }
+    ].select { |signal| signal_has_data?(signal, summary) }
+      .map { |signal| signal.merge(status: Reports::PdfBenchmarks.status(signal[:value], signal[:metric]), ratio: signal_ratio(signal)) }
+  end
+
+  # Sem conversa ou sem tempo medido não há o que julgar: "--" não está "dentro da meta".
+  def signal_has_data?(signal, summary)
+    signal[:kind] == :rate ? summary[:conversations_count].to_i.positive? : signal[:value].positive?
   end
 
   # Razão vs meta, normalizada para "menor = melhor" nas duas direções.
@@ -431,6 +631,15 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return 99.0 if goal.zero?
 
     signal[:kind] == :rate ? goal / [signal[:value], 1].max : signal[:value] / goal
+  end
+
+  # Destaque e Ponto de atencao (cartoes) + a frase de veredito do topo, a partir dos mesmos signals.
+  def verdict_fields(signals)
+    return { highlight: nil, attention: nil, plain_verdict: nil } if signals.empty?
+
+    entries = signals.map { |signal| { metric: signal[:metric], level: signal[:status][:level], goal_human: goal_human_for(signal) } }
+    { highlight: conversations_highlight(signals), attention: conversations_attention(signals),
+      plain_verdict: Reports::PdfPlainVerdict.from_entries(entries) }
   end
 
   def conversations_highlight(signals)
@@ -523,7 +732,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def headline_vol_clause(cmp)
     return '' if cmp.nil? || cmp[:delta_pct].nil? || cmp[:delta_pct].zero?
 
-    " — #{cmp[:delta_pct]}% #{cmp[:better] ? 'a mais' : 'a menos'} que o período anterior"
+    " — #{cmp[:delta_pct]}% #{cmp[:better] ? 'a mais' : 'a menos'} que no período de #{previous_period_label}"
   end
 
   def headline_frt_clause(cmp)
@@ -584,36 +793,71 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= VISÃO GERAL =======================
   def overview_data
-    open = @account.conversations.open
+    open = overview_scope.open
+    kpis = { open: open.count, unattended: open.unattended.count,
+             unassigned: open.unassigned.count, pending: overview_scope.pending.count }
     {
       report_type: 'overview', title: 'Relatório de Visão Geral', period: snapshot_period,
       overline: 'Situação Operacional · Confidencial',
-      subtitle: "#{open.count} conversas abertas neste instante · #{open.unattended.count} ainda não atendidas.",
-      base_label: "#{open.count} conversas abertas",
-      kpis: {
-        open: open.count, unattended: open.unattended.count,
-        unassigned: open.unassigned.count, pending: @account.conversations.pending.count
-      },
+      subtitle: "#{kpis[:open]} conversas abertas neste instante · #{kpis[:unattended]} ainda não atendidas.",
+      base_label: "#{kpis[:open]} conversas abertas",
+      kpis: kpis, **overview_verdicts(kpis),
+      waiting: overview_waiting,
       traffic_heatmap: weekday_hour_heatmap('conversations_count', **trailing_window),
       resolutions_heatmap: weekday_hour_heatmap('resolutions_count', **trailing_window),
-      agents_table: overview_group_table(:assignee_id, agent_names_all, 'Atendente'),
-      teams_table: overview_group_table(:team_id, team_names_all, 'Time')
+      agents: overview_group_rows(:assignee_id, agent_names_all),
+      teams: overview_group_rows(:team_id, team_names_all)
     }
   end
 
-  def overview_group_table(group_key, names, label)
-    open = @account.conversations.open
-    counts = open.group(group_key).count
-    unattended = open.unattended.group(group_key).count
-    unassigned = open.unassigned.group(group_key).count
-    rows = counts.sort_by { |_, count| -count }.filter_map do |id, count|
-      next if id.nil?
+  # O mesmo recorte da tela (Api::V2::Accounts::LiveReportsController#load_conversations): o PDF ignorava a caixa.
+  def overview_scope
+    scope = @account.conversations
+    @filters[:inbox_id].present? ? scope.where(inbox_id: @filters[:inbox_id]) : scope
+  end
 
-      [names[id] || "##{id}", count.to_s, unattended[id].to_i.to_s, unassigned[id].to_i.to_s]
-    end
-    { columns: [{ label: label }, { label: 'Abertas', align: 'right' },
-                { label: 'Não atendidas', align: 'right' }, { label: 'Não atribuídas', align: 'right' }],
-      rows: rows }
+  def overview_headline(kpis)
+    return { emoji: '✅', text: 'Nenhuma conversa aberta agora. Está tudo em dia.' } if kpis[:open].zero?
+    return { emoji: '✅', text: "Há #{kpis[:open]} conversas abertas e nenhuma esperando resposta. A fila está em dia." } if kpis[:unattended].zero?
+
+    { emoji: '⏳', text: "Há #{kpis[:open]} conversas abertas: #{kpis[:unattended]} esperam resposta e #{kpis[:unassigned]} estão sem atendente." }
+  end
+
+  OVERVIEW_WAITING = 10
+
+  # Quem espera resposta ha mais tempo (a mesma lista do numero "nao atendidas" da tela).
+  # Manchete e frase de veredito da Visao geral: as duas julgam quem esta esperando agora.
+  def overview_verdicts(kpis)
+    { headline: overview_headline(kpis), plain_verdict: Reports::PdfPlainVerdict.live(kpis[:unattended]) }
+  end
+
+  def overview_waiting
+    rows = V2::Reports::LiveDrilldownBuilder.new(overview_scope, metric: 'unattended').page(1)[:payload].first(OVERVIEW_WAITING)
+    rows.map { |row| overview_waiting_row(row) }
+  end
+
+  def overview_waiting_row(row)
+    { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
+      agent: row[:agent_name].presence || 'ninguém', team: row[:team_name].presence || '—', waiting: short_duration(row[:value]),
+      since: Time.zone.at(row[:value_at]).in_time_zone(TZ).strftime('%d/%m às %H:%M'),
+      level: first_level(row[:value]) }
+  end
+
+  def overview_group_rows(group_key, names)
+    open = overview_scope.open
+    extra = { unattended: open.unattended.group(group_key).count, unassigned: open.unassigned.group(group_key).count }
+    counts = open.group(group_key).count.reject { |id, _| id.nil? }.sort_by { |_, count| -count }
+    most = counts.first&.last
+    counts.map { |id, count| overview_group_row(id, count, names, extra).merge(bar_pct: bar_pct(count, most)) }
+  end
+
+  def overview_group_row(id, count, names, extra)
+    { name: names[id] || "##{id}", open: count, unattended: extra[:unattended][id].to_i, unassigned: extra[:unassigned][id].to_i }
+  end
+
+  # Largura da barra (0-100) de um valor frente ao maior da lista.
+  def bar_pct(value, most)
+    most.to_f.positive? ? ((value.to_f / most) * 100).round : 0
   end
 
   # ======================= SLA (enterprise) =======================
@@ -625,13 +869,14 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     missed = scope.missed.count
     hit_rate = sla_hit_rate(total, missed)
     {
-      report_type: 'sla', title: 'Relatório de SLA', period: period_meta,
+      report_type: 'sla', title: 'Respondidos no prazo (SLA)', period: period_meta,
       overline: 'Nível de Serviço · Confidencial',
-      subtitle: "Hit rate de #{hit_rate} sobre #{total} SLAs aplicados · #{missed} descumprimentos no período.",
-      base_label: "#{total} SLAs aplicados",
+      subtitle: "#{hit_rate} das #{total} conversas com prazo cumpriram o combinado · #{missed} passaram do prazo.",
+      base_label: "#{total} conversas com prazo",
       kpis: { total: total, hit_rate: hit_rate, breaches: missed,
               compliance: pct(total - missed, total) },
       verdict: sla_verdict(total, missed, hit_rate),
+      plain_verdict: Reports::PdfPlainVerdict.from_entries([Reports::PdfPlainVerdict.entry(:sla_hit_rate, sla_verdict(total, missed, hit_rate))]),
       by_policy: sla_by_policy(scope),
       breaches_table: sla_breaches_table(scope)
     }
@@ -642,11 +887,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     return nil if total.zero?
 
     metric_verdict(metric: :sla_hit_rate, value: pct(total - missed, total),
-                   human: hit_rate, label: 'Cumprimento de SLA')
+                   human: hit_rate, label: 'Respondidos no prazo')
   end
 
   def sla_unavailable
-    { report_type: 'sla', title: 'Relatório de SLA', period: period_meta,
+    { report_type: 'sla', title: 'Respondidos no prazo (SLA)', period: period_meta,
       kpis: {}, by_policy: [], breaches_table: { columns: [], rows: [] },
       unavailable: 'Recurso de SLA não está habilitado nesta conta.' }
   end
@@ -673,7 +918,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def sla_breaches_table(scope)
     rows = scope.missed.order(created_at: :desc).limit(20).map { |applied| sla_breach_row(applied) }
-    { columns: [{ label: 'Conversa' }, { label: 'Política' }, { label: 'Responsável' }, { label: 'Status' }],
+    { columns: [{ label: 'Conversa' }, { label: 'Prazo combinado' }, { label: 'Atendente' }, { label: 'Situação' }],
       rows: rows }
   end
 
@@ -688,11 +933,11 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def sla_hit_rate(total, missed)
     return '100%' if total.zero?
 
-    "#{pct(total - missed, total)}%"
+    "#{br_number(pct(total - missed, total))}%"
   end
 
   def sla_status_label(status)
-    { 'missed' => 'Descumprido', 'active_with_misses' => 'Ativo c/ falhas' }[status.to_s] || status.to_s
+    { 'missed' => 'Passou do prazo', 'active_with_misses' => 'Aberta, já passou do prazo' }[status.to_s] || status.to_s
   end
 
   # ======================= FUNIL (Kanban) =======================
@@ -833,7 +1078,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   # ======================= ATRIBUIÇÕES (quem atribuiu pra quem) =======================
   # Reusa V2::Reports::AgentAssignmentBuilder (mesma fonte da aba "Atribuições") — não recria métrica.
   def agent_assignment_data
-    rows = V2::Reports::AgentAssignmentBuilder.new(account: @account, params: assignment_params).build
+    builder = V2::Reports::AgentAssignmentBuilder.new(account: @account, params: assignment_params)
+    rows = builder.build
     totals = assignment_totals(rows)
     active = rows.count { |row| row[:received_total].to_i.positive? || row[:assigned_to_others].to_i.positive? }
     {
@@ -841,37 +1087,49 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       overline: 'Distribuição de Atribuições · Confidencial',
       subtitle: assignment_subtitle(totals, active),
       base_label: "#{totals[:received_total]} atribuições",
-      kpis: totals.merge(agents: active),
+      headline: assignment_headline(totals, active), kpis: totals.merge(agents: active),
       source_segments: assignment_source_segments(totals),
-      received_chart: assignment_received_chart(rows),
-      table: assignment_table(rows),
-      conclusion: assignment_conclusion(totals, active, rows)
+      people: assignment_people(rows), pairs: assignment_pairs(builder.matrix)
     }
   end
 
-  # "Leitura executiva" (TL;DR) em linguagem simples — totais + composição em % +
-  # quem mais recebeu. Nil quando não há atribuições no período.
-  def assignment_conclusion(totals, active, rows)
+  def assignment_headline(totals, active)
     total = totals[:received_total].to_i
-    return nil if total.zero?
+    return { emoji: '🤔', text: 'Nenhuma conversa foi entregue a um atendente no período.' } if total.zero?
 
-    body = "No período, <span class=\"hl\">#{total} atribuições</span> foram distribuídas entre #{active} atendentes: " \
-           "#{assignment_pct(totals[:received_manual], total)}% manuais, " \
-           "#{assignment_pct(totals[:received_auto], total)}% automáticas (rodízio) e " \
-           "#{assignment_pct(totals[:self_assigned], total)}% auto-assumidas."
-    { title: 'Leitura executiva', body: body + assignment_top_phrase(rows) }
+    { emoji: '🔀', text: "#{total} conversas foram entregues a #{active} atendentes. " \
+                        "#{assignment_pct(totals[:received_auto], total)}% chegaram pelo rodízio e " \
+                        "#{assignment_pct(totals[:received_manual], total)}% porque alguém passou." }
+  end
+
+  # Uma linha por atendente: barra do total recebido e de onde veio (a conta fecha: total = soma das 4 origens).
+  def assignment_people(rows)
+    active = rows.select { |row| row[:received_total].to_i.positive? || row[:assigned_to_others].to_i.positive? }
+                 .sort_by { |row| -row[:received_total].to_i }
+    most = active.first&.dig(:received_total)
+    active.map { |row| assignment_person(row).merge(bar_pct: bar_pct(row[:received_total], most)) }
+  end
+
+  def assignment_person(row)
+    { name: row[:name].presence || "##{row[:id]}", total: row[:received_total].to_i, manual: row[:received_manual].to_i,
+      auto: row[:received_auto].to_i, self: row[:self_assigned].to_i, other: assignment_other(row),
+      to_others: row[:assigned_to_others].to_i }
+  end
+
+  def assignment_other(row)
+    [row[:received_total].to_i - row[:received_manual].to_i - row[:received_auto].to_i - row[:self_assigned].to_i, 0].max
+  end
+
+  ASSIGNMENT_PAIRS = 10
+
+  def assignment_pairs(matrix)
+    top = matrix.first(ASSIGNMENT_PAIRS)
+    most = top.first&.dig(:count)
+    top.map { |pair| { from: pair[:from_name], to: pair[:to_name], count: pair[:count], bar_pct: bar_pct(pair[:count], most) } }
   end
 
   def assignment_pct(value, total)
     ((value.to_i * 100.0) / total).round
-  end
-
-  def assignment_top_phrase(rows)
-    top = rows.select { |row| row[:received_total].to_i.positive? }.max_by { |row| row[:received_total].to_i }
-    return '' if top.nil?
-
-    name = ERB::Util.html_escape(top[:name].presence || "##{top[:id]}")
-    " Quem mais recebeu foi <span class=\"hl\">#{name}</span> (#{top[:received_total]})."
   end
 
   def assignment_params
@@ -880,13 +1138,10 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def assignment_totals(rows)
-    {
-      received_total: rows.sum { |row| row[:received_total].to_i },
-      received_manual: rows.sum { |row| row[:received_manual].to_i },
-      received_auto: rows.sum { |row| row[:received_auto].to_i },
-      self_assigned: rows.sum { |row| row[:self_assigned].to_i },
-      assigned_to_others: rows.sum { |row| row[:assigned_to_others].to_i }
-    }
+    totals = %i[received_total received_manual received_auto self_assigned assigned_to_others].index_with do |key|
+      rows.sum { |row| row[key].to_i }
+    end
+    totals.merge(received_other: rows.sum { |row| assignment_other(row) })
   end
 
   def assignment_subtitle(totals, active)
@@ -898,32 +1153,17 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   # Split da origem das atribuições recebidas p/ a barra de composição. "Outras" cobre
   # automação/bot/api que entram no total mas não nas 3 faixas principais.
   def assignment_source_segments(totals)
-    others = totals[:received_total] - totals[:received_manual] - totals[:received_auto] - totals[:self_assigned]
     segments = [
-      { label: 'Manuais', value: totals[:received_manual], color: '#2dc46f' },
-      { label: 'Automáticas', value: totals[:received_auto], color: '#1f93ff' },
-      { label: 'Auto-assumidas', value: totals[:self_assigned], color: '#95de64' }
+      { label: 'Alguém passou', value: totals[:received_manual], color: '#2dc46f' },
+      { label: 'Rodízio', value: totals[:received_auto], color: '#1f93ff' },
+      { label: 'Pegou para si', value: totals[:self_assigned], color: '#95de64' }
     ]
-    segments << { label: 'Outras', value: others, color: '#bfbfbf' } if others.positive?
+    segments << { label: 'Outras (IA, automação...)', value: totals[:received_other], color: '#bfbfbf' } if totals[:received_other].positive?
     segments
-  end
-
-  def assignment_received_chart(rows)
-    rows.select { |row| row[:received_total].to_i.positive? }
-        .sort_by { |row| -row[:received_total].to_i }
-        .first(10)
-        .map { |row| { label: assignment_short_name(row[:name]), value: row[:received_total].to_i } }
   end
 
   def assignment_short_name(name)
     name.to_s.split(/\s+/).first.presence || '—'
-  end
-
-  def assignment_table(rows)
-    visible = rows.select { |row| row[:received_total].to_i.positive? || row[:assigned_to_others].to_i.positive? }
-    visible = rows if visible.empty?
-    visible = visible.sort_by { |row| -row[:received_total].to_i }
-    { columns: assignment_columns, rows: visible.map { |row| assignment_row(row) } }
   end
 
   def assignment_columns
@@ -942,18 +1182,69 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     rows = SUMMARY_BUILDERS[metric_type].constantize.new(account: @account, params: summary_params(metric_type)).build
     kpis = summary_kpis(rows)
     signals = summary_verdict_signals(rows)
-    noun = SUMMARY_TITLES[metric_type].sub('Relatório de ', '').downcase
+    comparison = summary_comparison(metric_type, kpis)
+    noun = summary_noun(metric_type)
     {
       report_type: metric_type, title: SUMMARY_TITLES[metric_type], period: period_meta,
-      overline: 'Desempenho · Confidencial',
+      overline: 'Desempenho · Confidencial', noun: noun,
       subtitle: with_inbox_scope("#{kpis[:entities]} #{noun} com atividade · #{kpis[:conversations]} conversas no período."),
       base_label: "#{kpis[:conversations]} conversas",
-      kpis: kpis,
-      highlight: signals.any? ? conversations_highlight(signals) : nil,
-      attention: signals.any? ? conversations_attention(signals) : nil,
+      headline: conversations_headline({ conversations_count: kpis[:conversations] }, comparison),
+      kpis: kpis, comparison: comparison,
+      **verdict_fields(signals),
       trends: metric_type == 'label' ? {} : account_trends,
+      people: summary_people(rows, metric_type),
       table: summary_table(rows, metric_type)
     }
+  end
+
+  def summary_noun(metric_type)
+    SUMMARY_TITLES[metric_type].sub('Relatório de ', '').downcase
+  end
+
+  # Mesma comparacao do PDF de Conversas, com o periodo anterior das MESMAS entidades.
+  def summary_comparison(metric_type, kpis)
+    previous = previous_summary_kpis(metric_type)
+    return {} if previous.nil?
+
+    {
+      conversations: metric_delta(kpis[:conversations], previous[:conversations], lower_better: false),
+      first_response: metric_delta(kpis[:frt_seconds], previous[:frt_seconds], lower_better: true),
+      resolution: metric_delta(kpis[:resolution_seconds], previous[:resolution_seconds], lower_better: true),
+      resolutions: metric_delta(kpis[:resolved], previous[:resolved], lower_better: false)
+    }
+  end
+
+  def previous_summary_kpis(metric_type)
+    params = previous_builder_params
+    return nil if params.nil?
+
+    summary_kpis(SUMMARY_BUILDERS[metric_type].constantize.new(account: @account, params: params.merge(type: metric_type.to_sym)).build)
+  rescue StandardError => e
+    Rails.logger.warn("[report_pdf] período anterior indisponível (#{metric_type}): #{e.message}")
+    nil
+  end
+
+  # Uma linha por pessoa/caixa/time/etiqueta, com barra do volume e a 1a resposta colorida pela meta.
+  def summary_people(rows, metric_type)
+    names = summary_names(metric_type)
+    visible = rows.select { |row| row[:conversations_count].to_i.positive? }.sort_by { |row| -row[:conversations_count].to_i }
+    most = visible.first&.dig(:conversations_count).to_f
+    visible.map { |row| summary_person(row, metric_type, names, most) }
+  end
+
+  def summary_person(row, metric_type, names, most)
+    {
+      name: row[:name] || entity_name(row[:id], names), channel: (names.dig(:channels, row[:id]) if metric_type == 'inbox'),
+      conversations: row[:conversations_count].to_i, resolved: row[:resolved_conversations_count].to_i,
+      bar_pct: most.positive? ? ((row[:conversations_count].to_f / most) * 100).round : 0,
+      first: short_or_dash(row[:avg_first_response_time]), first_level: first_level(row[:avg_first_response_time]),
+      resolution: short_or_dash(row[:avg_resolution_time]), reply: short_or_dash(row[:avg_reply_time])
+    }
+  end
+
+  def short_or_dash(seconds)
+    seconds ? short_duration(seconds) : '—'
   end
 
   # Sinais do veredito da MÉDIA das entidades, reusando a lógica de Conversas
@@ -977,12 +1268,15 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def summary_kpis(rows)
     with_data = rows.select { |row| row[:conversations_count].to_i.positive? }
+    frt = avg_metric(with_data, :avg_first_response_time)
+    resolution = avg_metric(with_data, :avg_resolution_time)
     {
       entities: with_data.size,
       conversations: rows.sum { |row| row[:conversations_count].to_i },
       resolved: rows.sum { |row| row[:resolved_conversations_count].to_i },
-      avg_first_response: format_seconds(avg_metric(with_data, :avg_first_response_time)),
-      avg_resolution: format_seconds(avg_metric(with_data, :avg_resolution_time))
+      avg_first_response: format_seconds(frt), avg_resolution: format_seconds(resolution),
+      # crus, para o semaforo e a comparacao (como no PDF de Conversas)
+      frt_seconds: frt.to_f, resolution_seconds: resolution.to_f
     }
   end
 
@@ -1038,11 +1332,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def account_trends
     return {} if range.blank?
 
+    # Serie toda zerada (periodo sem conversa) nao vira grafico: so mostraria uma linha no chao.
     {
       conversations: count_series('conversations_count'),
       first_response: count_series('avg_first_response_time'),
       resolution: count_series('avg_resolution_time')
-    }
+    }.select { |_, points| points.any? { |point| point[:value].positive? } }
   end
 
   def count_series(metric)
@@ -1097,8 +1392,9 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     values.empty? ? 0 : (values.sum / values.size).round
   end
 
+  # Sem tempo medido mostra "--", como na tela (o "N/A" do presenter e o do CSV).
   def format_seconds(seconds)
-    Reports::TimeFormatPresenter.new(seconds).format
+    seconds.to_i.positive? ? Reports::TimeFormatPresenter.new(seconds).format : '--'
   end
 
   def entity_name(id, names)
@@ -1128,7 +1424,16 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def period_meta
-    { since: format_date(range&.first), until: format_date(range&.last), label: period_label }
+    { since: format_date(range&.first), until: format_date(range&.last), label: period_label, previous: previous_period_label }
+  end
+
+  # Janela anterior de mesma duração (a mesma de previous_builder_params), em dd/mm: "23/09 a 30/09".
+  def previous_period_label
+    return nil if range.blank?
+
+    first = range.first - (range.last - range.first)
+    last = range.first - 1.second
+    "#{first.in_time_zone(TZ).strftime('%d/%m')} a #{last.in_time_zone(TZ).strftime('%d/%m')}"
   end
 
   # Nome da caixa quando o relatorio esta recortado por numero — entra no subtitulo

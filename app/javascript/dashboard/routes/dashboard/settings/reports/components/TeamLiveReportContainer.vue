@@ -37,6 +37,7 @@ onMounted(() => {
   <div class="flex flex-row flex-wrap max-w-full">
     <MetricCard :header="$t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.HEADER')">
       <TeamTable
+        :inbox-id="inboxId"
         :teams="teams"
         :team-metrics="teamConversationMetric"
         :is-loading="uiFlags.isFetchingTeamConversationMetric"

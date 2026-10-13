@@ -31,6 +31,11 @@ export default {
     };
   },
   computed: {
+    // Com eles, os numeros de resolvidas e passadas pelo robo abrem as conversas (ReportDrilldownPanel).
+    drilldownFilters() {
+      const { from, to, inboxId } = this;
+      return { from, to, type: 'account', businessHours: false, inboxId };
+    },
     requestPayload() {
       return {
         from: this.from,
@@ -95,20 +100,23 @@ export default {
 <template>
   <ReportHeader :header-title="$t('BOT_REPORTS.HEADER')">
     <DownloadPdfButton report-type="bot" :filters="requestPayload" />
+    <template #filters>
+      <ReportFilters
+        :show-entity-filter="false"
+        show-group-by
+        :show-business-hours="false"
+        @filter-change="onFilterChange"
+      />
+    </template>
   </ReportHeader>
   <div class="flex flex-col gap-4">
-    <ReportFilters
-      :show-entity-filter="false"
-      show-group-by
-      :show-business-hours="false"
-      @filter-change="onFilterChange"
-    />
     <BotMetrics :filters="requestPayload" />
     <ReportContainer
       account-summary-key="getBotSummary"
       summary-fetching-key="getBotSummaryFetchingStatus"
       :group-by="groupBy"
       :report-keys="reportKeys"
+      :drilldown-filters="drilldownFilters"
     />
   </div>
 </template>

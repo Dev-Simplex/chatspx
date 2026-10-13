@@ -57,7 +57,7 @@ export default {
 <template>
   <div>
     <div
-      class="min-w-full bg-n-solid-1 border border-n-weak rounded-xl overflow-hidden"
+      class="min-w-full relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)] overflow-hidden"
     >
       <div
         class="grid content-center h-12 grid-cols-12 gap-4 px-4 py-0 bg-n-slate-2/50 dark:bg-n-solid-3"

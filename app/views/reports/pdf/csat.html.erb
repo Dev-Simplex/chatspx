@@ -1,99 +1,149 @@
+<%# CSAT no estilo do PDF de Conversas: manchete, "Os clientes gostaram?", "Melhorou ou piorou?", como foram as notas,
+    cada atendente, quem deu nota baixa (para agir) e o que os clientes escreveram. %>
 <%
   k = @data[:kpis]
+  cmp = @data[:comparison] || {}
   satisfaction = k[:satisfaction].to_f
+  br = ->(value) { number_with_precision(value, precision: 1, separator: ',', delimiter: '.', strip_insignificant_zeros: true) }
+  faces = { 1 => '😞', 2 => '😑', 3 => '😐', 4 => '😀', 5 => '😍' }
+  low = @data[:low_ratings] || []
 
   zone, zone_class, pill_class =
     if satisfaction >= 80
-      ['Excelência', 'is-promoter', '']
+      ['Excelente', 'is-promoter', '']
     elsif satisfaction >= 60
       ['Atenção', 'is-passive', 'is-passive']
     else
-      ['Zona Crítica', 'is-detractor', 'is-detractor']
+      ['Precisa melhorar', 'is-detractor', 'is-detractor']
     end
 
   composition = [
-    { label: 'Satisfeitos', value: k[:satisfied], color: '#2dc46f' },
-    { label: 'Neutros', value: k[:neutral], color: '#ffc53d' },
-    { label: 'Insatisfeitos', value: k[:unsatisfied], color: '#e54666' }
+    { label: 'Satisfeitos (4 e 5)', value: k[:satisfied], color: '#2dc46f' },
+    { label: 'Neutros (3)', value: k[:neutral], color: '#ffc53d' },
+    { label: 'Insatisfeitos (1 e 2)', value: k[:unsatisfied], color: '#e54666' }
   ]
 %>
 
-<%# ---------- Veredito (card com hierarquia: métrica · valor · meta · status) ---------- %>
+<div class="clarity-legend">
+  <span><span class="status-dot status-dot--good"></span> bom</span>
+  <span><span class="status-dot status-dot--warn"></span> atenção</span>
+  <span><span class="status-dot status-dot--bad"></span> precisa melhorar</span>
+</div>
+
+<%= render 'reports/pdf/plain_verdict', verdict: @data[:plain_verdict] if @data[:plain_verdict] %>
+<%= render 'reports/pdf/headline', headline: @data[:headline] %>
+
+<%# ============ 1. OS CLIENTES GOSTARAM? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">1.</span> Os clientes gostaram?</div>
+  <div class="hero-row">
+    <%= render 'reports/pdf/hero_stat',
+          value: "#{br.call(k[:satisfaction])}%", value_class: zone_class,
+          label: 'Ficaram satisfeitos', pill: zone, pill_class: pill_class,
+          caption: 'deram nota 4 ou 5, numa escala de 1 a 5' %>
+    <%= render 'reports/pdf/composition_bar', title: 'Como foram as notas', segments: composition %>
+  </div>
+</div>
+
+<%# ============ 2. MELHOROU OU PIOROU? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">2.</span> Melhorou ou piorou?<% if cmp.values.any? { |c| c[:delta_pct] } && @data.dig(:period, :previous) %><span class="vs">comparado com o período de <%= @data.dig(:period, :previous) %></span><% end %></div>
+  <%= render 'reports/pdf/kpi_band', cards: [
+    { label: 'Satisfeitos', value: "#{br.call(k[:satisfaction])}%", hero: true,
+      meaning: 'de cada 100 notas, quantas foram 4 ou 5', delta: pdf_delta(cmp[:satisfaction]) },
+    { label: 'Notas recebidas', value: number_with_delimiter(k[:total]),
+      meaning: 'clientes que responderam a pesquisa', delta: pdf_delta(cmp[:total]) },
+    { label: 'Nota média', value: br.call(k[:avg_rating]), meaning: 'de 1 (muito ruim) a 5 (excelente)', delta: pdf_delta(cmp[:avg]) },
+    { label: 'Responderam', value: "#{br.call(k[:response_rate])}%", meaning: 'das pesquisas enviadas' },
+  ] %>
+</div>
+
 <div class="section">
   <div class="verdict-grid">
     <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
   </div>
 </div>
 
-<%# ---------- Hero stat + composicao ---------- %>
+<%# ============ 3. COMO FORAM AS NOTAS? ============ %>
 <div class="section">
-  <div class="hero-row">
-    <%= render 'reports/pdf/hero_stat',
-          value: "#{k[:satisfaction]}%", value_class: zone_class,
-          label: 'Satisfação (CSAT)', pill: zone, pill_class: pill_class,
-          caption: 'Notas 4 e 5 sobre o total de respostas' %>
-    <%= render 'reports/pdf/composition_bar',
-          title: 'Composição das respostas',
-          segments: composition %>
-  </div>
-</div>
-
-<%# ---------- KPIs de apoio ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/kpi_band', cards: [
-    { label: 'Respostas', value: number_with_delimiter(k[:total]) },
-    { label: 'Nota média', value: k[:avg_rating], hint: 'escala de 1 a 5' },
-    { label: 'Taxa de resposta', value: "#{k[:response_rate]}%", hint: 'respondidas / enviadas' },
-  ] %>
-</div>
-
-<%# ---------- Distribuicao das notas 1-5 ---------- %>
-<div class="section">
-  <div class="section-title"><span class="dot">1</span> Distribuição das notas</div>
+  <div class="narrative-title"><span class="q">3.</span> Quantos clientes deram cada nota?</div>
   <div class="card">
     <%= pdf_nps_distribution(@data[:distribution]) %>
     <%= render 'reports/pdf/chart_legend', items: [
-      { color: '#2dc46f', label: '😀 Satisfeitos (notas 4-5)' },
+      { color: '#2dc46f', label: '😀 Satisfeitos (notas 4 e 5)' },
       { color: '#ffc53d', label: '😐 Neutros (nota 3)' },
-      { color: '#e54666', label: '😞 Insatisfeitos (notas 1-2)' },
+      { color: '#e54666', label: '😞 Insatisfeitos (notas 1 e 2)' },
     ] %>
   </div>
 </div>
 
-<%# ---------- CSAT por atendente ---------- %>
+<%# ============ 4. CADA ATENDENTE ============ %>
 <% if @data[:agents].present? %>
   <div class="section">
-    <div class="section-title"><span class="dot">2</span> Satisfação por atendente</div>
+    <div class="narrative-title"><span class="q">4.</span> Como foi cada atendente?</div>
     <%= render 'reports/pdf/perf_table',
-          columns: { entity: 'Atendente', count: 'Respostas', perf: 'Desempenho (% satisfação)', index: 'CSAT' },
+          columns: { entity: 'Atendente', count: 'Notas', perf: 'Satisfeitos (de cada 100)', index: 'Satisfação' },
           rows: @data[:agents].first(18).map { |agent|
             sat = agent[:satisfaction].to_f
             badge_class = sat >= 80 ? 'up' : (sat >= 60 ? 'mid' : 'down')
             bar_color = sat >= 80 ? '#2dc46f' : (sat >= 60 ? '#ffc53d' : '#e54666')
             { name: agent[:name], count: agent[:total], ratio: sat / 100,
-              bar_color: bar_color, badge: "#{agent[:satisfaction]}%", badge_class: badge_class }
+              bar_color: bar_color, badge: "#{br.call(agent[:satisfaction])}%", badge_class: badge_class }
           } %>
   </div>
 <% end %>
 
-<%# ---------- Amostra de comentarios ---------- %>
+<%# ============ 5. QUEM DEU NOTA BAIXA? ============ %>
+<div class="section">
+  <div class="narrative-title"><span class="q">5.</span> Quem deu nota baixa (1 ou 2)?</div>
+  <% if low.any? %>
+    <div class="card" style="padding: 2mm 4mm;">
+      <table class="cl-table">
+        <colgroup>
+          <col style="width: 9%;"><col style="width: 10%;"><col style="width: 18%;"><col style="width: 18%;">
+          <col style="width: 33%;"><col style="width: 12%;">
+        </colgroup>
+        <thead><tr><th>Nota</th><th>Conversa</th><th>Cliente</th><th>Atendente</th><th>O que escreveu</th><th>Quando</th></tr></thead>
+        <tbody>
+          <% low.each do |row| %>
+            <tr>
+              <td><%= faces[row[:rating]] %> <%= row[:rating] %></td>
+              <td><%= row[:id] %></td>
+              <td class="cl-wrap"><%= row[:contact] %></td>
+              <td class="cl-wrap"><%= row[:agent] %></td>
+              <td class="cl-wrap <%= 'muted' unless row[:feedback] %>"><%= row[:feedback] || 'não escreveu nada' %></td>
+              <td class="muted"><%= row[:date] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin: 2mm 0 0; font-size: 10px; color: #667781;">As <%= low.size %> mais recentes. A lista completa está no sistema e no CSV.</p>
+  <% else %>
+    <%= render 'reports/pdf/callout', variant: 'success', title: 'Nenhuma nota baixa no período', body: 'Nenhum cliente deu nota 1 ou 2. 👍' %>
+  <% end %>
+</div>
+
+<%# ============ 6. O QUE OS CLIENTES ESCREVERAM ============ %>
 <% if @data[:feedbacks].present? %>
+  <%# Até 10 e 12 linhas: as seções 5 e 6 cabem inteiras numa página, e o título não fica sozinho no pé. %>
   <div class="section">
-    <div class="section-title"><span class="dot">3</span> Amostra de comentários</div>
-    <div class="card" style="padding:0;">
-      <%= render 'reports/pdf/data_table', table: {
-        columns: [{ label: 'Nota', align: 'right' }, { label: 'Comentário' }, { label: 'Atendente' }, { label: 'Data' }],
-        rows: @data[:feedbacks].first(12).map { |fb|
-          [fb[:rating], fb[:feedback], fb[:agent], fb[:date]]
-        }
-      } %>
+    <div class="narrative-title"><span class="q">6.</span> O que os clientes escreveram?</div>
+    <div class="card" style="padding: 2mm 4mm;">
+      <table class="cl-table">
+        <colgroup><col style="width: 9%;"><col style="width: 55%;"><col style="width: 22%;"><col style="width: 14%;"></colgroup>
+        <thead><tr><th>Nota</th><th>Comentário</th><th>Atendente</th><th>Quando</th></tr></thead>
+        <tbody>
+          <% @data[:feedbacks].first(12).each do |fb| %>
+            <tr>
+              <td><%= faces[fb[:rating]] %> <%= fb[:rating] %></td>
+              <td class="cl-wrap"><%= fb[:feedback] %></td>
+              <td class="cl-wrap"><%= fb[:agent] %></td>
+              <td class="muted"><%= fb[:date] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   </div>
 <% end %>
-
-<%# ---------- Conclusao (data-driven) ---------- %>
-<div class="section">
-  <%= render 'reports/pdf/conclusion',
-        title: 'Leitura executiva',
-        body: raw("A satisfação de <span class=\"hl\">#{k[:satisfaction]}%</span> posiciona a operação em <span class=\"hl\">#{zone.downcase}</span>, com nota média de <span class=\"hl\">#{k[:avg_rating]}</span> sobre #{k[:total]} respostas válidas. #{k[:satisfied]} clientes avaliaram positivamente (notas 4-5) frente a #{k[:unsatisfied]} insatisfeitos, com taxa de resposta de #{k[:response_rate]}%.") %>
-</div>

@@ -9,13 +9,15 @@ import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
 import RodizioLegenda from './rodizio/RodizioLegenda.vue';
 import RodizioResumo from './rodizio/RodizioResumo.vue';
 import RodizioPorConsultor from './rodizio/RodizioPorConsultor.vue';
+import ReportTabs from 'dashboard/components-next/reports/ui/ReportTabs.vue';
+import { REPORTS_WALLPAPER } from 'dashboard/components-next/reports/ui/styles';
 import { duracao, instante } from './rodizio/tempo';
 
 defineOptions({ name: 'RodizioPage' });
 
 const { t, locale } = useI18n();
 const router = useRouter();
-const { accountId } = useAccount();
+const { accountId, currentAccount } = useAccount();
 
 const loading = ref(true);
 const loadError = ref(false);
@@ -545,10 +547,23 @@ const irParaPolitica = () =>
 <template>
   <!-- `w-full h-full`: esta tela é filha direta do <main> do Dashboard (flex row,
        overflow-hidden); sem isso encolheria para a largura do conteúdo e não rolaria. -->
-  <div class="flex flex-col w-full h-full gap-5 px-6 py-5 overflow-y-auto">
-    <header class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+  <!-- Fundo, cabeçalho de vidro e abas: o mesmo topo de todas as telas de Relatórios. -->
+  <div
+    class="flex flex-col w-full h-full gap-5 px-6 py-5 overflow-y-auto bg-n-surface-1 bg-repeat"
+    :class="REPORTS_WALLPAPER"
+  >
+    <header
+      class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 p-5 relative z-40 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    >
       <div class="min-w-0">
-        <h1 class="m-0 text-xl font-semibold text-n-slate-12">
+        <p
+          class="m-0 text-xs font-semibold tracking-wider uppercase truncate text-n-slate-10"
+        >
+          {{ currentAccount?.name }}
+        </p>
+        <h1
+          class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
+        >
           {{ t('AGENTS_RODIZIO.TITLE') }}
         </h1>
         <p
@@ -560,6 +575,7 @@ const irParaPolitica = () =>
           <span class="rounded-full size-1 bg-n-slate-8" />
           {{ timeLegivel }}
         </p>
+        <ReportTabs class="mt-2" />
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <!-- Período e time numa caixa só: são as duas perguntas de "o que estou vendo". -->

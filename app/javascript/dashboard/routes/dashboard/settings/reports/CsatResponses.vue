@@ -11,10 +11,12 @@ import V4Button from 'dashboard/components-next/button/Button.vue';
 import ReportHeader from './components/ReportHeader.vue';
 import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
+import CsatByAgentCard from 'dashboard/components-next/reports/csat/CsatByAgentCard.vue';
 
 export default {
   name: 'CsatResponses',
   components: {
+    CsatByAgentCard,
     CsatMetrics,
     CsatTable,
     CsatFilters,
@@ -42,6 +44,10 @@ export default {
     }),
     csatSignals() {
       return this.csatMetrics.signals || [];
+    },
+    // so periodo e caixa: o CSAT por agente nao recorta por agente nem por nota
+    csatAgentFilters() {
+      return { from: this.from, to: this.to, inboxId: this.inbox };
     },
     requestPayload() {
       return {
@@ -133,15 +139,18 @@ export default {
         @click="downloadReports"
       />
     </div>
+    <template #filters>
+      <CsatFilters
+        :show-team-filter="isTeamsEnabled"
+        @filter-change="onFilterChange"
+      />
+    </template>
   </ReportHeader>
 
-  <div class="flex flex-col gap-6">
-    <CsatFilters
-      :show-team-filter="isTeamsEnabled"
-      @filter-change="onFilterChange"
-    />
+  <div class="flex flex-col gap-4">
     <ReportNarrativeSummary :signals="csatSignals" />
     <CsatMetrics :filters="requestPayload" />
+    <CsatByAgentCard :filters="csatAgentFilters" />
     <CsatTable :page-index="pageIndex" @page-change="onPageNumberChange" />
   </div>
 </template>

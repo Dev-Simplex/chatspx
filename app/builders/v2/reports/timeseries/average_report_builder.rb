@@ -16,6 +16,11 @@ class V2::Reports::Timeseries::AverageReportBuilder < V2::Reports::Timeseries::B
     object_scope.average(average_value_key)
   end
 
+  # O mesmo recorte do numero, para a lista de conversas por tras dele (V2::Reports::Conversations::DrilldownBuilder).
+  def drilldown_scope
+    object_scope
+  end
+
   private
 
   def event_name

@@ -16,6 +16,30 @@ class LiveReportsAPI extends ApiClient {
     });
   }
 
+  // As conversas por tras de um numero da Visao geral (painel de detalhe).
+  getConversationList({ metric, teamId, inboxId, assigneeId, page = 1 } = {}) {
+    return axios.get(`${this.url}/conversation_list`, {
+      params: {
+        metric,
+        team_id: teamId || undefined,
+        inbox_id: inboxId || undefined,
+        assignee_id: assigneeId || undefined,
+        page,
+      },
+    });
+  }
+
+  getConversationListCsv({ metric, teamId, inboxId, assigneeId } = {}) {
+    return axios.get(`${this.url}/conversation_list.csv`, {
+      params: {
+        metric,
+        team_id: teamId || undefined,
+        inbox_id: inboxId || undefined,
+        assignee_id: assigneeId || undefined,
+      },
+    });
+  }
+
   getInServiceOverview(params = {}) {
     return axios.get(`${this.url}/in_service_overview`, { params });
   }
