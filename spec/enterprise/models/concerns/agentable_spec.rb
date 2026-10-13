@@ -369,12 +369,9 @@ RSpec.describe Concerns::Agentable do
 
     it 'sem unidade na conta, segue o business_hours do assistente' do
       outra = create(:inbox)
-      dummy_instance.assistant = instance_double(Captain::Assistant, account: nil, behavior: {
-                                          'business_hours' => {
-                                            'enabled' => true, 'timezone' => 'America/Cuiaba',
-                                            'schedule' => [{ 'day' => 1, 'ranges' => [{ 'start' => '07:30', 'end' => '17:30' }] }]
-                                          }
-                                        })
+      horario = { 'enabled' => true, 'timezone' => 'America/Cuiaba',
+                  'schedule' => [{ 'day' => 1, 'ranges' => [{ 'start' => '07:30', 'end' => '17:30' }] }] }
+      dummy_instance.assistant = instance_double(Captain::Assistant, account: nil, behavior: { 'business_hours' => horario })
 
       ctx = contexto_em('2026-10-12 08:41', inbox_id: outra.id)
 
