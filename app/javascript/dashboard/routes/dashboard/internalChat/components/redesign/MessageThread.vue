@@ -268,7 +268,7 @@ watch(
           : t('INTERNAL_CHAT.THREAD.GO_BOTTOM')
       "
       type="button"
-      class="absolute z-10 inline-flex items-center justify-center border rounded-full shadow-lg bottom-3 right-4 md:right-6 size-10 bg-n-solid-1 dark:bg-n-solid-3 border-n-weak text-n-slate-11 hover:text-n-slate-12 hover:bg-n-solid-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+      class="absolute z-10 inline-flex items-center justify-center border border-solid rounded-full shadow-lg bottom-3 right-4 md:right-6 size-10 bg-n-solid-1 dark:bg-n-solid-3 border-n-weak text-n-slate-11 hover:text-n-slate-12 hover:bg-n-solid-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
       :aria-label="
         newWhileAway
           ? t('INTERNAL_CHAT.THREAD.GO_BOTTOM_NEW', { count: newWhileAway })
