@@ -678,6 +678,12 @@ const iReacted = emoji =>
             class="ml-1 text-[11px] align-baseline opacity-70"
             >{{ t('INTERNAL_CHAT.EDITED') }}</span
           >
+          <!-- Espaço no fim da linha: em balão de uma linha o ⌄ não cobre o texto -->
+          <span
+            v-if="!jumbo"
+            aria-hidden="true"
+            class="inline-block w-6 h-px"
+          />
         </p>
 
         <!-- Prévia do link: título, descrição, imagem e domínio -->
