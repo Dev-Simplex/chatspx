@@ -182,6 +182,17 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
                                 'is_highlight' => true, 'is_attention' => true)
       end
 
+      it 'does not judge satisfaction when nobody answered the survey' do
+        CsatSurveyResponse.destroy_all
+
+        get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
+            headers: administrator.create_new_auth_token,
+            as: :json
+
+        expect(response.parsed_body['total_count']).to eq 0
+        expect(response.parsed_body['signals']).to eq([])
+      end
+
       it 'filters csat metrics based on a date range' do
         # clearing any existing csat responses
         CsatSurveyResponse.destroy_all

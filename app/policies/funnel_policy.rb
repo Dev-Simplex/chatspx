@@ -8,6 +8,8 @@ class FunnelPolicy < ApplicationPolicy
   def show?
     return false unless index? && record.account_id == account.id
     return false if @account_user.blank?
+    # Admin abre qualquer funil da conta, como ja enxerga todos no Scope.
+    return true if @account_user.administrator?
 
     if record.team_id.present?
       return false if @account_user.user.blank?
@@ -15,7 +17,7 @@ class FunnelPolicy < ApplicationPolicy
       user_team_ids.include?(record.team_id)
     else
       # funil "Geral" (default, team_id nil) → só admin (agente não vê mais "tudo")
-      @account_user.administrator?
+      false
     end
   end
 

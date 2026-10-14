@@ -18,7 +18,9 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
     @total_count = @csat_survey_responses.count
     @total_response_count_for_rate = @csat_survey_responses_for_rate.count
     @ratings_count = @csat_survey_responses.group(:rating).count
-    @signals = Reports::SignalSet.new(entries: [{ metric: :csat, value: csat_satisfaction_score }]).build
+    # Sem resposta nao ha satisfacao para julgar: o 0% viraria "Atencao" no veredito.
+    entries = @total_count.zero? ? [] : [{ metric: :csat, value: csat_satisfaction_score }]
+    @signals = Reports::SignalSet.new(entries: entries).build
   end
 
   def download

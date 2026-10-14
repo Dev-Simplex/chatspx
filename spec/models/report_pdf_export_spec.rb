@@ -14,8 +14,15 @@ RSpec.describe ReportPdfExport do
 
     it 'accepts the supported report types' do
       %w[nps csat bot conversations overview agent inbox team label sla funnel agent_assignment].each do |report_type|
-        expect(build(:report_pdf_export, account: account, report_type: report_type)).to be_valid
+        filters = report_type == 'funnel' ? { 'funnel_id' => 1 } : {}
+        expect(build(:report_pdf_export, account: account, report_type: report_type, filters: filters)).to be_valid
       end
+    end
+
+    it 'requires the funnel for a funnel report' do
+      export = build(:report_pdf_export, account: account, report_type: 'funnel', filters: {})
+      expect(export).not_to be_valid
+      expect(export.errors[:filters]).to be_present
     end
   end
 
