@@ -17,7 +17,7 @@
     "AUTOR_DESCONHECIDO": "no author",
     "RESPOSTA_DA_CONTA": "team reply",
     "RESPONDIDO": "answered",
-    "RESPONDIDO_AJUDA": "Inferred from the @ at the start of the team's reply — Instagram does not say which comment a reply belongs to.",
+    "RESPONDIDO_AJUDA": "Inferred from the {'@'} at the start of the team's reply — Instagram does not say which comment a reply belongs to.",
     "TIPO_DESCONHECIDO": "post",
     "NAO_SINCRONIZADA": "no caption",
     "VER_PUBLICACAO": "View on Instagram",

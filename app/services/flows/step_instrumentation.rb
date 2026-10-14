@@ -47,7 +47,9 @@ module Flows::StepInstrumentation
     FlowStepLog.create!(
       flow: @flow, account: @flow.account, conversation: @conversation, flow_run: @flow_run,
       node_id: node['id'], action_name: node['action_name'],
-      status: status, branch_key: branch_key,
+      # O ramo vem do id da resposta (wait_for_reply) ou da chave da rota do router e pode passar
+      # do limite de 255 da coluna; cortado, o passo ainda é gravado.
+      status: status, branch_key: branch_key&.to_s&.first(255),
       error_code: error && error_code_for(error, node), error_message: error&.message,
       duration_ms: duration_ms, metadata: { 'node_type' => node['type'] }
     )
