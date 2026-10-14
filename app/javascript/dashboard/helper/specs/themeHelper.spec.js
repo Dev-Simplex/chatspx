@@ -73,4 +73,26 @@ describe('setColorTheme', () => {
       'color-scheme: dark;'
     );
   });
+
+  it('applies the theme and swallows the rejection when the transition is skipped', async () => {
+    const skipped = () =>
+      Promise.reject(new DOMException('Transition was skipped', 'AbortError'));
+    document.startViewTransition = vi.fn(update => {
+      update();
+      return { ready: skipped(), finished: skipped() };
+    });
+    LocalStorage.get.mockReturnValue('dark');
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+
+    setColorTheme(false);
+    await new Promise(resolve => {
+      setTimeout(resolve, 0);
+    });
+
+    process.off('unhandledRejection', unhandled);
+    delete document.startViewTransition;
+    expect(document.body.classList.contains('dark')).toBe(true);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
 });

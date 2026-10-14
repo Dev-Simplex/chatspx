@@ -503,6 +503,7 @@
       }
     },
     "DETAILS": {
+      "NOT_FOUND": "Este contato não existe mais. Ele pode ter sido excluído ou mesclado com outro.",
       "CREATED_AT": "Criado {date}",
       "LAST_ACTIVITY": "Última atividade {date}",
       "DELETE_CONTACT_DESCRIPTION": "Excluir permanentemente este contato. Esta ação é irreversível",

@@ -23,6 +23,7 @@ const contact = useMapGetter('contacts/getContactById');
 const uiFlags = useMapGetter('contacts/getUIFlags');
 
 const activeTab = ref('attributes');
+const contactNotFound = ref(false);
 const contactMergeRef = ref(null);
 
 const isFetchingItem = computed(() => uiFlags.value.isFetchingItem);
@@ -78,6 +79,13 @@ const goToContactsList = () => {
 const fetchActiveContact = async () => {
   if (route.params.contactId) {
     await store.dispatch('contacts/show', { id: route.params.contactId });
+    // Deleted or merged contact: show() already swallowed the 404, and asking
+    // for its inboxes would only throw a second, unhandled 404. The getter
+    // returns {} for an unknown id, so check the id, not the object.
+    if (!selectedContact.value.id) {
+      contactNotFound.value = true;
+      return;
+    }
     await store.dispatch(
       'contacts/fetchContactableInbox',
       route.params.contactId
@@ -165,6 +173,12 @@ onMounted(() => {
       >
         <Spinner />
       </div>
+      <p
+        v-else-if="contactNotFound"
+        class="py-10 text-sm text-center text-n-slate-11"
+      >
+        {{ $t('CONTACTS_LAYOUT.DETAILS.NOT_FOUND') }}
+      </p>
       <ContactDetails
         v-else-if="selectedContact"
         :selected-contact="selectedContact"
