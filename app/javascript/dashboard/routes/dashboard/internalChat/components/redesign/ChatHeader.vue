@@ -78,7 +78,7 @@ const pick = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.BACK')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-9 md:hidden text-n-teal-11 hover:bg-n-alpha-2"
+        class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-9 md:hidden border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-teal-11 hover:bg-n-alpha-2"
         :aria-label="t('INTERNAL_CHAT.BACK')"
         @click="emit('back')"
       >
@@ -140,7 +140,7 @@ const pick = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.HEADER.SEARCH')"
         type="button"
-        class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :class="searchActive ? 'text-n-teal-11 bg-n-alpha-2' : ''"
         :aria-label="t('INTERNAL_CHAT.HEADER.SEARCH')"
         @click="emit('toggleSearch')"
@@ -150,7 +150,7 @@ const pick = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.HEADER.DETAILS')"
         type="button"
-        class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :class="infoActive ? 'text-n-teal-11 bg-n-alpha-2' : ''"
         :aria-label="t('INTERNAL_CHAT.HEADER.DETAILS')"
         @click="emit('toggleInfo')"
@@ -164,7 +164,7 @@ const pick = () => {
           ref="moreButton"
           v-tooltip="t('INTERNAL_CHAT.HEADER.MORE')"
           type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :class="showMenu ? 'text-n-teal-11 bg-n-alpha-2' : ''"
           :aria-label="t('INTERNAL_CHAT.HEADER.MORE')"
           @click="showMenu = !showMenu"
