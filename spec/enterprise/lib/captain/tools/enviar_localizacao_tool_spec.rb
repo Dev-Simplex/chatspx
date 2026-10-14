@@ -15,12 +15,12 @@ RSpec.describe Captain::Tools::EnviarLocalizacaoTool, type: :model do
                                settings: { 'office_lat' => lat, 'office_lng' => lng, 'office_name' => nome }.compact)
   end
 
-  context 'quando a conta não configurou o escritório' do
+  describe 'sem escritório configurado na conta' do
     before { escritorio(create(:account), lat: '-12.545', lng: '-55.711', nome: 'Outra conta') }
 
     it 'não envia pin e avisa o modelo que o endereço não está configurado' do
       resposta = nil
-      expect { resposta = tool.perform(contexto) }.not_to(change { Message.count })
+      expect { resposta = tool.perform(contexto) }.not_to change(Message, :count)
 
       expect(resposta).to include('não está configurado')
       expect(Attachment.where(file_type: :location)).to be_empty
@@ -29,11 +29,11 @@ RSpec.describe Captain::Tools::EnviarLocalizacaoTool, type: :model do
     it 'não envia pin quando falta uma das coordenadas' do
       escritorio(account, lat: '-12.545', lng: '')
 
-      expect { tool.perform(contexto) }.not_to(change { Message.count })
+      expect { tool.perform(contexto) }.not_to change(Message, :count)
     end
   end
 
-  context 'quando a conta configurou o escritório' do
+  describe 'com escritório configurado na conta' do
     before do
       escritorio(account, lat: '-15.601', lng: '-56.097', nome: 'Escritório da conta')
       escritorio(create(:account), lat: '-12.545', lng: '-55.711', nome: 'Outra conta')
