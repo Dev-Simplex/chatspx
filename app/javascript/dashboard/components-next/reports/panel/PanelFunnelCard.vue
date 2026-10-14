@@ -14,8 +14,13 @@ const stages = ref([]);
 
 const loadStats = async () => {
   if (!funnelId.value) return;
-  const { data } = await KanbanAPI.getFunnelStats(funnelId.value);
-  stages.value = data.stages || [];
+  try {
+    const { data } = await KanbanAPI.getFunnelStats(funnelId.value);
+    stages.value = data.stages || [];
+  } catch {
+    // Sem os numeros deste funil, nao deixa os do funil anterior na tela.
+    stages.value = [];
+  }
 };
 
 onMounted(async () => {
@@ -80,7 +85,7 @@ const maxCount = computed(() =>
         <span class="text-sm text-n-slate-11 truncate" :title="stage.name">
           {{ stage.name }}
         </span>
-        <span class="flex justify-center">
+        <span class="flex justify-start">
           <span
             class="block h-6 rounded-md bg-n-blue-9"
             :style="{
