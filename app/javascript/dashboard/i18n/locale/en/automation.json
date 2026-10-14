@@ -440,7 +440,7 @@
         },
         "SEND_EMAIL_TRANSCRIPT": {
           "LABEL": "Emails",
-          "PLACEHOLDER": "email@example.com, another@example.com",
+          "PLACEHOLDER": "email{'@'}example.com, another{'@'}example.com",
           "HINT": "Separate multiple addresses with commas. The conversation transcript is emailed to them."
         },
         "SEND_WEBHOOK_EVENT": {
