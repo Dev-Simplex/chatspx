@@ -1045,12 +1045,19 @@
   "REPORTS_PANEL": {
     "TITLE": "Relatórios",
     "TABS": {
+      "PANEL": "Painel",
       "OVERVIEW": "Visão geral",
+      "CONVERSATIONS": "Conversas",
       "AGENTS": "Atendentes",
+      "ASSIGNMENTS": "Atribuições",
+      "ROTATION": "Rodízio",
+      "LABELS": "Etiquetas",
+      "INBOXES": "Caixas de entrada",
+      "TEAMS": "Times",
+      "CSAT": "Satisfação",
       "NPS": "Indicação",
       "SLA": "Prazos",
-      "AI": "Robô",
-      "INBOXES_LABELS": "Caixas e etiquetas"
+      "AI": "Robô"
     },
     "PERIOD": {
       "TODAY": "Hoje",

@@ -1,36 +1,71 @@
 <script setup>
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { usePolicy } from 'dashboard/composables/usePolicy';
 
-// Os assuntos principais dos Relatorios, em pilula, no cabecalho de todas as telas
-// (como as abas do prototipo). A aba acende na tela do assunto; as outras telas
-// continuam no menu lateral.
+// Todos os Relatorios, em pilula, no cabecalho de cada tela, na ordem do menu
+// lateral. A aba acende na tela do assunto e some, como no menu, para quem nao
+// tem a permissao ou o recurso da rota (o Rodizio e so de admin).
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
+const { shouldShow } = usePolicy();
 
-const tabs = computed(() => [
+const ALL_TABS = [
+  { key: 'panel', label: 'PANEL', name: 'reports_panel' },
+  { key: 'overview', label: 'OVERVIEW', name: 'account_overview_reports' },
   {
-    key: 'overview',
-    label: t('REPORTS_PANEL.TABS.OVERVIEW'),
-    name: 'reports_panel',
+    key: 'conversations',
+    label: 'CONVERSATIONS',
+    name: 'conversation_reports',
   },
   {
     key: 'agents',
-    label: t('REPORTS_PANEL.TABS.AGENTS'),
+    label: 'AGENTS',
     name: 'agent_reports_index',
     also: ['agent_reports_show'],
   },
-  { key: 'nps', label: t('REPORTS_PANEL.TABS.NPS'), name: 'nps_reports' },
-  { key: 'sla', label: t('REPORTS_PANEL.TABS.SLA'), name: 'sla_reports' },
-  { key: 'ai', label: t('REPORTS_PANEL.TABS.AI'), name: 'bot_reports' },
+  {
+    key: 'assignments',
+    label: 'ASSIGNMENTS',
+    name: 'agent_assignment_reports',
+  },
+  { key: 'rotation', label: 'ROTATION', name: 'agents_rodizio' },
+  {
+    key: 'labels',
+    label: 'LABELS',
+    name: 'label_reports_index',
+    also: ['label_reports_show'],
+  },
   {
     key: 'inboxes',
-    label: t('REPORTS_PANEL.TABS.INBOXES_LABELS'),
+    label: 'INBOXES',
     name: 'inbox_reports_index',
-    also: ['inbox_reports_show', 'label_reports_index', 'label_reports_show'],
+    also: ['inbox_reports_show'],
   },
-]);
+  {
+    key: 'teams',
+    label: 'TEAMS',
+    name: 'team_reports_index',
+    also: ['team_reports_show'],
+  },
+  { key: 'csat', label: 'CSAT', name: 'csat_reports' },
+  { key: 'nps', label: 'NPS', name: 'nps_reports' },
+  { key: 'sla', label: 'SLA', name: 'sla_reports' },
+  { key: 'ai', label: 'AI', name: 'bot_reports' },
+];
+
+const tabs = computed(() =>
+  ALL_TABS.filter(tab => {
+    const { meta } = router.resolve({ name: tab.name, params: route.params });
+    return shouldShow(
+      meta.featureFlag,
+      meta.permissions,
+      meta.installationTypes
+    );
+  }).map(tab => ({ ...tab, label: t(`REPORTS_PANEL.TABS.${tab.label}`) }))
+);
 
 const isActive = tab =>
   route.name === tab.name || (tab.also || []).includes(route.name);
