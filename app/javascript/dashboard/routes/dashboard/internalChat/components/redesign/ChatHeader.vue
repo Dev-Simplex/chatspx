@@ -140,7 +140,7 @@ const pick = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.HEADER.SEARCH')"
         type="button"
-        class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-solid border-n-teal-9 hover:border-n-teal-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :class="searchActive ? 'text-n-teal-11 bg-n-alpha-2' : ''"
         :aria-label="t('INTERNAL_CHAT.HEADER.SEARCH')"
         @click="emit('toggleSearch')"
@@ -150,7 +150,7 @@ const pick = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.HEADER.DETAILS')"
         type="button"
-        class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-solid border-n-teal-9 hover:border-n-teal-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :class="infoActive ? 'text-n-teal-11 bg-n-alpha-2' : ''"
         :aria-label="t('INTERNAL_CHAT.HEADER.DETAILS')"
         @click="emit('toggleInfo')"
@@ -164,7 +164,7 @@ const pick = () => {
           ref="moreButton"
           v-tooltip="t('INTERNAL_CHAT.HEADER.MORE')"
           type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-solid border-n-teal-9 hover:border-n-teal-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :class="showMenu ? 'text-n-teal-11 bg-n-alpha-2' : ''"
           :aria-label="t('INTERNAL_CHAT.HEADER.MORE')"
           @click="showMenu = !showMenu"
