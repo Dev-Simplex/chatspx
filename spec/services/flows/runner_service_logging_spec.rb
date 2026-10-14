@@ -69,6 +69,16 @@ RSpec.describe Flows::RunnerService do
     expect(cond.metadata['node_type']).to eq('condition')
   end
 
+  it 'records the first 255 characters of a branch longer than the column allows' do
+    long_branch = 'r' * 300
+    flow = create(:flow, account: account, definition: { 'nodes' => [status_condition('c1', 'open')], 'edges' => [] })
+    runner = described_class.new(flow: flow, conversation: conversation)
+
+    runner.send(:instrument_branch, flow.definition['nodes'].first) { long_branch }
+
+    expect(FlowStepLog.find_by(flow: flow, node_id: 'c1').branch_key).to eq(long_branch.first(255))
+  end
+
   it 'records the false branch when the condition does not match' do
     conversation.update!(status: :open)
     flow = run({
