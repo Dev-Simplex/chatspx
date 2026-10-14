@@ -373,11 +373,11 @@ const onEnter = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 rounded-full w-7 h-7 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :aria-label="t('INTERNAL_CHAT.COMPOSER.CANCEL_REPLY')"
         @click="emit('cancelReply')"
       >
-        <span class="i-lucide-x" />
+        <span class="size-5 i-lucide-x" />
       </button>
     </div>
 
@@ -395,11 +395,11 @@ const onEnter = () => {
         <button
           v-tooltip="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           type="button"
-          class="inline-flex items-center justify-center rounded-full w-5 h-5 text-n-slate-10 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center rounded-full size-6 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :aria-label="t('INTERNAL_CHAT.COMPOSER.REMOVE_FILE')"
           @click="removeFile(index)"
         >
-          <span class="i-lucide-x" />
+          <span class="size-4 i-lucide-x" />
         </button>
       </span>
     </div>
