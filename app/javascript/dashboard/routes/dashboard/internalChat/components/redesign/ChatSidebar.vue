@@ -317,7 +317,7 @@ defineExpose({ openCompose, focusSearch });
           <button
             v-tooltip="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
             type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+            class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-solid border-n-teal-9 hover:border-n-teal-10 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
             :class="showSettings ? 'text-n-teal-11 bg-n-alpha-2' : ''"
             :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
             @click="showSettings = !showSettings"
@@ -390,7 +390,7 @@ defineExpose({ openCompose, focusSearch });
                   class="flex-1 px-1.5 py-1.5 text-xs font-semibold leading-tight rounded-lg transition-colors"
                   :class="
                     composeMode === 'dm'
-                      ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-slate-6 dark:ring-n-slate-8'
+                      ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-teal-9'
                       : 'text-n-slate-11 hover:text-n-slate-12'
                   "
                   @click="setComposeMode('dm')"
@@ -402,7 +402,7 @@ defineExpose({ openCompose, focusSearch });
                   class="flex-1 px-1.5 py-1.5 text-xs font-semibold leading-tight rounded-lg transition-colors"
                   :class="
                     composeMode === 'group'
-                      ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-slate-6 dark:ring-n-slate-8'
+                      ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-teal-9'
                       : 'text-n-slate-11 hover:text-n-slate-12'
                   "
                   @click="setComposeMode('group')"
@@ -415,7 +415,7 @@ defineExpose({ openCompose, focusSearch });
                   class="flex-1 px-1.5 py-1.5 text-xs font-semibold leading-tight rounded-lg transition-colors"
                   :class="
                     composeMode === 'team'
-                      ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-slate-6 dark:ring-n-slate-8'
+                      ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-teal-9'
                       : 'text-n-slate-11 hover:text-n-slate-12'
                   "
                   @click="setComposeMode('team')"
@@ -444,7 +444,7 @@ defineExpose({ openCompose, focusSearch });
                         ? t('INTERNAL_CHAT.LIST.TEAM_SEARCH')
                         : t('INTERNAL_CHAT.LIST.PEOPLE_SEARCH')
                     "
-                    class="reset-base w-full h-9 pl-9 pr-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-n-slate-6 dark:!border-n-slate-7 focus:border-n-teal-9 dark:focus:!border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+                    class="reset-base w-full h-9 pl-9 pr-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-n-teal-9 dark:!border-n-teal-9 focus:border-n-teal-10 dark:focus:!border-n-teal-10 text-n-slate-12 placeholder:text-n-slate-10"
                     @keydown.enter.prevent="onPeopleEnter"
                   />
                 </div>
@@ -548,7 +548,7 @@ defineExpose({ openCompose, focusSearch });
                   v-model="groupName"
                   type="text"
                   :placeholder="t('INTERNAL_CHAT.GROUP_NAME_PLACEHOLDER')"
-                  class="reset-base w-full h-9 px-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-n-slate-6 dark:!border-n-slate-7 focus:border-n-teal-9 dark:focus:!border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+                  class="reset-base w-full h-9 px-3 text-sm border rounded-xl outline-none bg-n-alpha-1 border-n-teal-9 dark:!border-n-teal-9 focus:border-n-teal-10 dark:focus:!border-n-teal-10 text-n-slate-12 placeholder:text-n-slate-10"
                   @keydown.enter.prevent="createGroup"
                 />
                 <button
@@ -626,7 +626,7 @@ defineExpose({ openCompose, focusSearch });
           type="text"
           :placeholder="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
           :aria-label="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
-          class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-n-slate-6 dark:!border-n-slate-7 hover:border-n-slate-8 outline-none rounded-full focus:border-n-teal-9 dark:focus:!border-n-teal-9 text-n-slate-12 placeholder:text-n-slate-10"
+          class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-n-teal-9 dark:!border-n-teal-9 hover:border-n-teal-10 outline-none rounded-full focus:border-n-teal-10 dark:focus:!border-n-teal-10 text-n-slate-12 placeholder:text-n-slate-10"
           @input="onSearchInput"
           @keydown.esc="onSearchEsc"
         />
@@ -642,7 +642,7 @@ defineExpose({ openCompose, focusSearch });
         :class="
           auditMode
             ? 'text-n-teal-11 border-n-teal-9 bg-n-alpha-1'
-            : 'text-n-slate-11 border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 hover:bg-n-alpha-1'
+            : 'text-n-slate-11 border-n-teal-9 hover:border-n-teal-10 hover:bg-n-alpha-1'
         "
         @click="$emit('toggleAudit')"
       >
@@ -667,7 +667,7 @@ defineExpose({ openCompose, focusSearch });
       <div
         role="tablist"
         :aria-label="t('INTERNAL_CHAT.LIST.FILTERS')"
-        class="flex items-center gap-0.5 p-0.5 border rounded-xl bg-n-alpha-2 border-n-slate-6 dark:border-n-slate-7"
+        class="flex items-center gap-0.5 p-0.5 border rounded-xl bg-n-alpha-2 border-n-teal-9"
       >
         <button
           v-for="f in FILTERS"
@@ -678,7 +678,7 @@ defineExpose({ openCompose, focusSearch });
           class="flex items-center justify-center flex-1 min-w-0 gap-1 px-1.5 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-all duration-200 rounded-[10px]"
           :class="
             activeFilter === f.key
-              ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-slate-6 dark:ring-n-slate-8'
+              ? 'bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-12 shadow-sm ring-1 ring-n-teal-9'
               : 'text-n-slate-11 hover:text-n-slate-12'
           "
           @click="activeFilter = f.key"
@@ -769,7 +769,7 @@ defineExpose({ openCompose, focusSearch });
           <button
             v-tooltip="t('INTERNAL_CHAT.ARCHIVE.BACK')"
             type="button"
-            class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-8 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
+            class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-8 border border-solid border-n-teal-9 hover:border-n-teal-10 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 focus-visible:outline focus-visible:outline-2 focus-visible:outline-n-teal-9"
             :aria-label="t('INTERNAL_CHAT.ARCHIVE.BACK')"
             @click="showArchived = false"
           >
