@@ -623,7 +623,7 @@ const iReacted = emoji =>
         <button
           v-if="message.replyTo"
           type="button"
-          class="block w-full px-2.5 py-1.5 mt-0.5 mb-1.5 text-left border-l-[3px] rounded-lg"
+          class="block w-full px-2.5 py-1.5 mt-0.5 mb-1.5 text-left border-l-[3px] border-solid rounded-lg"
           :class="
             message.mine
               ? 'border-white/70 bg-white/15'
@@ -827,7 +827,7 @@ const iReacted = emoji =>
           v-for="[emoji, users] in reactionEntries"
           :key="emoji"
           type="button"
-          class="inline-flex items-center gap-1 px-1.5 h-6 text-xs border rounded-full shadow-sm transition-colors bg-n-solid-1"
+          class="inline-flex items-center gap-1 px-1.5 h-6 text-xs border border-solid rounded-full shadow-sm transition-colors bg-n-solid-1"
           :class="
             iReacted(emoji)
               ? 'border-n-teal-9 text-n-slate-12'
@@ -907,7 +907,7 @@ const iReacted = emoji =>
         <button
           v-tooltip="t('INTERNAL_CHAT.BUBBLE.REPLY')"
           type="button"
-          class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full size-7 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full size-7 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :aria-label="t('INTERNAL_CHAT.BUBBLE.REPLY')"
           @click="onReply"
         >
@@ -916,7 +916,7 @@ const iReacted = emoji =>
         <button
           v-tooltip="t('INTERNAL_CHAT.REACT')"
           type="button"
-          class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full size-7 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full size-7 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :aria-label="t('INTERNAL_CHAT.REACT')"
           @click.stop="toggleReactionPicker"
         >

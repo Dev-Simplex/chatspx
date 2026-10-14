@@ -314,7 +314,7 @@ const toggleAlert = async (event, value) => {
               :key="m.id"
               v-tooltip.left="t('INTERNAL_CHAT.STARRED.OPEN')"
               type="button"
-              class="flex flex-col w-full gap-0.5 px-3 py-2 text-left border-b last:border-b-0 border-n-weak hover:bg-n-alpha-2 focus-visible:bg-n-alpha-2 focus-visible:outline-none"
+              class="flex flex-col w-full gap-0.5 px-3 py-2 text-left border-b border-solid last:border-b-0 border-n-weak hover:bg-n-alpha-2 focus-visible:bg-n-alpha-2 focus-visible:outline-none"
               @click="$emit('openMessage', m.id)"
             >
               <span class="flex items-center justify-between gap-2 text-xs">

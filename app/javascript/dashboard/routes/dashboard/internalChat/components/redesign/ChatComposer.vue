@@ -418,7 +418,7 @@ const onEnter = () => {
         <button
           v-tooltip="showAttach ? '' : t('INTERNAL_CHAT.ATTACH')"
           type="button"
-          class="inline-flex items-center justify-center mb-0.5 transition-colors rounded-full size-9 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          class="inline-flex items-center justify-center mb-0.5 transition-colors rounded-full size-9 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 hover:bg-n-alpha-2 hover:text-n-slate-12"
           :class="
             showAttach ? 'bg-n-alpha-2 text-n-teal-11' : 'text-n-slate-11'
           "
@@ -475,7 +475,7 @@ const onEnter = () => {
       <button
         v-tooltip="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors rounded-full size-9 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
         :aria-label="t('INTERNAL_CHAT.COMPOSER.RECORD')"
         @click="startRecording"
       >
@@ -509,7 +509,7 @@ const onEnter = () => {
           <button
             v-tooltip="t('INTERNAL_CHAT.EMOJI')"
             type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+            class="inline-flex items-center justify-center transition-colors rounded-full size-9 border border-solid border-n-slate-6 dark:border-n-slate-7 hover:border-n-slate-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
             :class="showEmoji ? 'text-n-teal-11 bg-n-alpha-2' : ''"
             :aria-label="t('INTERNAL_CHAT.EMOJI')"
             @click="toggleEmoji"
@@ -534,7 +534,7 @@ const onEnter = () => {
           :class="
             canSend
               ? 'bg-n-teal-10 dark:bg-n-teal-9 text-white hover:bg-n-teal-11 shadow-sm'
-              : 'bg-n-slate-4 text-n-slate-11 cursor-not-allowed border border-n-slate-6 dark:border-n-slate-7'
+              : 'bg-n-slate-4 text-n-slate-11 cursor-not-allowed border border-solid border-n-slate-6 dark:border-n-slate-7'
           "
           :aria-label="t('INTERNAL_CHAT.SEND')"
           :disabled="!canSend"
