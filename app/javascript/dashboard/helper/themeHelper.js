@@ -23,7 +23,14 @@ export const setColorTheme = isOSOnDarkMode => {
     document.startViewTransition &&
     document.visibilityState === 'visible'
   ) {
-    document.startViewTransition(() => applyTheme(isOSOnDarkMode));
+    const transition = document.startViewTransition(() =>
+      applyTheme(isOSOnDarkMode)
+    );
+    // The theme is already applied when the animation is skipped (tab hidden or
+    // window resized mid-transition); the rejection is only a warning about the
+    // animation, so it must not reach the error tracker.
+    transition.ready.catch(() => {});
+    transition.finished.catch(() => {});
     return;
   }
   applyTheme(isOSOnDarkMode);
