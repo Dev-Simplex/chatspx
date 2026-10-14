@@ -1557,8 +1557,8 @@
       "UNIT_HOURS": "horas",
       "UNIT_DAYS": "dias",
       "CONTENT_LABEL": "Mensagem",
-      "CONTENT_PLACEHOLDER": "Oi {{contact.first_name}}, …",
-      "CONTENT_HELP": "Use {{contact.name}} ou {{contact.first_name}} para personalizar.",
+      "CONTENT_PLACEHOLDER": "Oi {'{'}{'{'}contact.first_name{'}'}{'}'}, …",
+      "CONTENT_HELP": "Use {'{'}{'{'}contact.name{'}'}{'}'} ou {'{'}{'{'}contact.first_name{'}'}{'}'} para personalizar.",
       "SAVE": "Salvar sequência",
       "CANCEL": "Cancelar",
       "NEED_STEP": "Adicione pelo menos um passo com mensagem."

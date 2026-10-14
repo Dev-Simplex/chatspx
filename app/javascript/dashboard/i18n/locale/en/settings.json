@@ -1557,8 +1557,8 @@
       "UNIT_HOURS": "hours",
       "UNIT_DAYS": "days",
       "CONTENT_LABEL": "Message",
-      "CONTENT_PLACEHOLDER": "Hi {{contact.first_name}}, …",
-      "CONTENT_HELP": "Use {{contact.name}} or {{contact.first_name}} to personalize.",
+      "CONTENT_PLACEHOLDER": "Hi {'{'}{'{'}contact.first_name{'}'}{'}'}, …",
+      "CONTENT_HELP": "Use {'{'}{'{'}contact.name{'}'}{'}'} or {'{'}{'{'}contact.first_name{'}'}{'}'} to personalize.",
       "SAVE": "Save sequence",
       "CANCEL": "Cancel",
       "NEED_STEP": "Add at least one step with a message."

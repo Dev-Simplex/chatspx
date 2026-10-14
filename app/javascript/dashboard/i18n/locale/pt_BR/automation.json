@@ -440,7 +440,7 @@
         },
         "SEND_EMAIL_TRANSCRIPT": {
           "LABEL": "E-mails",
-          "PLACEHOLDER": "email@exemplo.com, outro@exemplo.com",
+          "PLACEHOLDER": "email{'@'}exemplo.com, outro{'@'}exemplo.com",
           "HINT": "Separe múltiplos endereços por vírgula. A transcrição da conversa é enviada por e-mail."
         },
         "SEND_WEBHOOK_EVENT": {
