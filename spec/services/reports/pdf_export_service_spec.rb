@@ -19,7 +19,7 @@ RSpec.describe Reports::PdfExportService do
 
       expect(result.sha256).to eq(Digest::SHA256.hexdigest(result.bytes))
       expect(result.bytes).to include('ChatSPX')
-      expect(result.bytes).to include('Relatório de NPS')
+      expect(result.bytes).to include('Os clientes indicariam a empresa? (NPS)')
       expect(result.bytes).to include('@font-face')
     end
 
