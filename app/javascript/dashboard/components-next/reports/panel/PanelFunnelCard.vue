@@ -34,6 +34,13 @@ onMounted(async () => {
 });
 watch(funnelId, loadStats);
 
+// O funil de um setor nasce com o nome do time, que o sistema grava em minusculas.
+const displayName = name =>
+  (name || '').replace(
+    /(^|[\s(])(\p{Ll})/gu,
+    (_, space, letter) => `${space}${letter.toUpperCase()}`
+  );
+
 const maxCount = computed(() =>
   Math.max(1, ...stages.value.map(stage => stage.count))
 );
@@ -63,7 +70,7 @@ const maxCount = computed(() =>
           :aria-label="t('REPORTS_PANEL.FUNNEL.TITLE')"
         >
           <option v-for="funnel in funnels" :key="funnel.id" :value="funnel.id">
-            {{ funnel.name }}
+            {{ displayName(funnel.name) }}
           </option>
         </select>
         <router-link
