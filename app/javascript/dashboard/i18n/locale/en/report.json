@@ -1045,12 +1045,19 @@
   "REPORTS_PANEL": {
     "TITLE": "Reports",
     "TABS": {
+      "PANEL": "Panel",
       "OVERVIEW": "Overview",
+      "CONVERSATIONS": "Conversations",
       "AGENTS": "Agents",
+      "ASSIGNMENTS": "Assignments",
+      "ROTATION": "Rotation",
+      "LABELS": "Labels",
+      "INBOXES": "Inboxes",
+      "TEAMS": "Teams",
+      "CSAT": "Satisfaction",
       "NPS": "Recommendation",
       "SLA": "Deadlines",
-      "AI": "Bot",
-      "INBOXES_LABELS": "Inboxes and labels"
+      "AI": "Bot"
     },
     "PERIOD": {
       "TODAY": "Today",
