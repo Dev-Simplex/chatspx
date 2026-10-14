@@ -69,7 +69,9 @@ RSpec.describe Reports::PdfDataResolver do
   describe 'every supported report type' do
     ReportPdfExport::SUPPORTED_REPORT_TYPES.each do |report_type|
       it "resolves #{report_type} without raising and returns a titled hash" do
-        data = described_class.new(account: account, report_type: report_type, filters: {}).resolve
+        filters = {}
+        filters[:funnel_id] = Funnel.create!(account: account, name: 'Vendas', color: '#2563eb', position: 0).id if report_type == 'funnel'
+        data = described_class.new(account: account, report_type: report_type, filters: filters).resolve
         expect(data).to include(:title, :period)
         expect(data[:title]).to be_present
       end
