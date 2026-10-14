@@ -1,8 +1,7 @@
 <script setup>
 import { useRoute } from 'vue-router';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useElementSize } from '@vueuse/core';
 import { duracao, instante } from './tempo';
 
 const props = defineProps({
@@ -30,38 +29,25 @@ const { t } = useI18n();
 //
 // Sobre as cores: nesta skin de WhatsApp o `blue` e o `teal` foram sobrescritos para o MESMO
 // verde (idênticos no tema escuro), então azul não separa fase nenhuma — a da IA passou a ser
-// cinza. As quatro usam texto PRETO porque branco reprova em contraste sobre os tons sólidos
-// (medido: 1,6 a 3,9), enquanto preto passa em todos (5,4 a 13,3).
+// cinza. Os nomes e tempos ficam fora da barra, ao lado de uma bolinha da mesma cor.
 const FASES = computed(() => [
   {
     chave: 'ia',
-    classe: 'bg-n-slate-9 text-n-black',
+    classe: 'bg-n-slate-9',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.IA'),
   },
   {
     chave: 'espera',
-    classe: 'bg-n-amber-9 text-n-black',
+    classe: 'bg-n-amber-9',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ESPERA'),
   },
   {
     chave: 'atendimento',
-    classe: 'bg-n-teal-9 text-n-black',
+    classe: 'bg-n-teal-9',
     nome: t('AGENTS_RODIZIO.TIMELINE.PHASE.ATENDIMENTO'),
   },
 ]);
-const PERDIDO = 'bg-n-ruby-9 text-n-black';
-
-// O rótulo do bloco é decidido em PIXELS, medindo a barra — não em porcentagem dela. A conta em
-// porcentagem mentia: 30% de uma barra que ocupa 8% da tela são uns 20 px, e o texto saía
-// cortado no meio da palavra ("admi", "ad"). Em tela estreita isso acontecia em quase todo lead.
-//
-// Dois degraus: cabendo nome e tempo, mostra os dois; cabendo só o tempo, mostra o tempo; não
-// cabendo nada, o bloco fica limpo — o tooltip e o total ao lado continuam contando tudo.
-const PX_NOME_E_TEMPO = 104;
-const PX_SO_TEMPO = 56;
-
-const barra = ref(null);
-const { width: larguraDaBarra } = useElementSize(barra);
+const PERDIDO = 'bg-n-ruby-9';
 
 const conversa = id => `#${id}`;
 
@@ -91,6 +77,13 @@ const naSituacaoHa = computed(
 );
 const tempo = segundos => duracao(t, segundos);
 const proporcao = (parte, todo) => (todo > 0 ? ((parte || 0) / todo) * 100 : 0);
+
+const inicial = computed(() =>
+  (props.lead.contato || props.lead.telefone || '#')
+    .trim()
+    .charAt(0)
+    .toUpperCase()
+);
 
 // Quem é o lead. O nome do contato manda; sem nome, o número; sem os dois, o #id da conversa.
 const titulo = computed(
@@ -179,23 +172,15 @@ const fases = computed(() =>
     .filter(fase => (fasesVivas.value[fase.chave] || 0) > 0)
     .map(fase => {
       const segundos = fasesVivas.value[fase.chave];
-      const largura = proporcao(segundos, totalVivo.value);
+      // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
       const perdeu = fase.chave === 'espera' && props.lead.perdido_em;
-      const pixels = (largura / 100) * larguraDaBarra.value;
       const duracaoDoBloco = tempo(segundos);
-      let rotulo = '';
-      if (pixels >= PX_NOME_E_TEMPO) {
-        rotulo = `${dono(fase.chave)} · ${duracaoDoBloco}`;
-      } else if (pixels >= PX_SO_TEMPO) {
-        rotulo = duracaoDoBloco;
-      }
-
       return {
         chave: fase.chave,
-        // Espera que terminou sem ninguém pegar é o defeito que a tela existe para mostrar.
         classe: perdeu ? PERDIDO : fase.classe,
-        largura: `${largura}%`,
-        rotulo,
+        largura: `${proporcao(segundos, totalVivo.value)}%`,
+        nome: fase.nome,
+        duracao: duracaoDoBloco,
         titulo: `${fase.nome} · ${dono(fase.chave)} · ${duracaoDoBloco}`,
       };
     })
@@ -239,70 +224,99 @@ const marcos = computed(() =>
 </script>
 
 <template>
-  <div
-    class="flex flex-col gap-2 p-3 bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak"
+  <article
+    class="flex flex-col gap-3 p-4 border rounded-2xl border-n-weak bg-n-solid-1/70 dark:bg-n-solid-3/60"
   >
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <span class="text-sm font-medium text-n-slate-12">
-        {{ titulo }}
-        <span class="text-xs font-normal tabular-nums text-n-slate-10">
+    <header class="flex flex-wrap items-center gap-3">
+      <span
+        class="flex items-center justify-center text-sm font-semibold rounded-full size-9 shrink-0 bg-n-alpha-2 text-n-slate-12"
+      >
+        {{ inicial }}
+      </span>
+      <div class="flex flex-col min-w-0 flex-1">
+        <span class="text-sm font-semibold truncate text-n-slate-12">
+          {{ titulo }}
+        </span>
+        <span class="text-xs truncate tabular-nums text-n-slate-10">
           {{ contexto }}
         </span>
-      </span>
+      </div>
       <span
         v-if="agora"
-        class="px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap tabular-nums"
+        class="px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap tabular-nums"
         :class="agora.classe"
       >
         {{ selo }}
       </span>
-      <span v-else class="text-xs font-medium" :class="corDesfecho">
+      <span
+        v-else
+        class="text-xs font-medium whitespace-nowrap"
+        :class="corDesfecho"
+      >
         {{ desfecho }}
       </span>
       <a
         :href="conversaUrl"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-xs font-medium text-n-brand hover:underline"
+        class="flex items-center gap-1 px-2.5 h-7 text-xs font-semibold rounded-lg no-underline text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
       >
         {{ t('AGENTS_RODIZIO.OPEN_CONVERSATION') }}
+        <span class="i-lucide-arrow-up-right size-3.5" />
       </a>
-    </div>
+    </header>
 
-    <!-- flex-wrap: em tela estreita o total desce uma linha em vez de espremer a barra. -->
-    <div class="flex flex-wrap items-center gap-2">
-      <!-- `v-tooltip` (floating-vue, global no dashboard) no lugar do `title`: o balão nativo
-           do navegador demora a aparecer e ignora o tema da tela. -->
-      <!-- `min-w`: com o teto de 24 h na escala, um lead de dez minutos virava um fio de poucos
-           pixels, sem texto nenhum. O piso garante que toda barra caiba pelo menos a duração —
-           e o total ao lado desfaz qualquer dúvida de quem é maior. -->
-      <div
-        ref="barra"
-        class="flex h-7 overflow-hidden rounded-md ring-1 ring-inset ring-n-black/10 min-w-[7rem] max-w-full"
-        :style="{ width: largura }"
-      >
-        <div
-          v-for="fase in fases"
-          :key="fase.chave"
-          v-tooltip.top="fase.titulo"
-          class="flex items-center px-2 overflow-hidden text-[11px] font-medium tracking-tight tabular-nums whitespace-nowrap min-w-[3px]"
-          :class="fase.classe"
-          :style="{ width: fase.largura }"
-        >
-          {{ fase.rotulo }}
+    <!-- A trilha ocupa a linha toda e a parte cheia segue a escala comum da lista: o
+         comprimento compara um lead com o outro, o total ao lado mede. -->
+    <div class="flex items-center gap-3">
+      <div class="flex-1 h-2 overflow-hidden rounded-full bg-n-alpha-2">
+        <div class="flex h-full" :style="{ width: largura }">
+          <!-- `v-tooltip` (floating-vue, global no dashboard): o balão nativo demora e ignora o tema. -->
+          <div
+            v-for="fase in fases"
+            :key="fase.chave"
+            v-tooltip.top="fase.titulo"
+            class="h-full min-w-[3px]"
+            :class="fase.classe"
+            :style="{ width: fase.largura }"
+          />
         </div>
       </div>
-      <span class="text-xs whitespace-nowrap tabular-nums text-n-slate-10">
+      <span
+        class="text-sm font-semibold whitespace-nowrap tabular-nums text-n-slate-12"
+      >
         {{ total }}
       </span>
     </div>
 
     <div
-      class="flex flex-wrap text-xs tabular-nums gap-x-4 gap-y-1 text-n-slate-10"
+      class="flex flex-wrap items-center text-xs gap-x-4 gap-y-1 tabular-nums text-n-slate-11"
     >
-      <span v-for="marco in marcos" :key="marco.chave">
-        {{ marco.texto }}
+      <span
+        v-for="fase in fases"
+        :key="fase.chave"
+        class="inline-flex items-center gap-1.5"
+      >
+        <span class="rounded-full size-2" :class="fase.classe" />
+        {{ fase.nome }}
+        <span class="font-medium text-n-slate-12">{{ fase.duracao }}</span>
       </span>
     </div>
-  </div>
+
+    <ol
+      class="flex flex-wrap items-center p-0 m-0 text-xs list-none gap-x-1.5 gap-y-1 tabular-nums text-n-slate-10"
+    >
+      <li
+        v-for="(marco, i) in marcos"
+        :key="marco.chave"
+        class="inline-flex items-center gap-1.5"
+      >
+        <span
+          v-if="i > 0"
+          class="i-lucide-chevron-right size-3 text-n-slate-9"
+        />
+        {{ marco.texto }}
+      </li>
+    </ol>
+  </article>
 </template>

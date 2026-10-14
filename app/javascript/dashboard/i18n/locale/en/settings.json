@@ -222,7 +222,8 @@
       "HANDOFF": "Hand-over: another consultant did not take it in time and the lead went to them.",
       "MANUAL": "Manager: the manager chose them.",
       "OPEN": "Open: leads given to them that they have not taken yet."
-    }
+    },
+    "LEGEND_TITLE": "How to read the table"
   },
   "AGENTS_EVALUATION": {
     "TITLE": "Evaluation",

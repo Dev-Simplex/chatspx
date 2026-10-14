@@ -222,7 +222,8 @@
       "HANDOFF": "Repasse: outro consultor não assumiu a tempo e o lead passou para ele.",
       "MANUAL": "Gestor: o gestor escolheu ele.",
       "OPEN": "Em aberto: leads entregues que ele ainda não assumiu."
-    }
+    },
+    "LEGEND_TITLE": "Como ler a tabela"
   },
   "AGENTS_EVALUATION": {
     "TITLE": "Avaliação",
