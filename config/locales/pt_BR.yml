@@ -680,10 +680,13 @@ pt_BR:
     hours: '%{h} h %{m} min'
     days: '%{d} d %{h} h'
     meta_batida:
-      resolved_conversations: '%{name} bateu a meta do mês: %{actual} de %{goal} conversas resolvidas'
-      first_response_time: '%{name} bateu a meta do mês: primeira resposta em %{actual} min (meta: %{goal} min)'
-      nps: '%{name} bateu a meta do mês: NPS %{actual} (meta: %{goal})'
-      kanban_wins: '%{name} bateu a meta do mês: %{actual} de %{goal} negócios ganhos'
+      message:
+        one: '%{name} bateu a meta do mês: %{parts}'
+        other: '%{name} bateu %{count} metas do mês: %{parts}'
+      resolved_conversations: '%{actual} de %{goal} conversas resolvidas'
+      first_response_time: 'primeira resposta em %{actual} min (meta: %{goal} min)'
+      nps: 'NPS %{actual} (meta: %{goal})'
+      kanban_wins: '%{actual} de %{goal} negócios ganhos'
   kanban:
     funnels:
       team_required: 'Selecione um time para o funil. Como agente, você só pode criar funis vinculados a um dos seus times.'

@@ -7,8 +7,9 @@
 #                 com o mesmo recorte por time: a conversa do lead está no time da sala.
 #   meta_batida — alguém do time atingiu a meta do mês num indicador (PerformanceGoals::RankingService).
 #
-# Cada aviso leva uma chave em content_attributes['alert']['key'] e só é postado se a sala ainda não tem
-# mensagem com ela: um aviso por lead e ciclo de designação, um por pessoa, indicador e mês.
+# Cada aviso leva suas chaves em content_attributes['alert']['keys'] e só posta o que a sala ainda não tem:
+# um aviso por lead e ciclo de designação; na meta, uma chave por pessoa, indicador e mês, mas as metas que a
+# mesma pessoa bate de uma vez saem num aviso só. Avisos antigos guardam uma única chave em ['alert']['key'].
 class InternalChannels::AutoAlertsService
   EVENTS = %w[lead_parado meta_batida].freeze
   ICONS = { 'lead_parado' => 'i-lucide-alarm-clock', 'meta_batida' => 'i-lucide-trophy' }.freeze
@@ -53,24 +54,35 @@ class InternalChannels::AutoAlertsService
     month = PerformanceGoals::Month.current(@account)
     rows = PerformanceGoals::RankingService.new(account: @account, month: month, scope: 'users', team_id: @channel.team_id).perform[:rows]
     rows.each do |row|
-      row[:metrics].each do |metric, data|
-        next unless data[:attainment].to_f >= 1
-
-        text = I18n.t("internal_chat_alerts.meta_batida.#{metric}",
-                      name: row[:name], actual: number(data[:actual]), goal: number(data[:goal]))
-        post("meta_batida:#{row[:id]}:#{metric}:#{month.strftime('%Y-%m')}", text)
-      end
+      hit = row[:metrics].select { |_metric, data| data[:attainment].to_f >= 1 }
+                         .to_h { |metric, data| ["meta_batida:#{row[:id]}:#{metric}:#{month.strftime('%Y-%m')}", [metric, data]] }
+                         .reject { |key, _| posted?(key) }
+      post(hit.keys, meta_batida_text(row[:name], hit.values)) if hit.any?
     end
   end
 
-  def post(key, content, conversation_id = nil)
-    return if @channel.messages.exists?(["content_attributes -> 'alert' ->> 'key' = ?", key])
+  # Uma frase por pessoa: "Ana bateu 2 metas do mês: 12 de 10 conversas resolvidas; NPS 80 (meta: 70)".
+  def meta_batida_text(name, metrics)
+    parts = metrics.map do |metric, data|
+      I18n.t("internal_chat_alerts.meta_batida.#{metric}", actual: number(data[:actual]), goal: number(data[:goal]))
+    end
+    I18n.t('internal_chat_alerts.meta_batida.message', count: parts.size, name: name, parts: parts.join('; '))
+  end
 
-    kind = key.split(':').first
+  def posted?(key)
+    @channel.messages.exists?(["content_attributes -> 'alert' ->> 'key' = :key OR " \
+                               "jsonb_exists(content_attributes -> 'alert' -> 'keys', :key)", { key: key }])
+  end
+
+  def post(keys, content, conversation_id = nil)
+    keys = Array(keys)
+    return if keys.all? { |key| posted?(key) }
+
+    kind = keys.first.split(':').first
 
     message = @channel.messages.create!(
       message_type: :system, content: content, shared_conversation_id: conversation_id,
-      content_attributes: { 'icon' => ICONS[kind], 'alert' => { 'kind' => kind, 'key' => key } }
+      content_attributes: { 'icon' => ICONS[kind], 'alert' => { 'kind' => kind, 'keys' => keys } }
     )
     InternalMessages::BroadcastService.created(message)
   end

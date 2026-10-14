@@ -69,6 +69,10 @@
     "NO_MENTIONS": "Nenhuma menção ainda.",
     "NO_RESULTS": "Nenhuma mensagem encontrada.",
     "SEARCH_MIN_HINT": "Digite ao menos 2 caracteres para buscar.",
+    "DELETE_UNDO": {
+      "DONE": "Mensagem apagada.",
+      "UNDO": "Desfazer"
+    },
     "DELETE_Q": "Apagar para todos?",
     "SAVE_EDIT": "Salvar",
     "TYPING_ONE": "{name} está digitando…",

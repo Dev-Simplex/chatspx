@@ -62,6 +62,14 @@ export default {
           {{ action.message }}
         </router-link>
       </div>
+      <button
+        v-else-if="action?.type === 'button'"
+        type="button"
+        class="text-sm font-semibold uppercase select-none text-n-teal-9 hover:text-n-teal-8"
+        @click="action.onClick()"
+      >
+        {{ action.message }}
+      </button>
     </div>
   </div>
 </template>

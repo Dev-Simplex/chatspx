@@ -68,6 +68,26 @@ RSpec.describe InternalChannels::AutoAlertsService do
       expect(channel.messages.pluck(:content)).to eq(['Emily Santos bateu a meta do mês: 12 de 10 conversas resolvidas'])
     end
 
+    it 'junta num aviso só as metas que a pessoa bate de uma vez e avisa depois só da nova' do
+      rows.first[:metrics]['nps'] = { actual: 80, goal: 70.0, attainment: 1.14 }
+      described_class.new(channel).perform
+      rows.first[:metrics]['kanban_wins'] = { actual: 5, goal: 4.0, attainment: 1.25 }
+      described_class.new(channel).perform
+
+      expect(channel.messages.order(:id).pluck(:content)).to eq(
+        ['Emily Santos bateu 2 metas do mês: 12 de 10 conversas resolvidas; NPS 80 (meta: 70)',
+         'Emily Santos bateu a meta do mês: 5 de 4 negócios ganhos']
+      )
+    end
+
+    it 'não repete a meta já avisada no formato antigo, de uma chave só' do
+      month = PerformanceGoals::Month.current(account).strftime('%Y-%m')
+      channel.messages.create!(message_type: :system, content: 'antigo',
+                               content_attributes: { 'alert' => { 'key' => "meta_batida:#{consultor.id}:resolved_conversations:#{month}" } })
+
+      expect { described_class.new(channel).perform }.not_to change(InternalMessage, :count)
+    end
+
     it 'avisa de novo no mês seguinte' do
       described_class.new(channel).perform
       travel_to(1.month.from_now) { described_class.new(channel).perform }

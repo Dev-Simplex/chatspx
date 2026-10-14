@@ -63,6 +63,8 @@ const searchOpen = ref(false);
 const searchQuery = ref('');
 const showInfo = ref(false);
 const showManage = ref(false);
+// Mensagens apagadas aguardando o "Desfazer" (ver onDelete).
+const pendingDeletes = ref(new Set());
 
 // Silenciar: conversa silenciada não toca som nem mostra aviso (menção ainda
 // avisa). Fica nas preferências do usuário; o Sidebar global respeita a lista.
@@ -443,7 +445,7 @@ const threadItems = computed(() => {
       replyTo: m.reply_to || null,
       sharedConversation: m.shared_conversation || null,
       edited: Boolean(m.edited),
-      deleted: Boolean(m.deleted),
+      deleted: Boolean(m.deleted) || pendingDeletes.value.has(m.id),
       status: m.status,
       uploadProgress: m.upload_progress ?? null,
       mentionedUserIds: m.mentioned_user_ids || [],
@@ -625,14 +627,34 @@ const onEdit = ({ messageId, content }) => {
     .catch(failAlert);
 };
 
+// Apagar espera alguns segundos antes de ir ao servidor: o aviso oferece
+// "Desfazer". Enquanto espera, o balão já aparece como apagado só para mim.
+const DELETE_UNDO_MS = 5000;
+const setPendingDelete = (id, pending) => {
+  const next = new Set(pendingDeletes.value);
+  if (pending) next.add(id);
+  else next.delete(id);
+  pendingDeletes.value = next;
+};
 const onDelete = messageId => {
-  if (!activeId.value) return;
-  store
-    .dispatch('internalChat/deleteMessage', {
-      channelId: activeId.value,
-      messageId,
-    })
-    .catch(failAlert);
+  const channelId = activeId.value;
+  if (!channelId) return;
+  setPendingDelete(messageId, true);
+  const timer = setTimeout(() => {
+    store
+      .dispatch('internalChat/deleteMessage', { channelId, messageId })
+      .catch(failAlert)
+      .finally(() => setPendingDelete(messageId, false));
+  }, DELETE_UNDO_MS);
+  useAlert(t('INTERNAL_CHAT.DELETE_UNDO.DONE'), {
+    type: 'button',
+    message: t('INTERNAL_CHAT.DELETE_UNDO.UNDO'),
+    duration: DELETE_UNDO_MS,
+    onClick: () => {
+      clearTimeout(timer);
+      setPendingDelete(messageId, false);
+    },
+  });
 };
 
 // Reenvia uma bolha que falhou (reusa o echo_id para reconciliar no lugar).
@@ -819,6 +841,32 @@ const confirmLeave = async () => {
 
 // "Limpar conversa" pede confirmação antes de esconder as mensagens.
 const showClearConfirm = ref(false);
+
+// Janela fechada devolve o foco a quem a abriu (o ⋮, o botão do balão…),
+// para quem usa teclado continuar de onde estava.
+let dialogOpener = null;
+watch(
+  () =>
+    Boolean(
+      showManage.value ||
+        showLeaveConfirm.value ||
+        showClearConfirm.value ||
+        forwarding.value ||
+        infoMessage.value
+    ),
+  open => {
+    if (open) {
+      dialogOpener = document.activeElement;
+      return;
+    }
+    const el = dialogOpener;
+    dialogOpener = null;
+    nextTick(() => {
+      if (el?.isConnected && el !== document.body) el.focus();
+    });
+  }
+);
+
 const onClear = () => {
   if (activeId.value == null) return;
   showClearConfirm.value = true;

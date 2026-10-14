@@ -61,8 +61,11 @@ const canLeave = computed(
 );
 
 // Fecha o menu; o item emite o próprio evento logo em seguida.
+// Fecha o menu e devolve o foco ao ⋮: a janela que o item abrir volta para ele ao fechar.
+const moreButton = ref(null);
 const pick = () => {
   showMenu.value = false;
+  moreButton.value?.focus();
 };
 </script>
 
@@ -158,6 +161,7 @@ const pick = () => {
       <!-- Mais opções -->
       <div class="relative">
         <button
+          ref="moreButton"
           v-tooltip="t('INTERNAL_CHAT.HEADER.MORE')"
           type="button"
           class="inline-flex items-center justify-center transition-colors rounded-full size-9 hover:bg-n-alpha-2 hover:text-n-slate-12"
