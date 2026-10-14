@@ -168,7 +168,7 @@ const toggleAlert = async (event, value) => {
         :aria-label="t('INTERNAL_CHAT.INFO.CLOSE')"
         @click="$emit('close')"
       >
-        <span class="text-lg i-lucide-x" />
+        <span class="size-5 i-lucide-x" />
       </button>
     </header>
 

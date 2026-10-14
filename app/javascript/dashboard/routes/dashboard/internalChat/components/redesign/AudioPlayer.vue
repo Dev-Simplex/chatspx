@@ -202,10 +202,10 @@ onBeforeUnmount(() => {
       >
         <span
           v-if="status === 'loading'"
-          class="i-lucide-loader-circle animate-spin"
+          class="size-4 i-lucide-loader-circle animate-spin"
         />
-        <span v-else-if="status === 'playing'" class="i-lucide-pause" />
-        <span v-else class="i-lucide-play" />
+        <span v-else-if="status === 'playing'" class="size-4 i-lucide-pause" />
+        <span v-else class="size-4 i-lucide-play" />
         <!-- Ainda não ouvido (áudio recebido): ponto no play, como no WhatsApp -->
         <span
           v-if="!heard"
