@@ -65,8 +65,8 @@ class Reports::PdfExportService
   # borda fisica). O padding-top recoloca o conteudo no centro da faixa visivel.
   # Abaixo da faixa, o resto da margem fica no cinza da pagina, sem tira branca.
   def header_template(title)
-    icon = pdf_public_image_data_uri('android-icon-36x36.png')
-    # Icone ChatSPX (verde) recolorido p/ branco via filtro — fundo 100% verde, sem badge.
+    # Logo fixo da marca, recolorido p/ branco; os android-icon-* mudam nas campanhas sazonais.
+    icon = pdf_public_image_data_uri('brand-assets/logo-pdf.png')
     icon_style = 'width:14px;height:14px;display:block;flex:none;' \
                  'filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1);'
     icon_html = icon ? %(<img src="#{icon}" style="#{icon_style}">) : ''
