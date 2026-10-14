@@ -3,14 +3,17 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { usePolicy } from 'dashboard/composables/usePolicy';
+import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 
 // Todos os Relatorios, em pilula, no cabecalho de cada tela, na ordem do menu
 // lateral. A aba acende na tela do assunto e some, como no menu, para quem nao
-// tem a permissao ou o recurso da rota (o Rodizio e so de admin).
+// tem a permissao ou o recurso da rota (o Rodizio e so de admin) e quando a conta
+// nao ligou o que o relatorio mede (CSAT, NPS, SLA).
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { shouldShow } = usePolicy();
+const { isReportEnabled } = useReportFeatures();
 
 const ALL_TABS = [
   { key: 'panel', label: 'PANEL', name: 'reports_panel' },
@@ -58,6 +61,7 @@ const ALL_TABS = [
 
 const tabs = computed(() =>
   ALL_TABS.filter(tab => {
+    if (!isReportEnabled(tab.name)) return false;
     const { meta } = router.resolve({ name: tab.name, params: route.params });
     return shouldShow(
       meta.featureFlag,
