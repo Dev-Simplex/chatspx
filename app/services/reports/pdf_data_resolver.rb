@@ -218,7 +218,19 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= CSAT =======================
   def csat_verdict(kpis)
+    return csat_no_answers_verdict if kpis[:total].zero?
+
     metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Clientes satisfeitos')
+  end
+
+  # Sem resposta o indice seria 0% e o cartao sairia vermelho; como no NPS de amostra baixa, avisa.
+  def csat_no_answers_verdict
+    {
+      kind: :attention, emoji: 'ℹ️', title: 'Sem respostas no período',
+      level: :warn, word: 'sem respostas', metric_label: 'Clientes satisfeitos',
+      value_human: '--', goal_human: metric_goal_human(:csat),
+      body: 'Ninguém respondeu à pesquisa de satisfação neste período, então ainda não dá para dizer se os clientes ficaram satisfeitos.'
+    }
   end
 
   def csat_data

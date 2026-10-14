@@ -52,6 +52,14 @@ RSpec.describe Reports::PdfDataResolver do
     end
   end
 
+  describe '#resolve for csat' do
+    it 'does not paint 0% satisfaction red when nobody answered the survey' do
+      verdict = described_class.new(account: account, report_type: 'csat', filters: {}).resolve[:verdict]
+
+      expect(verdict).to include(title: 'Sem respostas no período', level: :warn, value_human: '--')
+    end
+  end
+
   it 'raises for an unknown report_type' do
     expect do
       described_class.new(account: account, report_type: 'nope', filters: {}).resolve
