@@ -80,8 +80,9 @@ const fetchActiveContact = async () => {
   if (route.params.contactId) {
     await store.dispatch('contacts/show', { id: route.params.contactId });
     // Deleted or merged contact: show() already swallowed the 404, and asking
-    // for its inboxes would only throw a second, unhandled 404.
-    if (!selectedContact.value) {
+    // for its inboxes would only throw a second, unhandled 404. The getter
+    // returns {} for an unknown id, so check the id, not the object.
+    if (!selectedContact.value.id) {
       contactNotFound.value = true;
       return;
     }
