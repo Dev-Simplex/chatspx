@@ -69,7 +69,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     kpis = nps_kpis(calc, cohort)
 
     {
-      report_type: 'nps', title: 'Os clientes indicariam a empresa? (NPS)', period: period_meta,
+      report_type: 'nps', title: 'Avaliações (NPS)', period: period_meta,
       overline: 'Experiência do Cliente · Confidencial',
       subtitle: nps_subtitle(kpis),
       base_label: "#{kpis[:total]} avaliações válidas",
@@ -954,7 +954,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def funnel_data
     funnel = @account.funnels.find(@filters[:funnel_id])
     report = Kanban::FunnelReportService.new(funnel: funnel).perform
-    funnel_payload(funnel.name, report)
+    funnel_payload(funnel_display_name(funnel.name), report)
+  end
+
+  # Mesma regra do Painel (PanelFunnelCard): inicial maiuscula em cada palavra, sem mexer no resto.
+  def funnel_display_name(name)
+    name.to_s.gsub(/(^|[\s(])(\p{Ll})/) { "#{Regexp.last_match(1)}#{Regexp.last_match(2).upcase}" }
   end
 
   def funnel_payload(name, report)
