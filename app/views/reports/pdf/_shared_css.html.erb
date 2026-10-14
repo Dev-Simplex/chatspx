@@ -3,7 +3,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  background: #ffffff;
+  background: #f9fafb;
   color: #111b21;
   font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
   font-size: 11px;
@@ -20,10 +20,10 @@ html, body {
 
 <%# Margens (topo p/ a faixa de marca, base p/ o rodape) vem do pdf_options no
     Reports::PdfExportService. Aqui so a dimensao da pagina; laterais 0 = full-bleed. %>
-/* Pagina 1: o conteudo (faixa verde grande) encosta na faixa do cabecalho. Demais paginas: 6 mm de respiro
-   entre a faixa e o conteudo, senao a tabela parece cortada pela faixa. A faixa tem altura fixa (pdf_export_service). */
+/* 6 mm de respiro cinza entre a faixa do cabecalho e o conteudo em toda pagina, senao a tabela parece cortada
+   pela faixa. O cabecalho (pdf_export_service) pinta esse respiro de cinza; a margem e a mesma em todas as paginas
+   para o cinza nao cobrir o conteudo da primeira. */
 @page { size: A4; margin: 22mm 0 11mm; }
-@page :first { margin-top: 16mm; }
 
 .page {
   width: 210mm;
