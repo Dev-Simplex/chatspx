@@ -626,7 +626,7 @@ defineExpose({ openCompose, focusSearch });
           type="text"
           :placeholder="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
           :aria-label="t('INTERNAL_CHAT.LIST.SEARCH_PLACEHOLDER')"
-          class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-n-teal-9 dark:!border-n-teal-9 hover:border-n-teal-10 outline-none rounded-full focus:border-n-teal-10 dark:focus:!border-n-teal-10 text-n-slate-12 placeholder:text-n-slate-10"
+          class="reset-base w-full h-9 pl-9 pr-3 text-sm transition-colors border border-transparent outline-none rounded-full bg-n-alpha-2 focus:border-n-teal-9 dark:focus:!border-n-teal-9 focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10"
           @input="onSearchInput"
           @keydown.esc="onSearchEsc"
         />
@@ -638,11 +638,11 @@ defineExpose({ openCompose, focusSearch });
       <button
         v-tooltip="t('INTERNAL_CHAT.AUDIT.HINT')"
         type="button"
-        class="flex items-center justify-between w-full gap-2 px-3 py-1.5 text-xs font-medium transition-colors border border-solid rounded-full"
+        class="flex items-center justify-between w-full gap-2 px-3 py-1.5 text-xs font-medium transition-colors rounded-full"
         :class="
           auditMode
-            ? 'text-n-teal-11 border-n-teal-9 bg-n-alpha-1'
-            : 'text-n-slate-11 border-n-teal-9 hover:border-n-teal-10 hover:bg-n-alpha-1'
+            ? 'text-n-teal-11 bg-n-alpha-2'
+            : 'text-n-slate-11 bg-n-alpha-1 hover:bg-n-alpha-2'
         "
         @click="$emit('toggleAudit')"
       >
