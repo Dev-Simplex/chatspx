@@ -47,6 +47,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def create
+    return render json: { status: 'suppressed', reason: 'whatsapp_broadcast' }, status: :ok if whatsapp_broadcast_chat?
     return render json: { status: 'suppressed' }, status: :ok if waha_echo?
     return render json: { status: 'suppressed' }, status: :ok if waha_edit_error_notification?
     return render json: { status: 'suppressed', reason: 'waha_error_message' }, status: :ok if waha_error_message?(params[:content])
@@ -299,6 +300,13 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def render_whatsapp_invalid_error
     render_could_not_create_error(I18n.t('errors.contacts.whatsapp_validation.not_registered'))
+  end
+
+  # CHAT-170: a app `chatwoot` da WAHA cria a conversa pela API pública (filtrada lá), mas posta
+  # as mensagens por AQUI, no id que guardou. Conversa de status/lista criada antes do filtro
+  # seguia recebendo stories — e cada uma acionava a IA e a descrição de imagem.
+  def whatsapp_broadcast_chat?
+    Whatsapp::BroadcastChat.contact?(@conversation.contact)
   end
 
   def waha_echo?
