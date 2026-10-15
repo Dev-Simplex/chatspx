@@ -702,6 +702,7 @@ pt_BR:
       template_without_primeiro_nome: 'o template configurado precisa do nome do contato, e o contato não tem nome'
       template_without_texto: 'a mensagem agendada não tem texto para preencher o template'
       discarded_by_assistant_review: 'o agente de IA revisou no horário e decidiu não enviar'
+      contact_outside_test_lock: 'o contato não está na lista de telefones de teste do agente de IA'
     activity:
       assistant_not_sent: 'A mensagem agendada pelo agente de IA não foi enviada: %{reason}.'
   auto_assignment:
