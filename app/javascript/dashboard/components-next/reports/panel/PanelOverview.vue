@@ -7,10 +7,15 @@ import format from 'date-fns/format';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import ReportsAPI from 'dashboard/api/reports';
 import SummaryReportsAPI from 'dashboard/api/summaryReports';
+import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 import CsatReportsAPI from 'dashboard/api/csatReports';
 import NpsReportsAPI from 'dashboard/api/npsReports';
 import SLAReportsAPI from 'dashboard/api/slaReports';
-import { formatDuration, formatPercent } from 'dashboard/helper/reportFormat';
+import {
+  formatDuration,
+  formatPercent,
+  teamDisplayName,
+} from 'dashboard/helper/reportFormat';
 import PanelKpiCard from './PanelKpiCard.vue';
 import PanelShortcutCard from './PanelShortcutCard.vue';
 import PanelVolumeChart from './PanelVolumeChart.vue';
@@ -37,6 +42,7 @@ const teams = useMapGetter('teams/getTeams');
 
 const summary = ref(null);
 const previous = ref(null);
+const { enabled } = useReportFeatures();
 const csat = ref(null);
 const csatPrevious = ref(null);
 const nps = ref(null);
@@ -100,7 +106,9 @@ const loadTeams = async () => {
     .filter(row => row.avg_first_response_time > 0)
     .map(row => ({
       id: row.id,
-      name: teams.value.find(team => team.id === row.id)?.name || `#${row.id}`,
+      name:
+        teamDisplayName(teams.value.find(team => team.id === row.id)?.name) ||
+        `#${row.id}`,
       seconds: row.avg_first_response_time,
     }));
 };
@@ -167,7 +175,7 @@ const kpis = computed(() => {
   const before = previous.value;
   if (!now) return [];
   const csatNow = satisfaction(csat.value);
-  return [
+  const list = [
     {
       key: 'conversations_count',
       icon: 'i-lucide-messages-square',
@@ -207,7 +215,10 @@ const kpis = computed(() => {
       better: 'higher',
       clickable: now.resolutions_count > 0,
     },
-    {
+  ];
+  // Satisfação só entra quando alguma caixa de entrada pede a pesquisa.
+  if (enabled.value.csat) {
+    list.push({
       key: 'csat',
       icon: 'i-lucide-smile',
       label: t('REPORTS_PANEL.KPI.CSAT'),
@@ -222,13 +233,14 @@ const kpis = computed(() => {
       change: changePct(csatNow, satisfaction(csatPrevious.value)),
       better: 'higher',
       to: { name: 'csat_reports' },
-    },
-  ];
+    });
+  }
+  return list;
 });
 
 const shortcuts = computed(() => {
   const list = [];
-  if (nps.value) {
+  if (enabled.value.nps && nps.value) {
     const answered = nps.value.total_count > 0;
     list.push({
       key: 'nps',
@@ -245,7 +257,7 @@ const shortcuts = computed(() => {
       to: { name: 'nps_reports' },
     });
   }
-  if (sla.value) {
+  if (enabled.value.sla && sla.value) {
     const total = sla.value.total_applied_slas || 0;
     const misses = sla.value.number_of_sla_misses || 0;
     list.push({
@@ -282,10 +294,12 @@ const shortcuts = computed(() => {
 
 const verdictSignals = computed(() => [
   ...(summary.value?.signals || []),
-  ...(csat.value?.signals || []),
+  ...(enabled.value.csat ? csat.value?.signals || [] : []),
   // NPS com poucas respostas nao entra no julgamento (a nota ainda nao e confiavel)
-  ...(nps.value?.reliable === false ? [] : nps.value?.signals || []),
-  ...(sla.value?.signals || []),
+  ...(!enabled.value.nps || nps.value?.reliable === false
+    ? []
+    : nps.value?.signals || []),
+  ...(enabled.value.sla ? sla.value?.signals || [] : []),
 ]);
 
 const hasVolume = computed(() =>
@@ -313,7 +327,10 @@ watch(teams, () => loadTeams().catch(() => {}));
 <template>
   <div class="flex flex-col gap-4">
     <ReportVerdict v-if="summary" :signals="verdictSignals" />
-    <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section
+      class="grid grid-cols-2 gap-3"
+      :class="kpis.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'"
+    >
       <template v-for="kpi in kpis" :key="kpi.key">
         <router-link v-if="kpi.to" :to="kpi.to" class="flex no-underline">
           <PanelKpiCard

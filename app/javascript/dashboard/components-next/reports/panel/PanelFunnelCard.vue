@@ -1,7 +1,11 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useToggle } from '@vueuse/core';
 import KanbanAPI from 'dashboard/api/kanban';
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
+import Button from 'dashboard/components-next/button/Button.vue';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 
 // Quantos cards estao em cada etapa do funil agora (o funil e uma foto do momento,
 // nao depende do periodo). Com mais de um funil, da para escolher qual mostrar.
@@ -14,8 +18,13 @@ const stages = ref([]);
 
 const loadStats = async () => {
   if (!funnelId.value) return;
-  const { data } = await KanbanAPI.getFunnelStats(funnelId.value);
-  stages.value = data.stages || [];
+  try {
+    const { data } = await KanbanAPI.getFunnelStats(funnelId.value);
+    stages.value = data.stages || [];
+  } catch {
+    // Sem os numeros deste funil, nao deixa os do funil anterior na tela.
+    stages.value = [];
+  }
 };
 
 onMounted(async () => {
@@ -28,6 +37,24 @@ onMounted(async () => {
   funnelId.value = funnels.value[0].id;
 });
 watch(funnelId, loadStats);
+
+// Mesmo seletor das outras telas de relatorio (botao + DropdownMenu), no lugar do select nativo.
+const [showFunnels, toggleFunnels] = useToggle();
+const funnelItems = computed(() =>
+  funnels.value.map(funnel => ({
+    action: 'select',
+    value: funnel.id,
+    label: teamDisplayName(funnel.name),
+    isSelected: funnel.id === funnelId.value,
+  }))
+);
+const funnelLabel = computed(
+  () => funnelItems.value.find(item => item.isSelected)?.label
+);
+const pickFunnel = ({ value }) => {
+  toggleFunnels(false);
+  funnelId.value = value;
+};
 
 const maxCount = computed(() =>
   Math.max(1, ...stages.value.map(stage => stage.count))
@@ -51,16 +78,29 @@ const maxCount = computed(() =>
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <select
+        <div
           v-if="funnels.length > 1"
-          v-model="funnelId"
-          class="h-8 py-0 m-0 text-sm w-auto max-w-48"
-          :aria-label="t('REPORTS_PANEL.FUNNEL.TITLE')"
+          v-on-clickaway="() => toggleFunnels(false)"
+          class="relative"
         >
-          <option v-for="funnel in funnels" :key="funnel.id" :value="funnel.id">
-            {{ funnel.name }}
-          </option>
-        </select>
+          <Button
+            sm
+            slate
+            faded
+            :label="funnelLabel"
+            :aria-label="t('REPORTS_PANEL.FUNNEL.TITLE')"
+            icon="i-lucide-chevron-down"
+            trailing-icon
+            class="max-w-48"
+            @click="toggleFunnels()"
+          />
+          <DropdownMenu
+            v-if="showFunnels"
+            :menu-items="funnelItems"
+            class="mt-1 top-full ltr:right-0 rtl:left-0 max-h-72 overflow-y-auto"
+            @action="pickFunnel"
+          />
+        </div>
         <router-link
           :to="{ name: 'kanban_funnel', params: { funnelId } }"
           class="flex items-center gap-1.5 h-8 px-3 text-sm font-semibold rounded-lg text-n-slate-12 no-underline hover:bg-n-alpha-2"
@@ -71,16 +111,22 @@ const maxCount = computed(() =>
       </div>
     </div>
 
-    <ul class="flex flex-col gap-2 p-0 m-0 mt-4 list-none">
+    <!-- A coluna do nome cresce ate o nome mais longo (subgrid alinha as barras de todas as linhas);
+         nome longo demais quebra em duas linhas em vez de ser cortado. -->
+    <ul
+      class="grid grid-cols-[auto_1fr_3rem] gap-x-3 gap-y-2 p-0 m-0 mt-4 list-none"
+    >
       <li
         v-for="stage in stages"
         :key="stage.id"
-        class="grid items-center grid-cols-[8rem_1fr_3rem] gap-3"
+        class="grid items-center col-span-3 grid-cols-subgrid"
       >
-        <span class="text-sm text-n-slate-11 truncate" :title="stage.name">
+        <span
+          class="text-sm leading-tight text-n-slate-11 max-w-48 break-words"
+        >
           {{ stage.name }}
         </span>
-        <span class="flex justify-center">
+        <span class="flex justify-start">
           <span
             class="block h-6 rounded-md bg-n-blue-9"
             :style="{

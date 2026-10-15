@@ -1,6 +1,13 @@
 <script setup>
 import Spinner from 'shared/components/Spinner.vue';
+import ReportLiveDot from 'dashboard/components-next/reports/ui/ReportLiveDot.vue';
+import {
+  GLASS_CARD,
+  SECTION_TITLE,
+} from 'dashboard/components-next/reports/ui/styles';
 
+// Cartao ao vivo da Visao Geral, no desenho dos outros relatorios (vidro, titulo forte,
+// ponto pulsando de "em tempo real"). Os dados continuam vindo de quem usa o cartao.
 defineProps({
   header: {
     type: String,
@@ -18,47 +25,34 @@ defineProps({
 </script>
 
 <template>
-  <div
-    class="flex flex-col px-6 py-5 rounded-xl flex-grow text-n-slate-12 bg-n-solid-1 border border-n-weak min-h-[10rem]"
+  <section
+    class="flex flex-col flex-grow min-w-0 p-5 text-n-slate-12"
+    :class="GLASS_CARD"
   >
-    <div
-      class="card-header grid w-full mb-6 grid-cols-[repeat(auto-fit,minmax(max-content,50%))] gap-y-2"
-    >
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <slot name="header">
-        <div class="flex items-center gap-2 flex-row">
-          <h5 class="mb-0 text-n-slate-12 font-semibold text-base">
-            {{ header }}
-          </h5>
+        <h2 class="flex items-center gap-2" :class="SECTION_TITLE">
+          <ReportLiveDot />
+          {{ header }}
           <span
-            class="flex flex-row items-center py-0.5 px-2 rounded-full bg-n-brand/10 text-xs"
+            class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-n-teal-3 text-n-teal-11"
           >
-            <span
-              class="bg-n-brand h-1.5 w-1.5 rounded-full mr-1 rtl:mr-0 rtl:ml-0"
-            />
-            <span class="text-xs text-n-brand font-medium">
-              {{ $t('OVERVIEW_REPORTS.LIVE') }}
-            </span>
+            {{ $t('OVERVIEW_REPORTS.LIVE') }}
           </span>
-        </div>
+        </h2>
         <div class="flex flex-row items-center justify-end gap-2">
           <slot name="control" />
         </div>
       </slot>
     </div>
-    <div
-      v-if="!isLoading"
-      class="card-body max-w-full w-full ml-auto mr-auto justify-between flex"
-    >
+    <div v-if="!isLoading" class="flex justify-between w-full max-w-full">
       <slot />
     </div>
-    <div
-      v-else-if="isLoading"
-      class="items-center flex text-base justify-center px-12 py-6"
-    >
+    <div v-else class="flex items-center justify-center px-12 py-6 text-base">
       <Spinner />
       <span class="text-n-slate-11">
         {{ loadingMessage }}
       </span>
     </div>
-  </div>
+  </section>
 </template>

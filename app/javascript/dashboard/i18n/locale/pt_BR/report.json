@@ -746,7 +746,7 @@
     }
   },
   "NPS_REPORTS": {
-    "HEADER": "Os clientes recomendariam? (NPS)",
+    "HEADER": "Avaliações (NPS)",
     "NO_RECORDS": "Nenhum registro encontrado",
     "DOWNLOAD": "Exportar CSV",
     "DOWNLOAD_FAILED": "Erro ao baixar relatório NPS",
@@ -894,7 +894,7 @@
       }
     },
     "TEAM_CONVERSATIONS": {
-      "ALL_TEAMS": "Todos os Times",
+      "ALL_TEAMS": "Todos os times",
       "HEADER": "Conversas abertas de cada time",
       "LOADING_MESSAGE": "Carregando métricas de times...",
       "NO_TEAMS": "Não há dados disponíveis",
@@ -909,18 +909,23 @@
       "HEADER": "Atendentes agora",
       "ONLINE": "Disponível",
       "BUSY": "Ocupado",
-      "OFFLINE": "Desconectado"
+      "OFFLINE": "Desconectado",
+      "HINT": {
+        "ONLINE": "prontos para atender",
+        "BUSY": "conectados, mas marcados como ocupados",
+        "OFFLINE": "fora do sistema agora"
+      }
     },
     "PLAIN_SUMMARY": {
       "TITLE": "Agora, em poucas palavras",
       "OPEN": "Há {open} conversas abertas: {unattended} ainda esperam resposta e {unassigned} estão sem atendente. Outras {pending} estão pendentes.",
       "AGENTS": "Dos atendentes, {online} estão disponíveis, {busy} ocupados e {offline} desconectados.",
-      "HOW_TO_READ": "Estes números são de agora e se atualizam sozinhos. Clique em um número sublinhado para ver as conversas, começando por quem espera há mais tempo."
+      "HOW_TO_READ": "Estes números são de agora e se atualizam sozinhos. Clique em um cartão, ou em um número sublinhado das tabelas, para ver as conversas, começando por quem espera há mais tempo."
     }
   },
   "DAYS_OF_WEEK": {
     "SUNDAY": "Domingo",
-    "MONDAY": "Segunda-Feira",
+    "MONDAY": "Segunda-feira",
     "TUESDAY": "Terça-feira",
     "WEDNESDAY": "Quarta-feira",
     "THURSDAY": "Quinta-feira",
@@ -1045,12 +1050,19 @@
   "REPORTS_PANEL": {
     "TITLE": "Relatórios",
     "TABS": {
+      "PANEL": "Painel",
       "OVERVIEW": "Visão geral",
+      "CONVERSATIONS": "Conversas",
       "AGENTS": "Atendentes",
+      "ASSIGNMENTS": "Atribuições",
+      "ROTATION": "Rodízio",
+      "LABELS": "Etiquetas",
+      "INBOXES": "Caixas de entrada",
+      "TEAMS": "Times",
+      "CSAT": "Satisfação",
       "NPS": "Indicação",
       "SLA": "Prazos",
-      "AI": "Robô",
-      "INBOXES_LABELS": "Caixas e etiquetas"
+      "AI": "Robô"
     },
     "PERIOD": {
       "TODAY": "Hoje",
@@ -1162,6 +1174,7 @@
       "COMMENTS_TITLE": "Comentários recentes",
       "COMMENTS_SUB": "o que o cliente escreveu depois da nota",
       "COMMENTS_EMPTY": "Nenhum comentário neste filtro.",
+      "COMMENTS_NONE": "Ninguém deixou comentário neste período.",
       "ALL": "Todos",
       "BY_TEAM_TITLE": "Indicariam a empresa, por time",
       "BY_TEAM_SUB": "a nota de cada time, de −100 a 100 · NPS",

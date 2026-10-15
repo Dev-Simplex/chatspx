@@ -102,6 +102,28 @@ const openPair = (author, dest) =>
 // Resumo curto exibido no tooltip de cada cabeçalho (reusa a legenda).
 const tip = key => t(`ASSIGNMENT_REPORTS.LEGEND.${key}`);
 
+// "Entenda cada coluna" no mesmo desenho do "Como ler a tabela" do Rodizio: o texto
+// "Termo: explicacao" vira o termo em destaque com a explicacao embaixo.
+const LEGEND = [
+  'RECEIVED',
+  'RECEIVED_MANUAL',
+  'RECEIVED_AUTO',
+  'SELF_ASSIGNED',
+  'RECEIVED_OTHER',
+  'ASSIGNED_TO_OTHERS',
+];
+const legend = computed(() =>
+  LEGEND.map(key => {
+    const [term, ...rest] = tip(key).split(': ');
+    const text = rest.join(': ');
+    return {
+      key,
+      term,
+      text: text.charAt(0).toUpperCase() + text.slice(1),
+    };
+  })
+);
+
 // Colunas agrupadas por DIREÇÃO: "Recebidas" (o agente foi o destino, com o
 // detalhamento por origem) vs "Atribuiu" (o agente atribuiu para outra pessoa).
 // meta.tooltip → o Table.vue mostra um resumo ao passar o mouse no cabeçalho.
@@ -462,19 +484,17 @@ onMounted(() => {
   <!-- Legenda: o que significa cada coluna -->
   <div
     v-if="hasData"
-    class="p-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    class="px-5 py-4 relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
-    <p class="text-base font-semibold text-n-slate-12">
+    <p class="m-0 mb-3 text-sm font-semibold text-n-slate-12">
       {{ $t('ASSIGNMENT_REPORTS.LEGEND.TITLE') }}
     </p>
-    <ul class="mt-2 space-y-1 text-xs leading-relaxed text-n-slate-11">
-      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED') }}</li>
-      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED_MANUAL') }}</li>
-      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED_AUTO') }}</li>
-      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.SELF_ASSIGNED') }}</li>
-      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.RECEIVED_OTHER') }}</li>
-      <li>{{ $t('ASSIGNMENT_REPORTS.LEGEND.ASSIGNED_TO_OTHERS') }}</li>
-    </ul>
+    <dl class="grid gap-x-6 gap-y-3 m-0 sm:grid-cols-2 lg:grid-cols-3">
+      <div v-for="item in legend" :key="item.key" class="flex flex-col">
+        <dt class="text-xs font-semibold text-n-slate-12">{{ item.term }}</dt>
+        <dd class="m-0 text-xs text-n-slate-11">{{ item.text }}</dd>
+      </div>
+    </dl>
   </div>
   <ReportDrilldownPanel
     v-if="drilldown"

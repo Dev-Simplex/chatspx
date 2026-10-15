@@ -1,9 +1,14 @@
 import { CSAT_RATINGS } from 'shared/constants/messages';
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 
 export const buildFilterList = (items, type) =>
   items.map(item => ({
     id: item.id,
-    name: type === 'ratings' ? item.emoji : item.name,
+    name:
+      {
+        ratings: item.emoji,
+        teams: teamDisplayName(item.name),
+      }[type] ?? item.name,
     type,
   }));
 

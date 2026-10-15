@@ -1,8 +1,13 @@
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 export const buildFilterList = (items, type) =>
   // Build the filter list for the dropdown
   items.map(item => ({
     id: item.id,
-    name: type === 'labels' ? item.title : item.name,
+    name:
+      {
+        labels: item.title,
+        teams: teamDisplayName(item.name),
+      }[type] ?? item.name,
     type,
   }));
 

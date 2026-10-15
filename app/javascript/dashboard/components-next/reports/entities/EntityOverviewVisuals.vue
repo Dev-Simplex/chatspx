@@ -2,7 +2,11 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
-import { formatDuration, formatPercent } from 'dashboard/helper/reportFormat';
+import {
+  formatDuration,
+  formatPercent,
+  teamDisplayName,
+} from 'dashboard/helper/reportFormat';
 import ReportCard from 'dashboard/components-next/reports/ui/ReportCard.vue';
 import ReportBarList from 'dashboard/components-next/reports/ui/ReportBarList.vue';
 
@@ -82,8 +86,11 @@ const entity = id =>
   ({ inbox: inboxes, label: labels, team: teams })[props.type].value.find(
     item => item.id === id
   ) || {};
-const nameOf = row =>
-  row.name || entity(row.id).name || entity(row.id).title || `#${row.id}`;
+const nameOf = row => {
+  const name =
+    row.name || entity(row.id).name || entity(row.id).title || `#${row.id}`;
+  return props.type === 'team' ? teamDisplayName(name) : name;
+};
 
 // Caixas: a barra de canais (WhatsApp x Instagram x Site...) e uma linha por caixa.
 const channelSplit = computed(() => {

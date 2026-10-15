@@ -13,6 +13,13 @@ RSpec.describe 'Public Inbox API — status@broadcast da WAHA', type: :request d
   end
   let(:status_contact_inbox) { create(:contact_inbox, contact: status_contact, inbox: inbox) }
 
+  # Lista de transmissão de terceiro: mesma natureza do status, chega como `<id>@broadcast`.
+  let(:list_contact) do
+    create(:contact, account: api_channel.account, identifier: '1640005907@broadcast',
+                     custom_attributes: { 'waha_whatsapp_chat_id' => '1640005907@broadcast' })
+  end
+  let(:list_contact_inbox) { create(:contact_inbox, contact: list_contact, inbox: inbox) }
+
   let(:direct_contact) do
     create(:contact, account: api_channel.account, phone_number: '+5566999991234',
                      custom_attributes: { 'waha_whatsapp_chat_id' => '5566999991234@c.us' })
@@ -37,6 +44,11 @@ RSpec.describe 'Public Inbox API — status@broadcast da WAHA', type: :request d
       expect { post "#{contact_path(status_contact_inbox)}/conversations" }.not_to change(Conversation, :count)
     end
 
+    it 'não cria conversa para lista de transmissão' do
+      expect { post "#{contact_path(list_contact_inbox)}/conversations" }.not_to change(Conversation, :count)
+      expect(response).to have_http_status(:ok)
+    end
+
     it 'segue criando conversa para contato normal' do
       expect { post "#{contact_path(direct_contact_inbox)}/conversations" }.to change(Conversation, :count).by(1)
     end
@@ -56,6 +68,13 @@ RSpec.describe 'Public Inbox API — status@broadcast da WAHA', type: :request d
 
       expect { post path, params: { content: 'story' } }.not_to change(Message, :count)
       expect(response).to have_http_status(:ok)
+    end
+
+    it 'não cria mensagem para lista de transmissão' do
+      list_conversation = create(:conversation, contact: list_contact, contact_inbox: list_contact_inbox, inbox: inbox)
+      path = "#{contact_path(list_contact_inbox)}/conversations/#{list_conversation.display_id}/messages"
+
+      expect { post path, params: { content: 'promoção' } }.not_to change(Message, :count)
     end
 
     it 'segue criando mensagem para contato normal' do

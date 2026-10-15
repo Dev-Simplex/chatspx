@@ -88,22 +88,68 @@ module Meta
         # pra ficar VISIVEL pro time no painel (additional_attributes nao renderiza na UI).
         stamp_campaign_visibility(conversation)
 
-        if normalized_phone.blank?
-          # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
-          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — sem phone, sem 1a mensagem (lead exige follow-up manual)")
-        elsif skip_initial_message?
-          Rails.logger.info("Meta Lead Ads: skip_initial_message=true hook=#{@hook.id} conversation=#{conversation.id} — conversa criada sem 1a mensagem")
-        elsif initial_message_already_sent?(conversation)
-          # Idempotencia: redelivery/retry do webhook nao reenvia a abertura.
-          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — 1a mensagem ja enviada, pulando (idempotencia)")
-        else
-          create_initial_message(conversation)
-        end
+        record_lead_activity(conversation, *deliver_opening(conversation, normalized_phone))
 
         conversation
       end
 
       private
+
+      # Decide e manda a abertura. Devolve [resultado, horário da abertura anterior] — o
+      # resultado vira a linha de atividade que o time vê na conversa.
+      def deliver_opening(conversation, normalized_phone)
+        if normalized_phone.blank?
+          # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
+          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — sem phone, sem 1a mensagem (lead exige follow-up manual)")
+          return [:no_phone]
+        end
+        if skip_initial_message?
+          Rails.logger.info("Meta Lead Ads: skip_initial_message=true hook=#{@hook.id} conversation=#{conversation.id} — conversa criada sem 1a mensagem")
+          return [:skipped]
+        end
+        return [:read_only] if @inbox.read_only? # CHAT-155: a conversa nasce, a abertura nao sai
+
+        previous = last_initial_message(conversation)
+        if previous
+          # Idempotencia: redelivery/retry do webhook nao reenvia a abertura.
+          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — 1a mensagem enviada na janela, pulando")
+          return [wake_assistant(conversation) ? :assistant_resumed : :cooldown, previous.created_at]
+        end
+
+        create_initial_message(conversation) ? [:sent] : [:no_template]
+      end
+
+      # Linha de atividade (o cliente não recebe) a cada lead que chega: antes, quando a
+      # abertura não saía, o único rastro era o log do servidor e o time não sabia que o
+      # cliente tinha pedido contato. Best-effort: não derruba o lead.
+      def record_lead_activity(conversation, result, sent_at = nil)
+        content = I18n.with_locale(conversation.account.locale) do
+          I18n.t('conversations.activity.lead.arrived',
+                 origin: I18n.t("conversations.activity.lead.origin.#{lead_origin}"),
+                 time: activity_time(Time.current),
+                 result: I18n.t("conversations.activity.lead.result.#{result}", sent_at: sent_at && activity_time(sent_at)))
+        end
+        conversation.messages.create!(account_id: conversation.account_id, inbox_id: conversation.inbox_id,
+                                      message_type: :activity, content: content)
+      rescue StandardError => e
+        Rails.logger.warn("Meta Lead Ads: falha ao registrar atividade do lead conv=#{conversation.id}: #{e.class}: #{e.message}")
+      end
+
+      LEAD_ORIGINS = { 'site_leads' => 'site', 'meta_lead_ads' => 'ad' }.freeze
+
+      def lead_origin
+        LEAD_ORIGINS.fetch(@hook.app_id.to_s, 'form')
+      end
+
+      # `Time.zone` é o fuso do cliente (cada cliente roda na própria VM); `inbox.timezone` fica
+      # no default 'UTC' e adiantaria a hora — ver Captain::Conversation::EpisodeContinuityNote.
+      def activity_time(instante)
+        local = instante.in_time_zone
+        hora = local.strftime('%H:%M')
+        return I18n.t('conversations.activity.lead.at_time', time: hora) if local.to_date == Time.zone.today
+
+        I18n.t('conversations.activity.lead.at_date_time', date: local.strftime('%d/%m'), time: hora)
+      end
 
       def skip_initial_message?
         ActiveModel::Type::Boolean.new.cast(@hook.settings['skip_initial_message'])
@@ -232,6 +278,18 @@ module Meta
       # conversa + uma label da campanha. O time NÃO vê additional_attributes na UI (o Chatwoot
       # só renderiza custom_attributes definidos); isto torna a origem visível e filtrável.
       # Idempotente. Genérico — serve qualquer conta que use Meta Lead Ads (no-op se sem dados).
+      #
+      # Os atributos descrevem o lead ATUAL, não um histórico: a conversa é reaproveitada e eles
+      # chegam ao modelo a cada turno. Chave que o lead novo não trouxe sai da conversa — senão um
+      # lead sem imóvel herdava o código do lead anterior e a IA falava do imóvel errado. A
+      # `jornada` entra na mesma regra: o site a manda inteira a cada formulário (o caminho até
+      # ESTE pedido), não acumula. O histórico do que já passou fica nas labels de campanha e nas
+      # linhas de atividade, que não são apagadas.
+      LEAD_ATTRIBUTE_KEYS = %w[
+        meta_campanha meta_anuncio meta_anuncio_id meta_publico meta_origem meta_tipo
+        meta_imovel_codigo meta_imovel jornada
+      ].freeze
+
       def stamp_campaign_visibility(conversation)
         im = imovel_info
         attrs = {
@@ -244,9 +302,9 @@ module Meta
           'meta_imovel' => im && im[:descricao],
           'jornada' => jornada
         }.compact
-        return if attrs.empty?
 
-        conversation.update!(custom_attributes: (conversation.custom_attributes || {}).merge(attrs))
+        current = (conversation.custom_attributes || {}).except(*LEAD_ATTRIBUTE_KEYS)
+        conversation.update!(custom_attributes: current.merge(attrs))
 
         slug = campaign_slug(@lead[:campaign_name])
         return if slug.blank?
@@ -532,7 +590,17 @@ module Meta
       end
 
       # A abertura automatica carrega content_attributes.meta_lead_ads_initial=true —
-      # se ja existe nessa conversa, um redelivery/retry nao deve reenviar.
+      # se saiu nessa conversa ha pouco, um redelivery/retry nao deve reenviar.
+      #
+      # So conta a abertura RECENTE. A conversa e reaproveitada (lock_to_single), entao
+      # "ja teve abertura algum dia" calava todo lead que voltava pelo formulario: em
+      # 06/10/2026 a Tozi tinha leads novos parados em conversas de marco, 01/09 e 14/09.
+      # Fora da janela, e lead novo e recebe a abertura de novo.
+      #
+      # Janela e nao id do lead: o id do site e `site:<telefone>` (o mesmo a vida toda —
+      # casar por ele recriaria o bloqueio permanente) e a abertura nunca gravou o leadgen_id.
+      # A janela cobre redelivery da Meta, formulario enviado duas vezes seguidas e o
+      # retry do Sidekiq nas primeiras horas.
       #
       # ⚠️ `content_attributes` é jsonb NA TABELA mas `store ... coder: JSON` NO MODELO: o Rails
       # serializa o Hash e o banco guarda uma STRING JSON, não um objeto. Contra uma string,
@@ -541,9 +609,81 @@ module Meta
       # é o mesmo padrão do `EPISODE_ANCHOR_SQL` (enterprise/app/models/captain/conversation_episode.rb),
       # e funciona tanto pra linha duplo-serializada quanto pra objeto jsonb de verdade.
       INITIAL_MESSAGE_SQL = "(content_attributes #>> '{}')::jsonb ->> 'meta_lead_ads_initial' = 'true'".freeze
+      INITIAL_MESSAGE_DEDUP_WINDOW = 24.hours
 
-      def initial_message_already_sent?(conversation)
-        conversation.messages.where(INITIAL_MESSAGE_SQL).exists?
+      # A abertura mais recente dentro da janela, ou nil.
+      def last_initial_message(conversation)
+        conversation.messages.where(INITIAL_MESSAGE_SQL).where(created_at: initial_message_cooldown.ago..)
+                    .reorder(created_at: :desc).first
+      end
+
+      # Janela por formulário: `initial_message_cooldown_hours` no hook (horas, aceita fração).
+      # Ausente, zero, negativo ou texto que não é número = o padrão de 24 h.
+      def initial_message_cooldown
+        hours = Float(@hook.settings['initial_message_cooldown_hours'].to_s, exception: false)
+        hours&.finite? && hours.positive? ? hours.hours : INITIAL_MESSAGE_DEDUP_WINDOW
+      end
+
+      # Janela de atendimento da Meta: o cliente escreveu nas últimas 24 h.
+      CUSTOMER_WINDOW = 24.hours
+
+      # Lead novo dentro da janela de abertura, com o cliente conversando com a IA: em vez de
+      # calar, a IA retoma levando o novo interesse. Os dados do pedido novo já estão nos
+      # custom_attributes que `stamp_campaign_visibility` acabou de gravar — e eles chegam ao
+      # modelo a cada turno. O caminho é o mesmo da cutucada (FollowupJob) e da agendada
+      # revisada: ResponseBuilderJob com uma diretiva, sem mensagem de entrada.
+      def wake_assistant(conversation)
+        assistant = assistant_to_wake(conversation)
+        return false if assistant.nil?
+
+        Captain::Conversation::ResponseBuilderJob.perform_later(conversation, assistant, directive: NEW_LEAD_DIRECTIVE)
+        true
+      rescue StandardError => e
+        Rails.logger.warn("Meta Lead Ads: falha ao acionar a IA conv=#{conversation.id}: #{e.class}: #{e.message}")
+        false
+      end
+
+      NEW_LEAD_DIRECTIVE = '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] O cliente acabou de preencher ' \
+                           'um novo formulário de interesse. Os dados desse pedido estão nos atributos da conversa que ' \
+                           'começam com meta_ e em jornada, quando existirem. Retome a conversa com UMA mensagem curta e ' \
+                           'natural, reconhecendo o novo pedido e puxando o que ele indica. Responda só [IGNORAR] se esse ' \
+                           'pedido já foi tratado nesta conversa.'.freeze
+
+      # Todas as travas do turno normal da IA: dono é a IA (sem humano, sem handoff pendente,
+      # sem resposta pelo celular), a IA já respondeu o último turno do cliente (senão a resposta
+      # já está a caminho e lê os atributos novos), cliente escreveu dentro da janela, router
+      # (telefone de teste, etiquetas sem IA, grupo) e horário com ação "ignorar".
+      # Caixa somente leitura nem chega aqui (deliver_opening) e o ResponseBuilderJob re-checa.
+      def assistant_to_wake(conversation)
+        mirror = conversation.assignee_agent_bot
+        return unless mirror&.captain? && assistant_owns?(conversation)
+
+        last_incoming = incoming_in_window_already_answered(conversation)
+        return if last_incoming.nil?
+
+        assistant = mirror.captain_assistant
+        assistant if assistant_would_respond?(assistant, conversation, last_incoming)
+      end
+
+      def assistant_owns?(conversation)
+        conversation.assignee_id.nil? && !conversation.human_replied_without_assignment? &&
+          conversation.custom_attributes&.dig('aguardando_humano_desde').blank?
+      end
+
+      # Última fala do cliente dentro da janela, desde que a IA já a tenha respondido.
+      def incoming_in_window_already_answered(conversation)
+        visible = conversation.messages.where(message_type: %i[incoming outgoing], private: false).reorder(:created_at, :id)
+        return unless visible.last&.outgoing?
+
+        visible.where(message_type: :incoming).where(created_at: CUSTOMER_WINDOW.ago..).last
+      end
+
+      def assistant_would_respond?(assistant, conversation, last_incoming)
+        return false unless Captain::Behavior::RouterService.new(assistant: assistant, conversation: conversation,
+                                                                 message: last_incoming).should_respond?
+
+        Captain::Behavior::BusinessHoursChecker.new(assistant: assistant).status == :inside ||
+          assistant.behavior.dig('business_hours', 'outside_hours_action') != 'ignore'
       end
 
       # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
@@ -551,7 +691,6 @@ module Meta
       # a 1ª mensagem cai fora da janela → tem que ser template. WAHA (Channel::Api) não
       # tem essa restrição → segue texto livre.
       def create_initial_message(conversation)
-        return if @inbox.read_only? # CHAT-155: a conversa nasce, a abertura nao sai
         return create_imovel_opener(conversation) if cloud_whatsapp_inbox? && imovel_opener_ready?
         return create_initial_template_message(conversation) if cloud_whatsapp_inbox?
 

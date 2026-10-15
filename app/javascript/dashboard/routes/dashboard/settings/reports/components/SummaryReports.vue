@@ -2,7 +2,7 @@
 import OverviewReportFilters from './OverviewReportFilters.vue';
 import ReportHeaderFilters from './ReportHeaderFilters.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import { formatDuration } from 'dashboard/helper/reportFormat';
+import { formatDuration, teamDisplayName } from 'dashboard/helper/reportFormat';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
@@ -198,6 +198,12 @@ const renderAvgTime = value => (value ? formatDuration(value, t) : '--');
 
 const renderCount = value => (value ? value.toLocaleString() : '--');
 
+// Etiqueta nao tem name, so title. Time vem do banco em minusculas: "rh" vira "Rh".
+const rowName = row => {
+  const name = row.name ?? row.title;
+  return props.type === 'team' ? teamDisplayName(name) : name;
+};
+
 const tableData = computed(() =>
   rowItems.value.map(row => {
     const rowMetrics = getMetrics(row.id);
@@ -212,8 +218,7 @@ const tableData = computed(() =>
     } = rowMetrics;
     return {
       id: row.id,
-      // we fallback on title, label for instance does not have a name property
-      name: row.name ?? row.title,
+      name: rowName(row),
       type: props.type,
       conversationsCount: renderCount(conversationsCount),
       avgFirstResponseTime: renderAvgTime(avgFirstResponseTime),
@@ -237,7 +242,7 @@ const plainRows = computed(() =>
   rowItems.value.map(row => {
     const metrics = getMetrics(row.id);
     return {
-      name: row.name ?? row.title,
+      name: rowName(row),
       conversations: Number(metrics.conversationsCount || 0),
       resolved: Number(metrics.resolvedConversationsCount || 0),
       firstResponse: Number(metrics.avgFirstResponseTime || 0),

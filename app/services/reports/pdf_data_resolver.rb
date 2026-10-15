@@ -69,7 +69,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     kpis = nps_kpis(calc, cohort)
 
     {
-      report_type: 'nps', title: 'Os clientes indicariam a empresa? (NPS)', period: period_meta,
+      report_type: 'nps', title: 'Avaliações (NPS)', period: period_meta,
       overline: 'Experiência do Cliente · Confidencial',
       subtitle: nps_subtitle(kpis),
       base_label: "#{kpis[:total]} avaliações válidas",
@@ -218,7 +218,19 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= CSAT =======================
   def csat_verdict(kpis)
+    return csat_no_answers_verdict if kpis[:total].zero?
+
     metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Clientes satisfeitos')
+  end
+
+  # Sem resposta o indice seria 0% e o cartao sairia vermelho; como no NPS de amostra baixa, avisa.
+  def csat_no_answers_verdict
+    {
+      kind: :attention, emoji: 'ℹ️', title: 'Sem respostas no período',
+      level: :warn, word: 'sem respostas', metric_label: 'Clientes satisfeitos',
+      value_human: '--', goal_human: metric_goal_human(:csat),
+      body: 'Ninguém respondeu à pesquisa de satisfação neste período, então ainda não dá para dizer se os clientes ficaram satisfeitos.'
+    }
   end
 
   def csat_data
@@ -834,7 +846,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def overview_waiting_row(row)
     { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
-      agent: row[:agent_name].presence || 'ninguém', team: row[:team_name].presence || '—', waiting: short_duration(row[:value]),
+      agent: row[:agent_name].presence || 'ninguém', team: team_display_name(row[:team_name]).presence || '—', waiting: short_duration(row[:value]),
       since: Time.zone.at(row[:value_at]).in_time_zone(TZ).strftime('%d/%m às %H:%M'),
       level: first_level(row[:value]) }
   end
@@ -942,7 +954,13 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def funnel_data
     funnel = @account.funnels.find(@filters[:funnel_id])
     report = Kanban::FunnelReportService.new(funnel: funnel).perform
-    funnel_payload(funnel.name, report)
+    funnel_payload(team_display_name(funnel.name), report)
+  end
+
+  # Time (e o funil de um setor, que herda o nome dele) vem do banco em minusculas. Mesma regra das telas
+  # (teamDisplayName em reportFormat.js): sobe so a inicial de cada palavra, sem mexer no resto.
+  def team_display_name(name)
+    name.to_s.gsub(/(^|[\s(])(\p{Ll})/) { "#{Regexp.last_match(1)}#{Regexp.last_match(2).upcase}" }
   end
 
   def funnel_payload(name, report)
@@ -1225,7 +1243,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def summary_names(metric_type)
     case metric_type
     when 'agent' then @account.users.pluck(:id, :name).to_h
-    when 'team' then @account.teams.pluck(:id, :name).to_h
+    when 'team' then team_names_all
     when 'inbox'
       inboxes = @account.inboxes.includes(:channel).to_a
       name_map = inboxes.to_h { |inbox| [inbox.id, inbox.name] }
@@ -1332,7 +1350,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def team_names_all
-    @account.teams.pluck(:id, :name).to_h
+    @account.teams.pluck(:id, :name).to_h.transform_values { |name| team_display_name(name) }
   end
 
   def pct(part, whole)

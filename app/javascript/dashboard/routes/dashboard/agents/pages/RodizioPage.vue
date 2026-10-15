@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -294,6 +295,18 @@ const LEGENDA = [
   'MANUAL',
   'OPEN',
 ];
+// Cada texto vem como "Termo: explicação"; a tela mostra o termo em destaque.
+const legenda = computed(() =>
+  LEGENDA.map(chave => {
+    const [termo, ...resto] = t(`AGENTS_RODIZIO.LEGEND.${chave}`).split(': ');
+    const explicacao = resto.join(': ');
+    return {
+      chave,
+      termo,
+      explicacao: explicacao.charAt(0).toUpperCase() + explicacao.slice(1),
+    };
+  })
+);
 const conversa = displayId => `#${displayId}`;
 const conversaUrl = displayId =>
   `/app/accounts/${accountId.value}/conversations/${displayId}`;
@@ -553,7 +566,7 @@ const irParaPolitica = () =>
         >
           <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
           <option v-for="time in times" :key="time.id" :value="time.id">
-            {{ time.name }} ({{ time.modo_posse }})
+            {{ teamDisplayName(time.name) }} ({{ time.modo_posse }})
           </option>
         </select>
         <button
@@ -894,7 +907,7 @@ const irParaPolitica = () =>
               class="inline-flex items-center gap-1.5"
             >
               <span
-                class="inline-block w-5 h-2.5 rounded-sm"
+                class="inline-block rounded-full size-2"
                 :class="fase.classe"
               />
               {{ fase.nome }}
@@ -908,7 +921,7 @@ const irParaPolitica = () =>
 
       <section
         v-show="aba === 'consultores'"
-        class="overflow-x-auto relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+        class="shrink-0 overflow-x-auto relative hover:z-30 focus-within:z-30 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
       >
         <table class="w-full text-sm">
           <thead class="bg-n-solid-1 dark:bg-n-solid-2 text-n-slate-11">
@@ -1069,7 +1082,7 @@ const irParaPolitica = () =>
                           class="inline-flex items-center gap-1.5"
                         >
                           <span
-                            class="inline-block w-5 h-2.5 rounded-sm"
+                            class="inline-block rounded-full size-2"
                             :class="fase.classe"
                           />
                           {{ fase.nome }}
@@ -1085,11 +1098,23 @@ const irParaPolitica = () =>
             </template>
           </tbody>
         </table>
-        <ul class="flex flex-col gap-1 px-4 py-3 text-sm text-n-slate-11">
-          <li v-for="item in LEGENDA" :key="item">
-            {{ t(`AGENTS_RODIZIO.LEGEND.${item}`) }}
-          </li>
-        </ul>
+        <div class="px-5 py-4 border-t border-n-weak">
+          <p class="m-0 mb-3 text-sm font-semibold text-n-slate-12">
+            {{ t('AGENTS_RODIZIO.LEGEND_TITLE') }}
+          </p>
+          <dl class="grid gap-x-6 gap-y-3 m-0 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="item in legenda"
+              :key="item.chave"
+              class="flex flex-col"
+            >
+              <dt class="text-xs font-semibold text-n-slate-12">
+                {{ item.termo }}
+              </dt>
+              <dd class="m-0 text-xs text-n-slate-11">{{ item.explicacao }}</dd>
+            </div>
+          </dl>
+        </div>
       </section>
     </template>
   </div>

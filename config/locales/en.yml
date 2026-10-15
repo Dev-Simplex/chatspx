@@ -442,6 +442,23 @@ en:
         finalized_invalid: 'NPS survey closed after %{count} invalid responses.'
       auto_resolve:
         not_sent_due_to_messaging_window: 'Auto-resolve message not sent due to outgoing message restrictions'
+      lead:
+        arrived: 'New lead %{origin} %{time} · %{result}'
+        at_time: 'at %{time}'
+        at_date_time: 'on %{date} at %{time}'
+        origin:
+          site: 'from the website'
+          ad: 'from an ad'
+          form: 'from a form'
+        result:
+          sent: 'opening message sent'
+          no_phone: 'no phone number: opening message not sent'
+          skipped: 'form set up without an opening message'
+          read_only: 'read-only inbox: opening message not sent'
+          no_template: 'opening message not sent: no opening template configured'
+          cooldown: 'opening message not sent: already sent %{sent_at}'
+          assistant_resumed: 'opening message not sent (already sent %{sent_at}): the contact wrote in the last 24 h and the AI picked up the new interest'
+        opening_failed: 'The lead opening message was not delivered: %{reason}'
       muted: '%{user_name} has muted the conversation'
       unmuted: '%{user_name} has unmuted the conversation'
       auto_resolution_message: 'Resolving the conversation as it has been inactive for a while. Please start a new conversation if you need further assistance.'
@@ -642,6 +659,7 @@ en:
       template_without_primeiro_nome: 'the configured template needs the contact name, and the contact has none'
       template_without_texto: 'the scheduled message has no text to fill the template'
       discarded_by_assistant_review: 'the AI agent reviewed it at the scheduled time and decided not to send it'
+      contact_outside_test_lock: 'the contact is not in the test phone list of the AI agent'
     activity:
       assistant_not_sent: 'Scheduled message from the AI agent was not sent: %{reason}.'
   auto_assignment:
