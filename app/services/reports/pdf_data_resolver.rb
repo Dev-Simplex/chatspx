@@ -850,7 +850,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def overview_waiting_row(row)
     { id: "##{row[:display_id]}", contact: row[:contact_name].presence || 'Sem nome', inbox: row[:inbox_name],
-      agent: row[:agent_name].presence || 'ninguém', team: row[:team_name].presence || '—', waiting: short_duration(row[:value]),
+      agent: row[:agent_name].presence || 'ninguém', team: team_display_name(row[:team_name]).presence || '—', waiting: short_duration(row[:value]),
       since: Time.zone.at(row[:value_at]).in_time_zone(TZ).strftime('%d/%m às %H:%M'),
       level: first_level(row[:value]) }
   end
@@ -958,11 +958,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def funnel_data
     funnel = @account.funnels.find(@filters[:funnel_id])
     report = Kanban::FunnelReportService.new(funnel: funnel).perform
-    funnel_payload(funnel_display_name(funnel.name), report)
+    funnel_payload(team_display_name(funnel.name), report)
   end
 
-  # Mesma regra do Painel (PanelFunnelCard): inicial maiuscula em cada palavra, sem mexer no resto.
-  def funnel_display_name(name)
+  # Time (e o funil de um setor, que herda o nome dele) vem do banco em minusculas. Mesma regra das telas
+  # (teamDisplayName em reportFormat.js): sobe so a inicial de cada palavra, sem mexer no resto.
+  def team_display_name(name)
     name.to_s.gsub(/(^|[\s(])(\p{Ll})/) { "#{Regexp.last_match(1)}#{Regexp.last_match(2).upcase}" }
   end
 
@@ -1324,7 +1325,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def summary_names(metric_type)
     case metric_type
     when 'agent' then @account.users.pluck(:id, :name).to_h
-    when 'team' then @account.teams.pluck(:id, :name).to_h
+    when 'team' then team_names_all
     when 'inbox'
       inboxes = @account.inboxes.includes(:channel).to_a
       name_map = inboxes.to_h { |inbox| [inbox.id, inbox.name] }
@@ -1431,7 +1432,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def team_names_all
-    @account.teams.pluck(:id, :name).to_h
+    @account.teams.pluck(:id, :name).to_h.transform_values { |name| team_display_name(name) }
   end
 
   def pct(part, whole)

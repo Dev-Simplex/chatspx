@@ -16,6 +16,8 @@ class NpsReportsAPI extends ApiClient {
     status,
     response_state,
     contact_id,
+    with_comment,
+    classification,
   } = {}) {
     return axios.get(this.url, {
       params: {
@@ -29,6 +31,8 @@ class NpsReportsAPI extends ApiClient {
         status,
         response_state,
         contact_id,
+        with_comment,
+        classification,
       },
     });
   }

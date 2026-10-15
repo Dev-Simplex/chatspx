@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { computed, h, ref } from 'vue';
 import {
   useVueTable,
@@ -58,7 +59,7 @@ const tableData = computed(() =>
       const metric = getTeamMetrics(team.id);
       return {
         id: team.id,
-        agent: team.name,
+        agent: teamDisplayName(team.name),
         open: metric.open || 0,
         unattended: metric.unattended || 0,
       };
@@ -78,9 +79,7 @@ const defaulSpanRender = cellProps =>
   h(
     'span',
     {
-      class: cellProps.getValue()
-        ? 'capitalize text-n-slate-12'
-        : 'capitalize text-n-slate-11',
+      class: cellProps.getValue() ? 'text-n-slate-12' : 'text-n-slate-11',
     },
     cellProps.getValue() ? cellProps.getValue() : '---'
   );

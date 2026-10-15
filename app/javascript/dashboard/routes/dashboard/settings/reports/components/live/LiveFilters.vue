@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { ref, computed, onMounted } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
@@ -37,7 +38,10 @@ const departmentOptions = computed(() => {
   if (!teams.value || teams.value.length === 0) {
     return [allOption];
   }
-  return [allOption, ...teams.value];
+  return [
+    allOption,
+    ...teams.value.map(team => ({ ...team, name: teamDisplayName(team.name) })),
+  ];
 });
 
 // Lista de caixas com a opcao "todas"
