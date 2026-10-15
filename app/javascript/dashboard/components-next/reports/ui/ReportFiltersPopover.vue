@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside } from '@vueuse/core';
@@ -95,7 +96,8 @@ const optionsOf = group => {
   return source
     .map(item => ({
       id: item.id,
-      name: item.name || item.title,
+      name:
+        group === 'team' ? teamDisplayName(item.name) : item.name || item.title,
       count: counts.value[group]?.[item.id] ?? null,
     }))
     .sort((a, b) => (b.count || 0) - (a.count || 0));

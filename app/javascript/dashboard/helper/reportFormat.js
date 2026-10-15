@@ -62,3 +62,11 @@ export const formatChange = (pct, t) => {
     ? { text: t('REPORT.CHANGE.MORE', { pct: value }), direction: 'up' }
     : { text: t('REPORT.CHANGE.LESS', { pct: -value }), direction: 'down' };
 };
+
+// O sistema grava o nome do time em minusculas (e o funil de um setor herda esse nome): "rh" vira "Rh",
+// "demonstracao app store" vira "Demonstracao App Store". So sobe a inicial de cada palavra.
+export const teamDisplayName = name =>
+  (name || '').replace(
+    /(^|[\s(])(\p{Ll})/gu,
+    (_, space, letter) => `${space}${letter.toUpperCase()}`
+  );

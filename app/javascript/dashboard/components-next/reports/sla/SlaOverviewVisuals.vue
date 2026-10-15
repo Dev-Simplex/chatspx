@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import ReportsAPI from 'dashboard/api/reports';
-import { formatPercent } from 'dashboard/helper/reportFormat';
+import { formatPercent, teamDisplayName } from 'dashboard/helper/reportFormat';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ReportCard from 'dashboard/components-next/reports/ui/ReportCard.vue';
 import ReportBarList from 'dashboard/components-next/reports/ui/ReportBarList.vue';
@@ -52,7 +52,7 @@ const hitRate = computed(() => parseFloat(metrics.value?.hitRate) || 0);
 const teamBars = computed(() =>
   byTeam.value.map(row => ({
     key: row.id,
-    label: row.name,
+    label: teamDisplayName(row.name),
     hint: `${row.total - row.missed}/${row.total}`,
     value: row.value,
     display: formatPercent(row.value),

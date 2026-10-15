@@ -20,6 +20,31 @@ RSpec.describe 'NPS Responses API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/nps_responses' do
+    before do
+      create(:nps_response, :promoter, account: account, status: :responded, comment: 'Gostei')
+      create(:nps_response, :detractor, account: account, status: :responded, comment: 'Demorou')
+      create(:nps_response, :detractor, account: account, status: :responded, comment: '')
+      create(:nps_response, :promoter, account: account, status: :responded)
+    end
+
+    def list(params)
+      get "/api/v1/accounts/#{account.id}/nps_responses",
+          params: params.merge(response_state: 'responded'), headers: administrator.create_new_auth_token
+      response.parsed_body.pluck('comment')
+    end
+
+    it 'returns only answers with a comment when asked' do
+      expect(list(with_comment: true)).to contain_exactly('Gostei', 'Demorou')
+      expect(response.headers['X-Total-Count']).to eq('2')
+    end
+
+    it 'narrows the comments to one group' do
+      expect(list(with_comment: true, classification: 'detractor')).to eq(['Demorou'])
+      expect(list(with_comment: true, classification: 'promoter')).to eq(['Gostei'])
+    end
+  end
+
   def get_metrics(params = {})
     get "/api/v1/accounts/#{account.id}/nps_responses/metrics",
         params: params, headers: administrator.create_new_auth_token, as: :json

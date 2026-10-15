@@ -29,7 +29,6 @@ import Logo from 'next/icon/Logo.vue';
 import LordIconIcon from 'next/icon/LordIconIcon.vue';
 import { LORDICON } from 'dashboard/constants/lordicons';
 import { isHelpCenterAuthoringAccount } from 'dashboard/helper/helpCenterEmbed';
-import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -359,50 +358,6 @@ const closeMobileSidebar = () => {
   if (!props.isMobileSidebarOpen) return;
   emit('closeMobileSidebar');
 };
-
-const newReportRoutes = () => [
-  {
-    name: 'Reports Agent',
-    label: t('SIDEBAR.REPORTS_AGENT'),
-    to: accountScopedRoute('agent_reports_index'),
-    activeOn: ['agent_reports_show'],
-  },
-  {
-    name: 'Reports Agent Assignment',
-    label: t('SIDEBAR.REPORTS_AGENT_ASSIGNMENT'),
-    to: accountScopedRoute('agent_assignment_reports'),
-  },
-  // Aponta para o PAINEL do rodizio, nao para a politica: dali o botao
-  // "Configurar rodizio" leva a configuracao. Ate aqui a tela so existia por URL
-  // digitada. O item some sozinho para quem nao e admin — o SidebarGroup le
-  // `meta.permissions` da rota (provider.js `resolvePermissions`).
-  {
-    name: 'Reports Rodizio',
-    label: t('SIDEBAR.REPORTS_RODIZIO'),
-    to: accountScopedRoute('agents_rodizio'),
-  },
-  {
-    name: 'Reports Label',
-    label: t('SIDEBAR.REPORTS_LABEL'),
-    to: accountScopedRoute('label_reports_index'),
-  },
-  {
-    name: 'Reports Inbox',
-    label: t('SIDEBAR.REPORTS_INBOX'),
-    to: accountScopedRoute('inbox_reports_index'),
-    activeOn: ['inbox_reports_show'],
-  },
-  {
-    name: 'Reports Team',
-    label: t('SIDEBAR.REPORTS_TEAM'),
-    to: accountScopedRoute('team_reports_index'),
-    activeOn: ['team_reports_show'],
-  },
-];
-
-const reportRoutes = computed(() => newReportRoutes());
-
-const { isReportEnabled } = useReportFeatures();
 
 const menuItems = computed(() => {
   return [
@@ -789,60 +744,36 @@ const menuItems = computed(() => {
         },
       ],
     },
+    // Um item só: o clique abre o Painel e as outras telas ficam nas abas do cabeçalho
+    // (ReportTabs), que já escondem o que a conta não liga ou o usuário não pode ver.
     {
       name: 'Reports',
       label: t('SIDEBAR.REPORTS'),
       icon: lordIcon('reports', 'i-lucide-chart-spline'),
-      children: [
-        {
-          name: 'Reports Panel',
-          label: t('SIDEBAR.REPORTS_PANEL'),
-          to: accountScopedRoute('reports_panel'),
-        },
-        {
-          name: 'Report Overview',
-          label: t('SIDEBAR.REPORTS_OVERVIEW'),
-          to: accountScopedRoute('account_overview_reports'),
-        },
-        {
-          name: 'Report Conversation',
-          label: t('SIDEBAR.REPORTS_CONVERSATION'),
-          to: accountScopedRoute('conversation_reports'),
-        },
-        ...reportRoutes.value,
-        // Satisfação, Indicação e Prazos só aparecem quando a conta liga o que eles medem.
-        ...(isReportEnabled('csat_reports')
-          ? [
-              {
-                name: 'Reports CSAT',
-                label: t('SIDEBAR.CSAT'),
-                to: accountScopedRoute('csat_reports'),
-              },
-            ]
-          : []),
-        ...(isReportEnabled('nps_reports')
-          ? [
-              {
-                name: 'Reports NPS',
-                label: t('SIDEBAR.NPS'),
-                to: accountScopedRoute('nps_reports'),
-              },
-            ]
-          : []),
-        ...(isReportEnabled('sla_reports')
-          ? [
-              {
-                name: 'Reports SLA',
-                label: t('SIDEBAR.REPORTS_SLA'),
-                to: accountScopedRoute('sla_reports'),
-              },
-            ]
-          : []),
-        {
-          name: 'Reports Bot',
-          label: t('SIDEBAR.REPORTS_BOT'),
-          to: accountScopedRoute('bot_reports'),
-        },
+      to: accountScopedRoute('reports_panel'),
+      activeOn: [
+        'reports_panel',
+        'account_overview_reports',
+        'conversation_reports',
+        'agent_reports_index',
+        'agent_reports_show',
+        'agent_assignment_reports',
+        'agents_rodizio',
+        'label_reports_index',
+        'label_reports_show',
+        'inbox_reports_index',
+        'inbox_reports_show',
+        'team_reports_index',
+        'team_reports_show',
+        'csat_reports',
+        'nps_reports',
+        'sla_reports',
+        'bot_reports',
+        // Telas antigas, que ainda abrem por URL.
+        'agent_reports',
+        'inbox_reports',
+        'label_reports',
+        'team_reports',
       ],
     },
     {
