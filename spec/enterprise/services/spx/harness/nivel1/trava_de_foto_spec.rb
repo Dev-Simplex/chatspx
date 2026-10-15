@@ -45,6 +45,9 @@ RSpec.describe 'nível 1: trava anti-alucinação do envio de fotos' do
     stub_request(:get, %r{acervo\.ficticio\.invalid/imoveis/detalhes})
       .to_return(status: 200, body: imovel('4002').to_json,
                  headers: { 'Content-Type' => 'application/json' })
+    # O carrossel confere cada foto com HEAD antes de montar os cards (foto_aceita_pela_meta?).
+    stub_request(:head, %r{\Ahttps://cdn\.ficticio\.invalid/})
+      .to_return(status: 200, headers: { 'Content-Type' => 'image/jpeg' })
   end
 
   # CONTROLE POSITIVO. Sem ele, um cenário que barra tudo passaria no verde e ninguém veria
