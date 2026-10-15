@@ -894,7 +894,7 @@
       }
     },
     "TEAM_CONVERSATIONS": {
-      "ALL_TEAMS": "All Teams",
+      "ALL_TEAMS": "All teams",
       "HEADER": "Open conversations per team",
       "LOADING_MESSAGE": "Loading team metrics...",
       "NO_TEAMS": "There is no data available",
@@ -909,13 +909,18 @@
       "HEADER": "Agents now",
       "ONLINE": "Online",
       "BUSY": "Busy",
-      "OFFLINE": "Offline"
+      "OFFLINE": "Offline",
+      "HINT": {
+        "ONLINE": "ready to take conversations",
+        "BUSY": "online, but marked as busy",
+        "OFFLINE": "not connected right now"
+      }
     },
     "PLAIN_SUMMARY": {
       "TITLE": "Right now, in a few words",
       "OPEN": "There are {open} open conversations: {unattended} are still waiting for a reply and {unassigned} have no agent. Another {pending} are pending.",
       "AGENTS": "Of the agents, {online} are available, {busy} busy and {offline} offline.",
-      "HOW_TO_READ": "These numbers are live and update by themselves. Click an underlined number to see the conversations, starting with who has been waiting the longest."
+      "HOW_TO_READ": "These numbers are live and update by themselves. Click a card, or an underlined number in the tables, to see the conversations, starting with who has been waiting the longest."
     }
   },
   "DAYS_OF_WEEK": {

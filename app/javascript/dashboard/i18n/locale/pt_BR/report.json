@@ -894,7 +894,7 @@
       }
     },
     "TEAM_CONVERSATIONS": {
-      "ALL_TEAMS": "Todos os Times",
+      "ALL_TEAMS": "Todos os times",
       "HEADER": "Conversas abertas de cada time",
       "LOADING_MESSAGE": "Carregando métricas de times...",
       "NO_TEAMS": "Não há dados disponíveis",
@@ -909,18 +909,23 @@
       "HEADER": "Atendentes agora",
       "ONLINE": "Disponível",
       "BUSY": "Ocupado",
-      "OFFLINE": "Desconectado"
+      "OFFLINE": "Desconectado",
+      "HINT": {
+        "ONLINE": "prontos para atender",
+        "BUSY": "conectados, mas marcados como ocupados",
+        "OFFLINE": "fora do sistema agora"
+      }
     },
     "PLAIN_SUMMARY": {
       "TITLE": "Agora, em poucas palavras",
       "OPEN": "Há {open} conversas abertas: {unattended} ainda esperam resposta e {unassigned} estão sem atendente. Outras {pending} estão pendentes.",
       "AGENTS": "Dos atendentes, {online} estão disponíveis, {busy} ocupados e {offline} desconectados.",
-      "HOW_TO_READ": "Estes números são de agora e se atualizam sozinhos. Clique em um número sublinhado para ver as conversas, começando por quem espera há mais tempo."
+      "HOW_TO_READ": "Estes números são de agora e se atualizam sozinhos. Clique em um cartão, ou em um número sublinhado das tabelas, para ver as conversas, começando por quem espera há mais tempo."
     }
   },
   "DAYS_OF_WEEK": {
     "SUNDAY": "Domingo",
-    "MONDAY": "Segunda-Feira",
+    "MONDAY": "Segunda-feira",
     "TUESDAY": "Terça-feira",
     "WEDNESDAY": "Quarta-feira",
     "THURSDAY": "Quinta-feira",

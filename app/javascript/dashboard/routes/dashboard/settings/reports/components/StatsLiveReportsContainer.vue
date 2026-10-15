@@ -4,7 +4,9 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { OVERVIEW_METRICS } from '../constants';
 import { useToggle } from '@vueuse/core';
 
-import MetricCard from './overview/MetricCard.vue';
+import PanelKpiCard from 'dashboard/components-next/reports/panel/PanelKpiCard.vue';
+import ReportLiveDot from 'dashboard/components-next/reports/ui/ReportLiveDot.vue';
+import { SECTION_TITLE } from 'dashboard/components-next/reports/ui/styles';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
@@ -39,16 +41,26 @@ const teamMenuList = computed(() => {
   ];
 });
 
-const agentStatusMetrics = computed(() => {
-  let metric = {};
-  Object.keys(agentStatus.value).forEach(key => {
-    const metricName = t(
-      `OVERVIEW_REPORTS.AGENT_STATUS.${OVERVIEW_METRICS[key]}`
-    );
-    metric[metricName] = agentStatus.value[key];
-  });
-  return metric;
-});
+// Visao Geral no desenho do Painel: cada numero ao vivo e um cartao com icone, valor e o que ele quer dizer.
+const LIVE_PILL =
+  'px-2 py-0.5 text-[11px] font-semibold rounded-full bg-n-teal-3 text-n-teal-11';
+const METRIC_ICONS = {
+  open: 'i-lucide-message-circle',
+  unattended: 'i-lucide-message-circle-warning',
+  unassigned: 'i-lucide-user-x',
+  pending: 'i-lucide-clock',
+  online: 'i-lucide-user-check',
+  busy: 'i-lucide-headset',
+  offline: 'i-lucide-user-minus',
+};
+const agentStatusCards = computed(() =>
+  ['online', 'busy', 'offline'].map(key => ({
+    key,
+    label: t(`OVERVIEW_REPORTS.AGENT_STATUS.${OVERVIEW_METRICS[key]}`),
+    hint: t(`OVERVIEW_REPORTS.AGENT_STATUS.HINT.${OVERVIEW_METRICS[key]}`),
+    value: Number(agentStatus.value?.[key] || 0),
+  }))
+);
 // Cada numero com o que ele quer dizer embaixo; o numero abre as conversas (ReportDrilldownPanel ao vivo).
 const conversationMetrics = computed(() =>
   Object.keys(accountConversationMetric.value).map(key => ({
@@ -161,80 +173,65 @@ onMounted(() => {
       {{ t('OVERVIEW_REPORTS.PLAIN_SUMMARY.HOW_TO_READ') }}
     </p>
   </section>
-  <div class="flex flex-col items-center md:flex-row gap-4">
-    <div
-      class="flex-1 w-full max-w-full md:w-[65%] md:max-w-[65%] conversation-metric"
-    >
-      <MetricCard
-        :header="t(`${accounti18nKey}.HEADER`)"
-        :is-loading="uiFlags.isFetchingAccountConversationMetric"
-        :loading-message="t(`${accounti18nKey}.LOADING_MESSAGE`)"
+  <section class="flex flex-col gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="flex items-center gap-2" :class="SECTION_TITLE">
+        <ReportLiveDot />
+        {{ t(`${accounti18nKey}.HEADER`) }}
+        <span :class="LIVE_PILL">{{ t('OVERVIEW_REPORTS.LIVE') }}</span>
+      </h2>
+      <div
+        v-if="teams.length"
+        v-on-clickaway="() => toggleDropdown(false)"
+        class="relative flex items-center z-50"
       >
-        <template v-if="teams.length" #control>
-          <div
-            v-on-clickaway="() => toggleDropdown(false)"
-            class="relative flex items-center group z-50"
-          >
-            <Button
-              sm
-              slate
-              faded
-              :label="selectedTeamLabel"
-              icon="i-lucide-chevron-down"
-              trailing-icon
-              class="capitalize rounded-md group-hover:bg-n-alpha-2"
-              @click="toggleDropdown()"
-            />
-            <DropdownMenu
-              v-if="showDropdown"
-              :menu-items="teamMenuList"
-              class="mt-1 ltr:right-0 rtl:left-0 xl:ltr:right-0 xl:rtl:left-0 top-full"
-              label-class="capitalize"
-              @action="handleAction($event)"
-            />
-          </div>
-        </template>
-        <div
-          v-for="metric in conversationMetrics"
-          :key="metric.key"
-          class="flex-1 min-w-0 pb-2 pr-3"
-        >
-          <h3 class="text-base text-n-slate-11">
-            {{ metric.name }}
-          </h3>
-          <button
-            v-if="metric.value"
-            type="button"
-            class="p-0 m-0 text-left text-n-slate-12 text-3xl mt-1 tabular-nums underline decoration-dotted decoration-n-slate-8 underline-offset-4 hover:text-n-brand"
-            :title="t('REPORT.DRILLDOWN.OPEN')"
-            @click="openDrilldown(metric)"
-          >
-            {{ metric.value }}
-          </button>
-          <p v-else class="text-n-slate-12 text-3xl mb-0 mt-1">
-            {{ metric.value }}
-          </p>
-          <p class="mt-1 text-xs text-n-slate-10">{{ metric.hint }}</p>
-        </div>
-      </MetricCard>
+        <Button
+          sm
+          slate
+          faded
+          :label="selectedTeamLabel"
+          icon="i-lucide-chevron-down"
+          trailing-icon
+          @click="toggleDropdown()"
+        />
+        <DropdownMenu
+          v-if="showDropdown"
+          :menu-items="teamMenuList"
+          class="mt-1 top-full ltr:right-0 rtl:left-0"
+          @action="handleAction($event)"
+        />
+      </div>
     </div>
-    <div class="flex-1 w-full max-w-full md:w-[35%] md:max-w-[35%]">
-      <MetricCard :header="$t('OVERVIEW_REPORTS.AGENT_STATUS.HEADER')">
-        <div
-          v-for="(metric, name, index) in agentStatusMetrics"
-          :key="index"
-          class="flex-1 min-w-0 pb-2"
-        >
-          <h3 class="text-base text-n-slate-11">
-            {{ name }}
-          </h3>
-          <p class="text-n-slate-12 text-3xl mb-0 mt-1">
-            {{ metric }}
-          </p>
-        </div>
-      </MetricCard>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <PanelKpiCard
+        v-for="metric in conversationMetrics"
+        :key="metric.key"
+        :icon="METRIC_ICONS[metric.key]"
+        :label="metric.name"
+        :value="String(metric.value ?? 0)"
+        :caption="metric.hint"
+        :clickable="Boolean(metric.value)"
+        @open="openDrilldown(metric)"
+      />
     </div>
-  </div>
+  </section>
+  <section class="flex flex-col gap-3">
+    <h2 class="flex items-center gap-2" :class="SECTION_TITLE">
+      <ReportLiveDot />
+      {{ t('OVERVIEW_REPORTS.AGENT_STATUS.HEADER') }}
+      <span :class="LIVE_PILL">{{ t('OVERVIEW_REPORTS.LIVE') }}</span>
+    </h2>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <PanelKpiCard
+        v-for="status in agentStatusCards"
+        :key="status.key"
+        :icon="METRIC_ICONS[status.key]"
+        :label="status.label"
+        :value="String(status.value)"
+        :caption="status.hint"
+      />
+    </div>
+  </section>
   <ReportDrilldownPanel
     v-if="drilldown"
     :metric="drilldown.metric"
