@@ -83,6 +83,11 @@ RSpec.describe FunnelPolicy, type: :policy do
       it 'forbids an agent that is not a member of the team' do
         expect(described_class.new(agent_context, other_team_funnel).show?).to be(false)
       end
+
+      it 'permits the administrator on a team they are not in, as the Scope already lists it' do
+        expect(described_class.new(administrator_context, other_team_funnel).show?).to be(true)
+        expect(described_class.new(administrator_context, other_team_funnel).stats?).to be(true)
+      end
     end
   end
 

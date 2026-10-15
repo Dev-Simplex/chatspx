@@ -9,10 +9,10 @@
   <section class="page">
     <header class="mast">
       <div class="mast-top">
-        <%# Ícone ChatSPX (android-icon-72x72.png) embutido em base64, sobre um
-            badge branco circular para contraste no fundo verde da capa. %>
+        <%# Logo ChatSPX fixo (brand-assets/logo-pdf.png) em base64, recolorido p/ branco no CSS.
+            Os android-icon-* mudam nas campanhas sazonais (ex.: laço do Outubro Rosa) e nao servem aqui. %>
         <span class="logo">
-          <% if (logo_uri = pdf_public_image_data_uri('android-icon-72x72.png')) %>
+          <% if (logo_uri = pdf_public_image_data_uri('brand-assets/logo-pdf.png')) %>
             <img src="<%= logo_uri %>" alt="ChatSPX">
           <% end %>
         </span>
