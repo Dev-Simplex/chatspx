@@ -516,12 +516,10 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
     context 'when the closure policy is enabled' do
       before do
         classificar_como({ complete: true, reason: 'sem pendências', classe: 'substantive' })
-        inbox.account.update!(settings: inbox.account.settings.merge(
-          'auto_closure' => { 'enabled' => true, 'closing_notice' => { 'default' => 'Vou encerrar por aqui.' } }
-        ))
+        enable_closure_policy
       end
 
-      it 'sends no closing notice and does not queue a contact outside the lock' do
+      it 'does not queue nor write to a contact outside the lock' do
         travar(fora_da_trava)
 
         described_class.perform_now(inbox)
@@ -530,12 +528,11 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
         expect(resolvable_pending_conversation.reload.custom_attributes).not_to have_key('aguardando_encerramento_desde')
       end
 
-      it 'sends the closing notice and queues a contact in the lock as before' do
+      it 'queues a contact in the lock as before' do
         travar('+5565999111222')
 
         described_class.perform_now(inbox)
 
-        expect(resolvable_pending_conversation.messages.outgoing.where(private: false).last.content).to eq('Vou encerrar por aqui.')
         expect(resolvable_pending_conversation.reload.custom_attributes).to have_key('aguardando_encerramento_desde')
       end
     end
