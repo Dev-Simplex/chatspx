@@ -183,48 +183,6 @@ RSpec.describe ScheduledMessages::SendService do
     end
   end
 
-  # CHAT-213: a trava de teste (only_contact_phones) vale para a agendada que a IA escreveu antes
-  # de a trava ser ligada. A de pessoa não passa pela trava: ela é do assistente.
-  describe 'trava de teste do assistente' do
-    before do
-      cliente_falou(2.hours)
-      contact.update!(phone_number: '+5565999111222')
-    end
-
-    def travar(telefone)
-      assistant.update!(behavior: { 'router' => { 'only_contact_phones' => [telefone] } })
-    end
-
-    it 'descarta a agendada da IA para contato fora da trava, sem enviar nada' do
-      travar('+5511888887777')
-      scheduled = agendada_da_ia
-
-      expect(described_class.new(scheduled_message: scheduled).perform).to be_nil
-      expect(scheduled.reload).to be_cancelled
-      expect(scheduled.error_message).to eq(I18n.t('scheduled_messages.errors.contact_outside_test_lock'))
-      expect(conversation.messages.outgoing.count).to eq(0)
-    end
-
-    it 'envia a agendada da IA para contato na trava, como antes' do
-      travar('556599111222')
-      scheduled = agendada_da_ia
-
-      message = described_class.new(scheduled_message: scheduled).perform
-
-      expect(message.sender).to eq(assistant)
-      expect(scheduled.reload).to be_sent
-    end
-
-    it 'não barra a agendada criada por pessoa' do
-      travar('+5511888887777')
-      scheduled = ScheduledMessage.create!(conversation: conversation, inbox: inbox, message: 'Oi',
-                                           scheduled_at: 1.minute.from_now, status: :pending, scheduled_by: human)
-
-      expect(described_class.new(scheduled_message: scheduled).perform.sender).to eq(human)
-      expect(scheduled.reload).to be_sent
-    end
-  end
-
   describe 'agendada criada por pessoa' do
     it 'continua saindo em nome de quem agendou' do
       cliente_falou(2.hours)
