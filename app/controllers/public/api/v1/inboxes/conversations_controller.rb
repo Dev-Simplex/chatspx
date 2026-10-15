@@ -9,7 +9,7 @@ class Public::Api::V1::Inboxes::ConversationsController < Public::Api::V1::Inbox
   def show; end
 
   def create
-    return ignore_waha_status_broadcast if waha_status_broadcast?
+    return ignore_waha_broadcast_chat if waha_broadcast_chat?
 
     @conversation = create_conversation
   end

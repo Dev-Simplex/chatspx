@@ -61,7 +61,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
   def perform_time_based(inbox)
     resolvable_pending_conversations(inbox).each do |conversation|
       assistant = assistant_for(conversation)
-      next if assistant.blank?
+      next if assistant.blank? || locked_out?(conversation, assistant)
 
       Current.executed_by = assistant
       # O encerramento automatico dispensa a escolha de time exigida do humano.
@@ -75,7 +75,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
     closure_on = auto_closure_enabled?(inbox.account)
     resolvable_pending_conversations(inbox, closure_on).each do |conversation|
       assistant = assistant_for(conversation)
-      next if assistant.blank?
+      next if assistant.blank? || locked_out?(conversation, assistant)
 
       Current.executed_by = assistant
 
@@ -157,6 +157,14 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
     conversation.assignee_agent_bot&.captain_assistant ||
       conversation.messages.where(sender_type: 'Captain::Assistant').order(:created_at).last&.sender ||
       conversation.inbox.captain_assistants.first
+  end
+
+  # Trava de teste do assistente (CHAT-171): contato fora de only_contact_phones não recebe nada
+  # da IA, e o fechamento fala por ela (aviso de encerramento, handoff, mensagem de resolução).
+  # Sem este corte, na CD Solar, com a trava só no número de teste, o job mandou avisos de
+  # "conversa inativa" a clientes reais (CHAT-213). A conversa fica intocada, para o humano.
+  def locked_out?(conversation, assistant)
+    !Captain::Behavior::ContactPhoneLock.new(assistant).allows?(conversation.contact)
   end
 
   def evaluate_conversation(conversation, inbox)

@@ -55,6 +55,9 @@ class Waha::InboundReconcilerJob < ApplicationJob
   end
 
   def reconcile_chat(inbox, conversation, since)
+    # CHAT-170: status e listas de transmissão não são atendimento — não reinjetar.
+    return if Whatsapp::BroadcastChat.contact?(conversation.contact)
+
     chat_id = chat_id_for(conversation)
     return if chat_id.blank?
 
