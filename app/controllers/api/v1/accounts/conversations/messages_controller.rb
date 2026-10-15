@@ -4,6 +4,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   include ReplyAssignmentGateConcern
 
   before_action :ensure_api_inbox, only: :update, unless: :content_update?
+  before_action :suppress_whatsapp_broadcast_chat, only: :create
   before_action :enforce_reply_assignment_gate, only: [:create, :share_location, :share_contact]
 
   WAHA_ECHO_MARKER_API = 'Enviado via API'.freeze
@@ -299,6 +300,15 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def render_whatsapp_invalid_error
     render_could_not_create_error(I18n.t('errors.contacts.whatsapp_validation.not_registered'))
+  end
+
+  # CHAT-170: a app `chatwoot` da WAHA cria a conversa pela API pública (filtrada lá), mas posta
+  # as mensagens por AQUI, no id que guardou. Conversa de status/lista criada antes do filtro
+  # seguia recebendo stories — e cada uma acionava a IA e a descrição de imagem.
+  def suppress_whatsapp_broadcast_chat
+    return unless Whatsapp::BroadcastChat.contact?(@conversation.contact)
+
+    render json: { status: 'suppressed', reason: 'whatsapp_broadcast' }, status: :ok
   end
 
   def waha_echo?
