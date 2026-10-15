@@ -21,11 +21,6 @@ module Captain
       # Vista (real-estate CRM) -------------------------------------------------
       DEFAULT_VISTA_BASE_URL = 'https://toz19328-rest.vistahost.com.br'.freeze
 
-      # Office location (escritório) — legacy Tozi constants as last resort -----
-      DEFAULT_OFFICE_LAT  = -11.8519937
-      DEFAULT_OFFICE_LNG  = -55.5093314
-      DEFAULT_OFFICE_NAME = 'Tozi Imóveis - Av. das Figueiras, 1646, Sala 01, Centro, Sinop/MT'.freeze
-
       # Cidade de atendimento (viés das buscas no Google) — legacy Tozi ---------
       DEFAULT_GEO_CITY = 'Sinop MT'.freeze
 
@@ -48,14 +43,15 @@ module Captain
           ENV['GOOGLE_MAPS_API_KEY'].presence
       end
 
-      # { lat: Float, lng: Float, name: String } — office pin coordinates.
+      # { lat: Float, lng: Float, name: String|nil } — pin do escritório, ou nil sem lat/lng na conta.
+      # SEM último recurso, pelo mesmo motivo do site_domain abaixo: as constantes que existiam
+      # aqui eram o escritório de UM cliente, e a conta que não configurasse mandava o pin dele.
+      # Configurar: Agentes IA -> integração Vista -> latitude e longitude do escritório.
       def office_coords
         vista = account_integration_settings('vista')
-        {
-          lat: (vista['office_lat'].presence || DEFAULT_OFFICE_LAT).to_f,
-          lng: (vista['office_lng'].presence || DEFAULT_OFFICE_LNG).to_f,
-          name: vista['office_name'].presence || DEFAULT_OFFICE_NAME
-        }
+        return nil if vista['office_lat'].blank? || vista['office_lng'].blank?
+
+        { lat: vista['office_lat'].to_f, lng: vista['office_lng'].to_f, name: vista['office_name'].presence }
       end
 
       # SEM último recurso, de propósito. A constante que existia aqui era o domínio de UM

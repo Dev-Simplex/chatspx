@@ -539,10 +539,14 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     nil
   end
 
+  # Sem escritório configurado não há centro para o raio: o ponto não passa no veto (a busca
+  # segue sem referência geográfica, em vez de medir distância a partir de um ponto sem aval).
   def na_cidade?(ponto)
     return false if ponto.nil?
 
     office = office_coords
+    return false if office.nil?
+
     haversine_km(office[:lat], office[:lng], ponto[:lat], ponto[:lng]) <= RAIO_URBANO_KM
   end
 

@@ -102,7 +102,7 @@
 
 - id: enviar_localizacao
   title: 'Enviar Localização do Escritório'
-  description: 'Envia ao cliente o pin de localização do escritório da Tozi no mapa'
+  description: 'Envia ao cliente o pin de localização do escritório da conta no mapa'
   icon: 'location'
 
 - id: enviar_localizacao_imovel
