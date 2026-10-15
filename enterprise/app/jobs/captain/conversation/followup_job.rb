@@ -21,7 +21,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # Cutucada decidida pelo agente (via ProgramarFollowupTool). Dispara só se ainda
   # fizer sentido: token atual, dono da conversa ainda é a IA, cliente não respondeu,
   # dentro de horário civilizado. A própria cutucada é gerada pelo agente no contexto.
-  def perform(conversation, token)
+  def perform(conversation, token) # rubocop:disable Metrics/CyclomaticComplexity
     return if conversation.inbox.read_only? # CHAT-155
     return unless followup_due?(conversation, token)
 
