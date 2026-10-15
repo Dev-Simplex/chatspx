@@ -23,7 +23,7 @@ RSpec.describe 'Conversation Messages API — chats @broadcast do WhatsApp', typ
          as: :json
   end
 
-  context 'com o contato status@broadcast' do
+  describe 'contato status@broadcast' do
     let(:contact) do
       create(:contact, account: account, identifier: 'status@broadcast',
                        custom_attributes: { 'waha_whatsapp_chat_id' => 'status@broadcast' })
@@ -46,7 +46,7 @@ RSpec.describe 'Conversation Messages API — chats @broadcast do WhatsApp', typ
     end
   end
 
-  context 'com uma lista de transmissão' do
+  describe 'lista de transmissão' do
     let(:contact) do
       create(:contact, account: account, identifier: '1640005907@broadcast', name: 'Lista de transmissão',
                        custom_attributes: { 'waha_whatsapp_chat_id' => '1640005907@broadcast' })
@@ -64,7 +64,7 @@ RSpec.describe 'Conversation Messages API — chats @broadcast do WhatsApp', typ
     end
   end
 
-  context 'com um contato comum' do
+  describe 'contato comum' do
     let(:contact) do
       create(:contact, account: account, phone_number: '+5566999991234',
                        custom_attributes: { 'waha_whatsapp_chat_id' => '5566999991234@c.us' })
