@@ -12,6 +12,8 @@
 | **Tozi** | Homologação (sandbox) | `192.168.8.232` (LAN, `simplexia@`) | chatspx.app | conta **3** | `scripts/ops/tozi-hml.sh` |
 | **Tozi** | 🔴 Produção (cliente real) | `3.94.9.51` (`ubuntu@`, PEM) | tozi.chatspx.app | conta **6** | `scripts/ops/tozi-prod.sh` |
 | **Fábrica / Atacadão** | Box único (build/teste) | `3.87.182.184` (`chatwoot@`) | fabrica.chatspx.app | **1** Fábrica · **2** Atacadão | `scripts/ops/fabrica.sh` |
+| **CD Solar** | 🔴 Produção (cliente real) | `13.218.193.75` (AWS, `ubuntu@`, PEM) | cdsolar.chatspx.app | conta **1** | `scripts/ops/cdsolar.sh` |
+| **Rocket Studio** | 🔴 Produção (cliente real) | `2.25.195.47` (Hostinger de outra conta, `root@`, PEM) | rocketstudio.chatspx.app | conta **1** | `scripts/ops/rocket.sh` |
 
 Observações:
 - **Tozi** tem dois ambientes separados (HML `.232` × PROD AWS). Não confundir: `.232` também
@@ -36,11 +38,14 @@ Nenhuma senha/chave fica nestes scripts. Cada helper lê a credencial do **vault
 tempo de execução (via `SSH_ASKPASS`, nunca ecoada):
 - Tozi HML: `Obsidian/credenciais/infraestrutura.md` (seção Cortex LAN)
 - Tozi PROD: PEM em `Downloads/handoff-tozi/simplex.linux.pem`
+- CD Solar e Rocket: a mesma PEM (`SPX_PEM` sobrescreve o caminho)
 - Fábrica: `Obsidian/clientes/fabrica-atacadao-oculos.md` (linha "Servidor (SSH)")
 
 ## Regra de ouro antes de deployar
 
 1. Confirme **cliente + ambiente** (não só "homologação").
 2. Rode o helper certo — ele imprime um **banner** com CLIENTE · AMBIENTE · HOST. Confira o banner.
-3. Em produção (Tozi conta 6): só com **OK explícito** do Paulo. Antes de `restart`,
+3. Em produção (Tozi conta 6, CD Solar, Rocket): só com **OK explícito** do Paulo. Para medir sem
+   risco, use o modo `ro` do helper (`cdsolar.sh ro < script.rb`): o runner abre a sessão do banco em
+   transação só leitura, e qualquer escrita é recusada pelo Postgres. Antes de `restart`,
    sempre `rails db:migrate:status` (migration pendente + restart = 500 em cadeia).
