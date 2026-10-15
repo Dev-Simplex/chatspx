@@ -1,9 +1,4 @@
 class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesController
-  # Lista de transmissao. A app `chatwoot` da WAHA injeta o prefixo de autor
-  # quando `isJidGroup(chatId) || isJidBroadcast(chatId)` — ou seja, grupo E
-  # broadcast. O `Conversation#group?` (contrato C1) cobre so `@g.us`.
-  WHATSAPP_BROADCAST_JID_SUFFIX = '@broadcast'.freeze
-
   before_action :set_message, only: [:update]
 
   def index
@@ -12,7 +7,7 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
 
   def create
     return head :ok if @contact_inbox&.contact&.blocked?
-    return ignore_waha_status_broadcast if waha_status_broadcast?
+    return ignore_waha_broadcast_chat if waha_broadcast_chat?
 
     @message = @conversation.messages.new(message_params)
     build_attachment
@@ -123,20 +118,10 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
   # Chat com mais de um participante possivel — e so nesses que a WAHA embute o
   # autor no texto. O gatilho e SEMPRE estrutural (o JID do chat), nunca o texto:
   # e isso que garante que uma conversa 1:1 de verdade nao muda em nada, mesmo que
-  # alguem digite algo parecido com o prefixo.
+  # alguem digite algo parecido com o prefixo. A WAHA tambem prefixa broadcast,
+  # mas chat `@broadcast` nem chega aqui (CHAT-170, `waha_broadcast_chat?`).
   def waha_multi_participant_chat?
-    @conversation&.group? || waha_broadcast_chat?
-  end
-
-  # `Conversation#group?` e o ponto unico de verdade sobre `@g.us` e nao deve ser
-  # alargado (outros guards dependem dele). Broadcast fica so aqui, na ingestao.
-  def waha_broadcast_chat?
-    contact = @conversation&.contact
-    return false if contact.blank?
-
-    custom = contact.custom_attributes || {}
-    custom.values_at('waha_whatsapp_chat_id', 'waha_whatsapp_jid')
-          .any? { |jid| jid.to_s.end_with?(WHATSAPP_BROADCAST_JID_SUFFIX) }
+    @conversation&.group?
   end
 
   # Acerto de cache: quando o telefone deste LID ja foi resolvido antes, ele entra

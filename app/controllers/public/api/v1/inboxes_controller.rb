@@ -1,6 +1,4 @@
 class Public::Api::V1::InboxesController < PublicController
-  WHATSAPP_STATUS_BROADCAST_JID = 'status@broadcast'.freeze
-
   before_action :set_inbox_channel
   before_action :set_contact_inbox
   before_action :set_conversation
@@ -155,19 +153,14 @@ class Public::Api::V1::InboxesController < PublicController
     Contacts::BrazilPhoneNormalizer.normalize(phone_number)
   end
 
-  # CHAT-170: atualizações de status do WhatsApp ("stories") chegam da app `chatwoot` da WAHA
-  # como o chat `status@broadcast`. Não são atendimento — viravam conversa e acionavam a IA.
-  def waha_status_broadcast?
-    contact = @contact_inbox&.contact
-    return false if contact.blank?
-
-    custom = contact.custom_attributes.is_a?(Hash) ? contact.custom_attributes : {}
-    [@contact_inbox.source_id, contact.identifier, *custom.values_at('waha_whatsapp_chat_id', 'waha_whatsapp_jid')]
-      .any? { |jid| jid.to_s == WHATSAPP_STATUS_BROADCAST_JID }
+  # CHAT-170: status ("stories") e listas de transmissão chegam da app `chatwoot` da WAHA como
+  # chats `...@broadcast`. Não são atendimento — viravam conversa e acionavam a IA.
+  def waha_broadcast_chat?
+    Whatsapp::BroadcastChat.contact?(@contact_inbox&.contact, @contact_inbox&.source_id)
   end
 
-  def ignore_waha_status_broadcast
-    Rails.logger.debug { "[WAHA] status@broadcast ignorado (inbox_id=#{@inbox_channel&.inbox&.id}, contact_inbox_id=#{@contact_inbox.id})" }
+  def ignore_waha_broadcast_chat
+    Rails.logger.debug { "[WAHA] chat @broadcast ignorado (inbox_id=#{@inbox_channel&.inbox&.id}, contact_inbox_id=#{@contact_inbox.id})" }
     head :ok
   end
 
