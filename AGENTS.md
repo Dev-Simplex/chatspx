@@ -30,6 +30,7 @@ de qual cliente. Mapa canonico + helpers de deploy por cliente: **`scripts/ops/A
 
 - **Tozi** — HML: `192.168.8.232` (conta 3) → `scripts/ops/tozi-hml.sh` · 🔴 PROD: `3.94.9.51` (conta 6) → `scripts/ops/tozi-prod.sh`
 - **Fabrica/Atacadao** — box unico `3.87.182.184` (fabrica.chatspx.app, contas 1/2) → `scripts/ops/fabrica.sh`
+- **CD Solar** — 🔴 PROD: `13.218.193.75` (conta 1) → `scripts/ops/cdsolar.sh` · **Rocket Studio** — 🔴 PROD: `2.25.195.47` (conta 1) → `scripts/ops/rocket.sh` (modo `ro` = leitura com o banco travado em read only)
 
 Cada helper imprime um banner CLIENTE · AMBIENTE · HOST — confira antes de rodar. Codigo por
 cliente = namespace `Spx::Tozi::*` / `Spx::FabricaOculos::*` + config no banco da conta. Docs por
