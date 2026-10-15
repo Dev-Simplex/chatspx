@@ -30,6 +30,7 @@ import Logo from 'next/icon/Logo.vue';
 import LordIconIcon from 'next/icon/LordIconIcon.vue';
 import { LORDICON } from 'dashboard/constants/lordicons';
 import { isHelpCenterAuthoringAccount } from 'dashboard/helper/helpCenterEmbed';
+import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -418,6 +419,8 @@ const newReportRoutes = () => [
 ];
 
 const reportRoutes = computed(() => newReportRoutes());
+
+const { isReportEnabled } = useReportFeatures();
 
 const menuItems = computed(() => {
   return [
@@ -825,21 +828,34 @@ const menuItems = computed(() => {
           to: accountScopedRoute('conversation_reports'),
         },
         ...reportRoutes.value,
-        {
-          name: 'Reports CSAT',
-          label: t('SIDEBAR.CSAT'),
-          to: accountScopedRoute('csat_reports'),
-        },
-        {
-          name: 'Reports NPS',
-          label: t('SIDEBAR.NPS'),
-          to: accountScopedRoute('nps_reports'),
-        },
-        {
-          name: 'Reports SLA',
-          label: t('SIDEBAR.REPORTS_SLA'),
-          to: accountScopedRoute('sla_reports'),
-        },
+        // Satisfação, Indicação e Prazos só aparecem quando a conta liga o que eles medem.
+        ...(isReportEnabled('csat_reports')
+          ? [
+              {
+                name: 'Reports CSAT',
+                label: t('SIDEBAR.CSAT'),
+                to: accountScopedRoute('csat_reports'),
+              },
+            ]
+          : []),
+        ...(isReportEnabled('nps_reports')
+          ? [
+              {
+                name: 'Reports NPS',
+                label: t('SIDEBAR.NPS'),
+                to: accountScopedRoute('nps_reports'),
+              },
+            ]
+          : []),
+        ...(isReportEnabled('sla_reports')
+          ? [
+              {
+                name: 'Reports SLA',
+                label: t('SIDEBAR.REPORTS_SLA'),
+                to: accountScopedRoute('sla_reports'),
+              },
+            ]
+          : []),
         {
           name: 'Reports Bot',
           label: t('SIDEBAR.REPORTS_BOT'),

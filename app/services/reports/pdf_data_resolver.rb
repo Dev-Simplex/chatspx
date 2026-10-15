@@ -73,7 +73,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     kpis = nps_kpis(calc, cohort)
 
     {
-      report_type: 'nps', title: 'Os clientes indicariam a empresa? (NPS)', period: period_meta,
+      report_type: 'nps', title: 'Avaliações (NPS)', period: period_meta,
       overline: 'Experiência do Cliente · Confidencial',
       subtitle: nps_subtitle(kpis),
       base_label: "#{kpis[:total]} avaliações válidas",
@@ -222,7 +222,19 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   # ======================= CSAT =======================
   def csat_verdict(kpis)
+    return csat_no_answers_verdict if kpis[:total].zero?
+
     metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{br_number(kpis[:satisfaction])}%", label: 'Clientes satisfeitos')
+  end
+
+  # Sem resposta o indice seria 0% e o cartao sairia vermelho; como no NPS de amostra baixa, avisa.
+  def csat_no_answers_verdict
+    {
+      kind: :attention, emoji: 'ℹ️', title: 'Sem respostas no período',
+      level: :warn, word: 'sem respostas', metric_label: 'Clientes satisfeitos',
+      value_human: '--', goal_human: metric_goal_human(:csat),
+      body: 'Ninguém respondeu à pesquisa de satisfação neste período, então ainda não dá para dizer se os clientes ficaram satisfeitos.'
+    }
   end
 
   def csat_data
@@ -946,7 +958,12 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def funnel_data
     funnel = @account.funnels.find(@filters[:funnel_id])
     report = Kanban::FunnelReportService.new(funnel: funnel).perform
-    funnel_payload(funnel.name, report)
+    funnel_payload(funnel_display_name(funnel.name), report)
+  end
+
+  # Mesma regra do Painel (PanelFunnelCard): inicial maiuscula em cada palavra, sem mexer no resto.
+  def funnel_display_name(name)
+    name.to_s.gsub(/(^|[\s(])(\p{Ll})/) { "#{Regexp.last_match(1)}#{Regexp.last_match(2).upcase}" }
   end
 
   def funnel_payload(name, report)

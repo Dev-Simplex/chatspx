@@ -63,30 +63,36 @@ class Reports::PdfExportService
   # margin-top negativo (folgado) + altura extra fazem o verde sangrar ate a borda
   # da pagina (elimina QUALQUER "linha branca" no topo — o excedente e cortado na
   # borda fisica). O padding-top recoloca o conteudo no centro da faixa visivel.
+  # Abaixo da faixa, o resto da margem fica no cinza da pagina, sem tira branca.
   def header_template(title)
-    icon = pdf_public_image_data_uri('android-icon-36x36.png')
-    # Icone ChatSPX (verde) recolorido p/ branco via filtro — fundo 100% verde, sem badge.
+    # Logo fixo da marca, recolorido p/ branco; os android-icon-* mudam nas campanhas sazonais.
+    icon = pdf_public_image_data_uri('brand-assets/logo-pdf.png')
     icon_style = 'width:14px;height:14px;display:block;flex:none;' \
                  'filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1);'
     icon_html = icon ? %(<img src="#{icon}" style="#{icon_style}">) : ''
     <<~HTML
-      <div style="width:100%;height:calc(16mm + 0.3cm);margin-top:-0.7cm;
-                  padding:0.7cm 14mm 0;box-sizing:border-box;
-                  background:#1ea65b;-webkit-print-color-adjust:exact;print-color-adjust:exact;
-                  color:#ffffff;font-family:Arial,sans-serif;display:flex;align-items:center;
-                  gap:7px;font-size:10px;">
-        #{icon_html}
-        <span style="font-weight:bold;font-size:11px;">ChatSPX</span>
-        <span style="opacity:0.55;">·</span>
-        <span style="opacity:0.95;">#{ERB::Util.h(title)}</span>
+      <div style="width:100%;height:calc(18mm + 0.7cm);margin-top:-0.7cm;
+                  background:#f9fafb;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+        <div style="width:100%;height:calc(16mm + 0.3cm);
+                    padding:0.7cm 14mm 0;box-sizing:border-box;
+                    background:#1ea65b;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+                    color:#ffffff;font-family:Arial,sans-serif;display:flex;align-items:center;
+                    gap:7px;font-size:10px;">
+          #{icon_html}
+          <span style="font-weight:bold;font-size:11px;">ChatSPX</span>
+          <span style="opacity:0.55;">·</span>
+          <span style="opacity:0.95;">#{ERB::Util.h(title)}</span>
+        </div>
       </div>
     HTML
   end
 
   def footer_template
     <<~HTML
-      <div style="font-size:8px;width:100%;padding:0 14mm;color:#8696a0;
-                  display:flex;justify-content:flex-end;font-family:Arial,sans-serif;">
+      <div style="font-size:8px;width:100%;height:calc(0.43in + 0.7cm);margin-bottom:-0.7cm;
+                  padding:0 14mm 0.7cm;box-sizing:border-box;color:#8696a0;
+                  background:#f9fafb;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+                  display:flex;align-items:center;justify-content:flex-end;font-family:Arial,sans-serif;">
         <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
       </div>
     HTML

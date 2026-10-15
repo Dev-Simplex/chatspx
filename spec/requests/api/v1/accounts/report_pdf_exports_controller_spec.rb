@@ -39,6 +39,16 @@ RSpec.describe 'Report PDF Exports API', type: :request do
         expect(ReportPdfExport.last.filters).to include('since' => '1735689600', 'until' => '1749340800')
       end
 
+      it 'rejects a funnel report without the funnel instead of failing in the job' do
+        expect do
+          post "/api/v1/accounts/#{account.id}/report_pdf_exports",
+               headers: administrator.create_new_auth_token,
+               params: { report_type: 'funnel' }, as: :json
+        end.not_to have_enqueued_job(Reports::PdfExportJob)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
       it 'rejects an unsupported report_type' do
         post "/api/v1/accounts/#{account.id}/report_pdf_exports",
              headers: administrator.create_new_auth_token,

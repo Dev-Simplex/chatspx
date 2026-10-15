@@ -30,6 +30,9 @@ class ReportPdfExport < ApplicationRecord
   enum status: { pending: 0, processing: 1, completed: 2, failed: 3 }
 
   validates :report_type, presence: true, inclusion: { in: SUPPORTED_REPORT_TYPES }
+  # O PDF de funil e de UM funil: sem ele o job quebrava em segundo plano e a exportacao
+  # ficava como falha. Recusa ja no pedido.
+  validate :funnel_chosen, if: -> { report_type == 'funnel' }
 
   scope :recent, -> { order(created_at: :desc) }
 
@@ -48,5 +51,11 @@ class ReportPdfExport < ApplicationRecord
     return nil unless started_at && completed_at
 
     ((completed_at - started_at) * 1000).round
+  end
+
+  private
+
+  def funnel_chosen
+    errors.add(:filters, :blank) if filters.to_h.with_indifferent_access[:funnel_id].blank?
   end
 end
