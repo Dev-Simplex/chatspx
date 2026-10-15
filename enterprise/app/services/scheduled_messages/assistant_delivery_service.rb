@@ -32,6 +32,7 @@ class ScheduledMessages::AssistantDeliveryService
   end
 
   def perform
+    return descartar_pela_trava_de_teste unless contato_liberado?
     return revisar_com_a_ia if revisao_pela_ia?
     return create_message(@scheduled_message.message) if @conversation.can_reply?
 
@@ -39,6 +40,19 @@ class ScheduledMessages::AssistantDeliveryService
   end
 
   private
+
+  # Trava de teste do assistente (CHAT-171): contato fora de only_contact_phones não recebe nada
+  # da IA — nem a agendada que ela escreveu antes de a trava ser ligada (CHAT-213). Ela é
+  # descartada com o motivo, sem aviso na conversa: o contato nunca deveria ter falado com a IA.
+  def contato_liberado?
+    Captain::Behavior::ContactPhoneLock.new(@assistant).allows?(@conversation.contact)
+  end
+
+  def descartar_pela_trava_de_teste
+    @descartada = true
+    @error = I18n.t('scheduled_messages.errors.contact_outside_test_lock')
+    nil
+  end
 
   # Fora da janela a IA não pode mandar texto livre, então não há o que revisar: vale o template.
   def revisao_pela_ia?

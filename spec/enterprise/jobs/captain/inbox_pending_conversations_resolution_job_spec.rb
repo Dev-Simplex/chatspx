@@ -448,6 +448,96 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
     end
   end
 
+  # CHAT-213: a trava de teste do assistente (only_contact_phones) vale para o fechamento
+  # automático, que fala com o cliente em nome da IA. Na CD Solar, com a trava só no número de
+  # teste, o job mandou "Resolvendo a conversa dado que está inativa" a clientes reais.
+  describe 'trava de teste do assistente (only_contact_phones)' do
+    let(:fora_da_trava) { '+5511888887777' }
+
+    def travar(telefone)
+      captain_assistant.update!(behavior: { 'router' => { 'only_contact_phones' => [telefone] } })
+    end
+
+    def classificar_como(resultado)
+      allow(inbox.account).to receive(:feature_enabled?).and_call_original
+      allow(inbox.account).to receive(:feature_enabled?).with('captain_tasks').and_return(true)
+      allow(Captain::ConversationCompletionService).to receive(:new)
+        .and_return(instance_double(Captain::ConversationCompletionService, perform: resultado))
+    end
+
+    before { resolvable_pending_conversation.contact.update!(phone_number: '+5565999111222') }
+
+    context 'when the conversation is resolved by time' do
+      it 'leaves a contact outside the lock untouched and silent' do
+        travar(fora_da_trava)
+
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.reload).to be_pending
+        expect(resolvable_pending_conversation.messages.outgoing).to be_empty
+      end
+
+      it 'resolves a contact in the lock as before' do
+        travar('(65) 99911-1222')
+
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.reload).to be_resolved
+        expect(resolvable_pending_conversation.messages.outgoing.where(private: false)).to exist
+      end
+    end
+
+    context 'when the LLM evaluation asks for a handoff' do
+      before do
+        classificar_como({ complete: false, reason: 'cliente não respondeu' })
+        captain_assistant.update!(config: { 'handoff_message' => 'Vou te passar para a equipe.' })
+      end
+
+      it 'neither classifies, hands off nor writes to a contact outside the lock' do
+        travar(fora_da_trava)
+
+        described_class.perform_now(inbox)
+
+        expect(Captain::ConversationCompletionService).not_to have_received(:new)
+        expect(resolvable_pending_conversation.reload).to be_pending
+        expect(resolvable_pending_conversation.messages.outgoing).to be_empty
+      end
+
+      it 'hands off a contact in the lock as before' do
+        travar('+5565999111222')
+
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.reload).to be_open
+        expect(resolvable_pending_conversation.messages.outgoing.where(private: false).last.content).to eq('Vou te passar para a equipe.')
+      end
+    end
+
+    context 'when the closure policy is enabled' do
+      before do
+        classificar_como({ complete: true, reason: 'sem pendências', classe: 'substantive' })
+        enable_closure_policy
+      end
+
+      it 'does not queue nor write to a contact outside the lock' do
+        travar(fora_da_trava)
+
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.messages.outgoing).to be_empty
+        expect(resolvable_pending_conversation.reload.custom_attributes).not_to have_key('aguardando_encerramento_desde')
+      end
+
+      it 'queues a contact in the lock as before' do
+        travar('+5565999111222')
+
+        described_class.perform_now(inbox)
+
+        expect(resolvable_pending_conversation.reload.custom_attributes).to have_key('aguardando_encerramento_desde')
+      end
+    end
+  end
+
   def enable_closure_policy(max_dias: 3)
     inbox.account.update!(settings: inbox.account.settings.merge('auto_closure' => { 'enabled' => true, 'max_dias' => max_dias }))
   end

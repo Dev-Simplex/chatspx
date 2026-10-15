@@ -72,6 +72,47 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
     end
   end
 
+  # CHAT-213: a trava de teste (only_contact_phones) vale para a cutucada já armada. A IA pode
+  # seguir dona de conversa atribuída antes de a trava ser ligada; o router só barra resposta a
+  # mensagem nova.
+  context 'when the assistant has a test phone lock' do
+    before { conversation.contact.update!(phone_number: '+5565999111222') }
+
+    def travar(telefone)
+      assistant.update!(behavior: { 'router' => { 'only_contact_phones' => [telefone] } })
+    end
+
+    it 'does not nudge a contact outside the lock, nor consume the attempt' do
+      travar('+5511888887777')
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_count']).to eq(1)
+      expect(Captain::AssistantLog.where(conversation: conversation, event_type: 'router_skip')).to exist
+    end
+
+    it 'does not escalate a contact outside the lock to a human when nudges are exhausted' do
+      allow(Captain::Conversation::HumanHandoffService).to receive(:new)
+      travar('+5511888887777')
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_count' => described_class::MAX_FOLLOWUPS))
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::HumanHandoffService).not_to have_received(:new)
+      expect(conversation.reload.custom_attributes['tozi_status_lead']).to be_nil
+    end
+
+    it 'nudges a contact in the lock as before' do
+      travar('65 99911-1222')
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob)
+        .to have_received(:perform_now).with(conversation, assistant, directive: kind_of(String))
+    end
+  end
+
   context 'when the conversation was transferred to another assistant (IA→IA)' do
     it 'fires the nudge from the CURRENT owner, not the one that scheduled it' do
       other_assistant = create(:captain_assistant, account: account)
