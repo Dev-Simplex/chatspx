@@ -31,6 +31,10 @@ on:
       - 'enterprise/app/services/captain/**'
       - 'spec/enterprise/services/spx/**'
       - 'spec/fixtures/captain/harness/**'
+      # A trava de rede (spec_helper) e a rede falsa (spec/support) são a base do harness.
+      - 'spec/spec_helper.rb'
+      - 'spec/rails_helper.rb'
+      - 'spec/support/**'
       - '.github/workflows/harness_offline.yml'
   workflow_dispatch:
 
