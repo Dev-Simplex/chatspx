@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import NpsReportsAPI from 'dashboard/api/npsReports';
 import ReportsAPI from 'dashboard/api/reports';
-import { formatPercent } from 'dashboard/helper/reportFormat';
+import { formatPercent, teamDisplayName } from 'dashboard/helper/reportFormat';
 import ReportCard from 'dashboard/components-next/reports/ui/ReportCard.vue';
 import ReportBarList from 'dashboard/components-next/reports/ui/ReportBarList.vue';
 
@@ -115,7 +115,7 @@ const teamTone = value => {
 const teamBars = computed(() =>
   byTeam.value.map(row => ({
     key: row.id,
-    label: row.name,
+    label: teamDisplayName(row.name),
     hint: t('REPORTS_UI.NPS.RESPONSES', { n: row.total }, row.total),
     // escala de -100 a 100 deslocada para 0..200, para a barra comecar do zero
     value: row.value + 100,

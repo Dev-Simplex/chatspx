@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { formatDuration } from 'dashboard/helper/reportFormat';
+import { formatDuration, teamDisplayName } from 'dashboard/helper/reportFormat';
 import format from 'date-fns/format';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import ReportsAPI from 'dashboard/api/reports';
@@ -259,7 +259,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown));
                       [
                         row.inbox_name,
                         row.agent_name || $t('REPORT.DRILLDOWN.NO_AGENT'),
-                        row.team_name,
+                        teamDisplayName(row.team_name),
                       ]
                         .filter(Boolean)
                         .join(' · ')

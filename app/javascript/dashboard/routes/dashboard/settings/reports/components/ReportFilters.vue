@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
@@ -60,7 +61,8 @@ const buildReportFilterList = (items, type) => {
 
   return items.map(item => ({
     id: item.id,
-    name: item.name || item.title,
+    name:
+      type === 'teams' ? teamDisplayName(item.name) : item.name || item.title,
     type,
   }));
 };

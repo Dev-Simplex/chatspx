@@ -2,7 +2,7 @@
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
-import { formatDuration } from 'dashboard/helper/reportFormat';
+import { formatDuration, teamDisplayName } from 'dashboard/helper/reportFormat';
 import LiveReportsAPI from 'dashboard/api/liveReports';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
@@ -63,9 +63,10 @@ const load = async () => {
   updatedAt.value = new Date();
 };
 
-const teamName = id =>
-  teams.value.find(team => team.id === id)?.name ||
-  t('REPORTS_PANEL.LIVE.NO_TEAM');
+const teamName = id => {
+  const name = teams.value.find(team => team.id === id)?.name;
+  return name ? teamDisplayName(name) : t('REPORTS_PANEL.LIVE.NO_TEAM');
+};
 
 const maxWaiting = computed(() =>
   Math.max(1, ...teamRows.value.map(row => row.unattended))

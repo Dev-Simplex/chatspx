@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { computed, onMounted, ref, watch } from 'vue';
 import { OVERVIEW_METRICS } from '../constants';
 import { useToggle } from '@vueuse/core';
@@ -31,7 +32,10 @@ const teams = useMapGetter('teams/getTeams');
 const teamMenuList = computed(() => {
   return [
     { label: t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.ALL_TEAMS'), value: null },
-    ...teams.value.map(team => ({ label: team.name, value: team.id })),
+    ...teams.value.map(team => ({
+      label: teamDisplayName(team.name),
+      value: team.id,
+    })),
   ];
 });
 

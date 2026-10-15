@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import KanbanAPI from 'dashboard/api/kanban';
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 
 // Quantos cards estao em cada etapa do funil agora (o funil e uma foto do momento,
 // nao depende do periodo). Com mais de um funil, da para escolher qual mostrar.
@@ -34,13 +35,6 @@ onMounted(async () => {
 });
 watch(funnelId, loadStats);
 
-// O funil de um setor nasce com o nome do time, que o sistema grava em minusculas.
-const displayName = name =>
-  (name || '').replace(
-    /(^|[\s(])(\p{Ll})/gu,
-    (_, space, letter) => `${space}${letter.toUpperCase()}`
-  );
-
 const maxCount = computed(() =>
   Math.max(1, ...stages.value.map(stage => stage.count))
 );
@@ -70,7 +64,7 @@ const maxCount = computed(() =>
           :aria-label="t('REPORTS_PANEL.FUNNEL.TITLE')"
         >
           <option v-for="funnel in funnels" :key="funnel.id" :value="funnel.id">
-            {{ displayName(funnel.name) }}
+            {{ teamDisplayName(funnel.name) }}
           </option>
         </select>
         <router-link

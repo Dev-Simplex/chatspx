@@ -5,7 +5,11 @@ import { useMapGetter } from 'dashboard/composables/store';
 import format from 'date-fns/format';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import DistribuicaoDashboardAPI from 'dashboard/api/distribuicaoDashboard';
-import { formatDuration, formatPercent } from 'dashboard/helper/reportFormat';
+import {
+  formatDuration,
+  formatPercent,
+  teamDisplayName,
+} from 'dashboard/helper/reportFormat';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ReportCard from 'dashboard/components-next/reports/ui/ReportCard.vue';
 import CsatByAgentCard from 'dashboard/components-next/reports/csat/CsatByAgentCard.vue';
@@ -222,7 +226,7 @@ const frtBars = computed(() =>
           <div class="flex items-center gap-2">
             <span class="rounded-full size-2.5 bg-n-violet-9" />
             <span class="text-sm font-bold text-n-slate-12">
-              {{ team.name }}
+              {{ teamDisplayName(team.name) }}
             </span>
           </div>
           <p class="mt-0.5 mb-0 text-xs text-n-slate-11">

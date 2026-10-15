@@ -11,7 +11,11 @@ import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 import CsatReportsAPI from 'dashboard/api/csatReports';
 import NpsReportsAPI from 'dashboard/api/npsReports';
 import SLAReportsAPI from 'dashboard/api/slaReports';
-import { formatDuration, formatPercent } from 'dashboard/helper/reportFormat';
+import {
+  formatDuration,
+  formatPercent,
+  teamDisplayName,
+} from 'dashboard/helper/reportFormat';
 import PanelKpiCard from './PanelKpiCard.vue';
 import PanelShortcutCard from './PanelShortcutCard.vue';
 import PanelVolumeChart from './PanelVolumeChart.vue';
@@ -102,7 +106,9 @@ const loadTeams = async () => {
     .filter(row => row.avg_first_response_time > 0)
     .map(row => ({
       id: row.id,
-      name: teams.value.find(team => team.id === row.id)?.name || `#${row.id}`,
+      name:
+        teamDisplayName(teams.value.find(team => team.id === row.id)?.name) ||
+        `#${row.id}`,
       seconds: row.avg_first_response_time,
     }));
 };
