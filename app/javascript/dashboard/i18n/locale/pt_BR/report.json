@@ -747,7 +747,7 @@
     }
   },
   "NPS_REPORTS": {
-    "HEADER": "Os clientes recomendariam? (NPS)",
+    "HEADER": "Avaliações (NPS)",
     "NO_RECORDS": "Nenhum registro encontrado",
     "DOWNLOAD": "Exportar CSV",
     "DOWNLOAD_FAILED": "Erro ao baixar relatório NPS",

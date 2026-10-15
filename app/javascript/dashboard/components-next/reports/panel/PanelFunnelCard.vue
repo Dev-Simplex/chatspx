@@ -14,8 +14,13 @@ const stages = ref([]);
 
 const loadStats = async () => {
   if (!funnelId.value) return;
-  const { data } = await KanbanAPI.getFunnelStats(funnelId.value);
-  stages.value = data.stages || [];
+  try {
+    const { data } = await KanbanAPI.getFunnelStats(funnelId.value);
+    stages.value = data.stages || [];
+  } catch {
+    // Sem os numeros deste funil, nao deixa os do funil anterior na tela.
+    stages.value = [];
+  }
 };
 
 onMounted(async () => {
@@ -28,6 +33,13 @@ onMounted(async () => {
   funnelId.value = funnels.value[0].id;
 });
 watch(funnelId, loadStats);
+
+// O funil de um setor nasce com o nome do time, que o sistema grava em minusculas.
+const displayName = name =>
+  (name || '').replace(
+    /(^|[\s(])(\p{Ll})/gu,
+    (_, space, letter) => `${space}${letter.toUpperCase()}`
+  );
 
 const maxCount = computed(() =>
   Math.max(1, ...stages.value.map(stage => stage.count))
@@ -58,7 +70,7 @@ const maxCount = computed(() =>
           :aria-label="t('REPORTS_PANEL.FUNNEL.TITLE')"
         >
           <option v-for="funnel in funnels" :key="funnel.id" :value="funnel.id">
-            {{ funnel.name }}
+            {{ displayName(funnel.name) }}
           </option>
         </select>
         <router-link
@@ -80,7 +92,7 @@ const maxCount = computed(() =>
         <span class="text-sm text-n-slate-11 truncate" :title="stage.name">
           {{ stage.name }}
         </span>
-        <span class="flex justify-center">
+        <span class="flex justify-start">
           <span
             class="block h-6 rounded-md bg-n-blue-9"
             :style="{
