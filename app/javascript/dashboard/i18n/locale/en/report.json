@@ -1169,6 +1169,7 @@
       "COMMENTS_TITLE": "Recent comments",
       "COMMENTS_SUB": "what the customer wrote after the score",
       "COMMENTS_EMPTY": "No comment in this filter.",
+      "COMMENTS_NONE": "No one left a comment in this period.",
       "ALL": "All",
       "BY_TEAM_TITLE": "Would recommend, per team",
       "BY_TEAM_SUB": "each team score, from −100 to 100 · NPS",

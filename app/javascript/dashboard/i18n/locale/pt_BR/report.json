@@ -1169,6 +1169,7 @@
       "COMMENTS_TITLE": "Comentários recentes",
       "COMMENTS_SUB": "o que o cliente escreveu depois da nota",
       "COMMENTS_EMPTY": "Nenhum comentário neste filtro.",
+      "COMMENTS_NONE": "Ninguém deixou comentário neste período.",
       "ALL": "Todos",
       "BY_TEAM_TITLE": "Indicariam a empresa, por time",
       "BY_TEAM_SUB": "a nota de cada time, de −100 a 100 · NPS",

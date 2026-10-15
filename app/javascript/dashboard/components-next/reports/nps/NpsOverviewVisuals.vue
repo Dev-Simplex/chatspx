@@ -21,7 +21,11 @@ const NPS_GOAL = 50;
 const { t } = useI18n();
 const metrics = useMapGetter('npsResponses/getMetrics');
 
-const comments = ref([]);
+const FILTERS = ['all', 'promoter', 'detractor'];
+// Os comentarios de cada filtro e o total de cada um vem da API (so respostas com comentario), e nao
+// das 25 respostas mais recentes: assim o filtro acha comentario antigo e o numero ao lado e o real.
+const comments = ref({ all: [], promoter: [], detractor: [] });
+const commentTotals = ref({ all: 0, promoter: 0, detractor: 0 });
 const commentFilter = ref('all');
 const byTeam = ref([]);
 
@@ -40,15 +44,25 @@ const BAND_TEXT = {
   detractor: 'text-n-ruby-11 bg-n-ruby-3',
 };
 
+const loadComments = classification =>
+  NpsReportsAPI.get({
+    ...props.filters,
+    page: 1,
+    response_state: 'responded',
+    with_comment: true,
+    classification: classification === 'all' ? undefined : classification,
+  })
+    .then(({ data, headers }) => ({
+      rows: data,
+      total: Number(headers['x-total-count']) || data.length,
+    }))
+    .catch(() => ({ rows: [], total: 0 }));
+
 const load = async () => {
   const { from, to } = props.filters;
   if (!from) return;
-  const [list, teams] = await Promise.all([
-    NpsReportsAPI.get({
-      ...props.filters,
-      page: 1,
-      response_state: 'responded',
-    }).catch(() => ({ data: [] })),
+  const [lists, teams] = await Promise.all([
+    Promise.all(FILTERS.map(loadComments)),
     ReportsAPI.getBreakdown({
       kind: 'nps_by_team',
       from,
@@ -56,8 +70,10 @@ const load = async () => {
       inboxId: props.filters.inbox_id,
     }).catch(() => ({ data: [] })),
   ]);
-  const rows = Array.isArray(list.data) ? list.data : list.data.payload || [];
-  comments.value = rows.filter(row => row.comment);
+  FILTERS.forEach((key, i) => {
+    comments.value[key] = lists[i].rows;
+    commentTotals.value[key] = lists[i].total;
+  });
   byTeam.value = teams.data;
 };
 
@@ -99,13 +115,9 @@ const maxScore = computed(() =>
 );
 
 const visibleComments = computed(() =>
-  comments.value
-    .filter(
-      row =>
-        commentFilter.value === 'all' || band(row.score) === commentFilter.value
-    )
-    .slice(0, MAX_COMMENTS)
+  comments.value[commentFilter.value].slice(0, MAX_COMMENTS)
 );
+const hasComments = computed(() => commentTotals.value.all > 0);
 
 const teamTone = value => {
   if (value >= NPS_GOAL) return 'bg-n-teal-9';
@@ -124,7 +136,6 @@ const teamBars = computed(() =>
   }))
 );
 
-const FILTERS = ['all', 'promoter', 'detractor'];
 const filterLabel = key =>
   ({
     all: t('REPORTS_UI.NPS.ALL'),
@@ -234,7 +245,7 @@ const filterLabel = key =>
         :title="t('REPORTS_UI.NPS.COMMENTS_TITLE')"
         :subtitle="t('REPORTS_UI.NPS.COMMENTS_SUB')"
       >
-        <template #actions>
+        <template v-if="hasComments" #actions>
           <div
             class="inline-flex gap-0.5 p-0.5 rounded-full border border-n-weak bg-n-alpha-1"
             role="radiogroup"
@@ -254,6 +265,9 @@ const filterLabel = key =>
               @click="commentFilter = key"
             >
               {{ filterLabel(key) }}
+              <span class="ms-1 tabular-nums opacity-70">
+                {{ commentTotals[key] }}
+              </span>
             </button>
           </div>
         </template>
@@ -261,7 +275,11 @@ const filterLabel = key =>
           v-if="!visibleComments.length"
           class="mt-4 mb-0 text-sm text-n-slate-11"
         >
-          {{ t('REPORTS_UI.NPS.COMMENTS_EMPTY') }}
+          {{
+            hasComments
+              ? t('REPORTS_UI.NPS.COMMENTS_EMPTY')
+              : t('REPORTS_UI.NPS.COMMENTS_NONE')
+          }}
         </p>
         <ul v-else class="flex flex-col p-0 m-0 mt-3 list-none">
           <li
