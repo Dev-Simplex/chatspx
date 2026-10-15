@@ -115,9 +115,8 @@ RSpec.describe 'Public Inbox Messages API — grupo de WhatsApp', type: :request
     end
   end
 
-  # A WAHA injeta o prefixo quando `isJidGroup(chatId) || isJidBroadcast(chatId)`.
-  # No banco de homologação não existe nenhuma conversa de broadcast hoje — este
-  # bloco cobre o caso pelo sinal estrutural, não por dado observado.
+  # A WAHA também prefixa broadcast (`isJidBroadcast`), mas desde a CHAT-170 lista de
+  # transmissão não vira mensagem — ver status_broadcast_spec.rb.
   describe 'POST em lista de transmissão (broadcast)' do
     let(:broadcast_contact) do
       create(:contact, account: api_channel.account, phone_number: '+5566988887777',
@@ -128,14 +127,11 @@ RSpec.describe 'Public Inbox Messages API — grupo de WhatsApp', type: :request
       create(:conversation, contact: broadcast_contact, contact_inbox: broadcast_contact_inbox, inbox: inbox)
     end
 
-    it 'extrai o autor mesmo com group? false' do
-      expect(broadcast_conversation.group?).to be(false)
-
+    it 'não grava a mensagem' do
       post_message(broadcast_conversation, broadcast_contact_inbox, { content: group_content })
 
-      message = broadcast_conversation.messages.last
-      expect(message.content).to eq('Qual Wi-Fi está?')
-      expect(message.content_attributes['group_sender']['name']).to eq('Rogerio José Da Silva')
+      expect(response).to have_http_status(:ok)
+      expect(broadcast_conversation.messages).to be_empty
     end
   end
 
