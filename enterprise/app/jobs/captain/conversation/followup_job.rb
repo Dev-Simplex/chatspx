@@ -32,6 +32,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     # cutucada sair com a voz da IA nova.
     assistant = owner_assistant(conversation)
     return desistir_do_compromisso(conversation, token) unless assistant # dono não é IA -> morre SEM consumir token/count
+    return travado_pela_trava_de_teste(conversation, token, assistant) unless contato_liberado?(conversation, assistant)
 
     attrs = conversation.custom_attributes || {}
     count = attrs['followup_count'].to_i
@@ -155,6 +156,20 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     return unless mirror&.captain?
 
     mirror.captain_assistant
+  end
+
+  # Trava de teste do assistente (CHAT-171): contato fora de only_contact_phones não recebe
+  # cutucada nem a escalada do cool_down_lead. A IA pode seguir dona de uma conversa atribuída
+  # ANTES de a trava ser ligada, e o router só barra a resposta a mensagem nova — a cutucada já
+  # armada passava por fora (CHAT-213). Morre como desistência: sem gastar token nem contagem.
+  def contato_liberado?(conversation, assistant)
+    Captain::Behavior::ContactPhoneLock.new(assistant).allows?(conversation.contact)
+  end
+
+  def travado_pela_trava_de_teste(conversation, token, assistant)
+    Captain::AssistantLog.create!(captain_assistant: assistant, conversation: conversation, event_type: 'router_skip',
+                                  payload: { 'motivo' => 'trava_de_teste', 'origem' => 'followup' })
+    desistir_do_compromisso(conversation, token)
   end
 
   # Esgotou as cutucadas in-window e o cliente segue sem responder: em vez de só esfriar,

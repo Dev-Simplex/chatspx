@@ -642,6 +642,7 @@ en:
       template_without_primeiro_nome: 'the configured template needs the contact name, and the contact has none'
       template_without_texto: 'the scheduled message has no text to fill the template'
       discarded_by_assistant_review: 'the AI agent reviewed it at the scheduled time and decided not to send it'
+      contact_outside_test_lock: 'the contact is not in the test phone list of the AI agent'
     activity:
       assistant_not_sent: 'Scheduled message from the AI agent was not sent: %{reason}.'
   auto_assignment:
