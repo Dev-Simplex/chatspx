@@ -1,4 +1,5 @@
 <script setup>
+import { teamDisplayName } from 'dashboard/helper/reportFormat';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -565,7 +566,7 @@ const irParaPolitica = () =>
         >
           <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
           <option v-for="time in times" :key="time.id" :value="time.id">
-            {{ time.name }} ({{ time.modo_posse }})
+            {{ teamDisplayName(time.name) }} ({{ time.modo_posse }})
           </option>
         </select>
         <button

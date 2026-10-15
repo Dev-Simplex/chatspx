@@ -3,6 +3,7 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
   include DateRangeHelper
 
   RESULTS_PER_PAGE = 25
+  COMMENT_CLASSIFICATIONS = { 'promoter' => :promoters, 'passive' => :passives, 'detractor' => :detractors }.freeze
 
   before_action :check_authorization
   before_action :set_nps_responses, only: [:index, :download]
@@ -132,6 +133,15 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
                      end
 
     @nps_responses = @nps_responses.where(contact_id: params[:contact_id]) if params[:contact_id].present?
+    filter_by_comment
+  end
+
+  # Comentarios recentes do relatorio: so respostas com comentario, opcionalmente de um grupo
+  # (indicariam / neutros / nao indicariam). Sem isso a tela so via os comentarios da 1a pagina.
+  def filter_by_comment
+    @nps_responses = @nps_responses.where.not(comment: [nil, '']) if params[:with_comment].present?
+    scope = COMMENT_CLASSIFICATIONS[params[:classification]]
+    @nps_responses = @nps_responses.public_send(scope) if scope
   end
 
   def set_current_page_responses
