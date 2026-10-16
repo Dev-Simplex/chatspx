@@ -43,7 +43,8 @@ class Captain::PropertyRefContextService
   # metragem: o número tem que vir COLADO na palavra (só "nº", "número", "#" ou ":" no meio), ter
   # de 4 a 6 dígitos e não ser seguido de unidade. "imóvel de 1500 reais", "imóvel 300 mil" e
   # "imóvel R$ 2500" não casam.
-  CODIGO_PATTERN = /\b(?:im[oó]vel|c[oó]d(?:igo)?\.?)\s*(?:n[º°]\.?|n\.|n[uú]mero|\#|:)?\s*(\d{4,6})\b
+  # A maiúscula acentuada vai explícita na classe: o /i não dobra o "Ó" de "IMÓVEL" dentro de [oó].
+  CODIGO_PATTERN = /\b(?:im[oóÓ]vel|c[oóÓ]d(?:igo)?\.?)\s*(?:n[º°]\.?|n\.|n[uúÚ]mero|\#|:)?\s*(\d{4,6})\b
                     (?!\s*(?:mil\b|reais\b|k\b|m²|m2\b|metros?\b|[.,]\d))/ix
   # ValorCondominio entra porque a ficha PASSA A SUBSTITUIR a busca: medido com N=6, quando
   # ela está no contexto o agente responde o preço direto e não chama mais o buscar_imovel.
