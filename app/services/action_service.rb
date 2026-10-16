@@ -1,9 +1,12 @@
 class ActionService
   include EmailHelper
 
-  def initialize(conversation)
+  # `trigger_event`: o evento que disparou a automação ('conversation_opened', ...). nil quando não
+  # se sabe (macro, retomada de um wait de flow) — quem lê trata nil como "não foi a reabertura".
+  def initialize(conversation, trigger_event: nil)
     @conversation = conversation
     @account = @conversation.account
+    @trigger_event = trigger_event
   end
 
   def mute_conversation(_params)
@@ -91,10 +94,6 @@ class ActionService
   end
 
   private
-
-  # Evento que disparou a automação ('conversation_opened', ...). nil quando não se sabe (macro,
-  # retomada de um wait de flow) — quem lê trata nil como "não foi a reabertura".
-  def trigger_event_name; end
 
   def agent_belongs_to_inbox?(agent_ids)
     member_ids = @conversation.inbox.members.pluck(:user_id)

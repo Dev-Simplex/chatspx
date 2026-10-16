@@ -28,7 +28,7 @@ module Enterprise::ActionService
     # O que ela NÃO faz é tomar conversa que está NA MÃO de alguém: com assignee humano
     # presente o dono é ele, e a IA não entra (senão a conversa some da fila do atendente).
     # A exceção é opt-in por conta: a conversa que o CLIENTE reabriu (ver abaixo).
-    return if @conversation.assignee_id.present? && !customer_reopened_after_resolution?
+    return if human_owner_keeps_conversation?
 
     # Procedência (opt-in por conta): se a conversa nasceu de uma resposta a um template que um
     # HUMANO mandou 1:1 pro contato (<24h), o dono é esse humano -> a IA não assume. Cobre o caso
@@ -71,9 +71,13 @@ module Enterprise::ActionService
   # Só no gatilho `conversation_opened`: em `message_created`, o mesmo estado (cliente falou,
   # humano ainda não) persiste depois que a IA devolveu a conversa ao atendente, e ela a tomaria
   # de volta a cada mensagem.
+  def human_owner_keeps_conversation?
+    @conversation.assignee_id.present? && !customer_reopened_after_resolution?
+  end
+
   def customer_reopened_after_resolution?
     return false unless @account.ia_assume_reaberta_enabled?
-    return false unless trigger_event_name == 'conversation_opened'
+    return false unless @trigger_event == 'conversation_opened'
 
     resolved_at = ReportingEvent.where(conversation_id: @conversation.id, name: 'conversation_resolved').maximum(:event_end_time)
     return false if resolved_at.nil?
