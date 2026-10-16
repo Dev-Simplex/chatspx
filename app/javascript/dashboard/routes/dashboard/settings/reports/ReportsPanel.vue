@@ -96,11 +96,11 @@ const pdfFilters = computed(() => ({
               {{ t(`REPORTS_PANEL.PERIOD.${key}`) }}
             </button>
           </div>
+          <div id="report-scope-filters" class="empty:hidden" />
           <DownloadPdfButton report-type="overview" :filters="pdfFilters" />
         </div>
       </div>
       <ReportTabs />
-      <div id="report-scope-filters" class="empty:hidden" />
     </header>
 
     <PanelOverview :period="period" :inbox-id="inboxId" />

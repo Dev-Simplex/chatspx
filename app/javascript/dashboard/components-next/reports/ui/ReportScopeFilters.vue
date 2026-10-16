@@ -91,11 +91,16 @@ const pick = (group, id) => {
 </script>
 
 <template>
-  <!-- Os botoes moram sempre no mesmo lugar: a fileira "Filtros" do cabecalho (ReportHeader e os
-       cabecalhos que o copiam), e nao na barra de cada tela, onde cada uma os alinhava de um jeito. -->
+  <!-- Os botoes moram sempre no mesmo lugar: colados ao seletor de periodo (o ReportPeriodPicker
+       abre o alvo ao seu lado) ou, na tela sem periodo, na fileira do cabecalho. A caixa copia o
+       fundo do seletor de periodo. -->
   <Teleport defer to="#report-scope-filters">
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="text-sm font-medium text-n-slate-11 ltr:mr-1 rtl:ml-1">
+    <div
+      class="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-full border border-n-weak bg-n-alpha-1"
+    >
+      <span
+        class="px-3 text-[13px] font-semibold text-n-slate-11 whitespace-nowrap"
+      >
         {{ t('REPORTS_UI.FILTERS.TITLE') }}
       </span>
       <ReportScopeSelect
