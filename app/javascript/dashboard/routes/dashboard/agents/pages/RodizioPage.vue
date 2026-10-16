@@ -10,7 +10,7 @@ import RodizioLeadCard from './rodizio/RodizioLeadCard.vue';
 import RodizioLegenda from './rodizio/RodizioLegenda.vue';
 import RodizioResumo from './rodizio/RodizioResumo.vue';
 import RodizioPorConsultor from './rodizio/RodizioPorConsultor.vue';
-import ReportTabs from 'dashboard/components-next/reports/ui/ReportTabs.vue';
+import ReportHeader from 'dashboard/routes/dashboard/settings/reports/components/ReportHeader.vue';
 import { REPORTS_WALLPAPER } from 'dashboard/components-next/reports/ui/styles';
 import { duracao, instante } from './rodizio/tempo';
 
@@ -18,7 +18,7 @@ defineOptions({ name: 'RodizioPage' });
 
 const { t, locale } = useI18n();
 const router = useRouter();
-const { accountId, currentAccount } = useAccount();
+const { accountId } = useAccount();
 
 const loading = ref(true);
 const loadError = ref(false);
@@ -273,6 +273,11 @@ const timeLegivel = computed(
   () =>
     times.value.find(time => String(time.id) === String(teamId.value))?.name ||
     t('AGENTS_RODIZIO.ALL_TEAMS')
+);
+
+// Legenda do cabecalho: o periodo e o time que a tela esta mostrando.
+const subtitulo = computed(() =>
+  [periodoLegivel.value, timeLegivel.value].filter(Boolean).join(' · ')
 );
 
 onMounted(() => {
@@ -550,66 +555,16 @@ const irParaPolitica = () =>
        overflow-hidden); sem isso encolheria para a largura do conteúdo e não rolaria. -->
   <!-- Fundo, cabeçalho de vidro e abas: o mesmo topo de todas as telas de Relatórios. -->
   <div
-    class="flex flex-col w-full h-full gap-5 px-6 py-5 overflow-y-auto bg-n-surface-1 bg-repeat"
+    class="flex flex-col w-full h-full gap-4 px-6 pb-12 overflow-y-auto bg-n-surface-1 bg-repeat"
     :class="REPORTS_WALLPAPER"
   >
-    <header
-      class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 p-5 relative z-40 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    <!-- O mesmo cabecalho das outras telas de Relatorios: acoes ao lado do titulo, abas embaixo e
+         os filtros da tela na ultima fileira. -->
+    <ReportHeader
+      :header-title="t('AGENTS_RODIZIO.TITLE')"
+      :header-description="subtitulo"
     >
-      <div class="min-w-0">
-        <p
-          class="m-0 text-xs font-semibold tracking-wider uppercase truncate text-n-slate-10"
-        >
-          {{ currentAccount?.name }}
-        </p>
-        <h1
-          class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
-        >
-          {{ t('AGENTS_RODIZIO.TITLE') }}
-        </h1>
-        <p
-          v-if="periodoLegivel"
-          class="inline-flex items-center gap-1.5 m-0 mt-0.5 text-sm text-n-slate-11"
-        >
-          <span class="i-lucide-calendar size-3.5 text-n-slate-10" />
-          <span class="font-medium text-n-slate-12">{{ periodoLegivel }}</span>
-          <span class="rounded-full size-1 bg-n-slate-8" />
-          {{ timeLegivel }}
-        </p>
-        <ReportTabs class="mt-2" />
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Período e time numa caixa só: são as duas perguntas de "o que estou vendo". -->
-        <div
-          class="flex items-center h-8 bg-white border divide-x rounded-lg dark:bg-n-solid-2 border-n-weak divide-n-weak"
-        >
-          <!-- `mb-0` e `border-0` matam a margem e a borda que a regra global de `select` traz. -->
-          <select
-            v-model="periodo"
-            :aria-label="t('AGENTS_RODIZIO.PERIOD.LABEL')"
-            class="h-full py-0 pl-2 pr-7 mb-0 text-sm bg-transparent border-0 rounded-l-lg w-auto text-n-slate-12"
-            @change="trocarPeriodo"
-          >
-            <option
-              v-for="item in periodos"
-              :key="item.value"
-              :value="item.value"
-            >
-              {{ item.label }}
-            </option>
-          </select>
-          <select
-            v-model="teamId"
-            :aria-label="t('AGENTS_RODIZIO.TEAM_LABEL')"
-            class="h-full py-0 pl-2 pr-7 mb-0 text-sm bg-transparent border-0 rounded-r-lg w-auto text-n-slate-12"
-            @change="carregar"
-          >
-            <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
-            <option v-for="time in times" :key="time.id" :value="time.id">
-              {{ teamDisplayName(time.name) }}
-            </option>
-          </select>
-        </div>
+      <div class="flex items-center gap-2">
         <button
           v-tooltip.top="t('AGENTS_RODIZIO.RELOAD_HINT')"
           :aria-label="t('AGENTS_RODIZIO.RELOAD')"
@@ -618,12 +573,7 @@ const irParaPolitica = () =>
         >
           <span class="i-lucide-refresh-cw size-4" />
         </button>
-        <!-- `shrink-0`: sem ele o botão encolhe na fila do cabeçalho e o texto some. -->
-        <DownloadPdfButton
-          class="shrink-0"
-          report-type="rodizio"
-          :filters="filtrosDoPdf"
-        />
+        <DownloadPdfButton report-type="rodizio" :filters="filtrosDoPdf" />
         <button
           class="inline-flex items-center h-8 gap-1.5 px-2.5 text-sm rounded-lg text-n-slate-11 hover:text-n-slate-12 hover:bg-n-slate-3 whitespace-nowrap"
           @click="irParaPolitica"
@@ -632,38 +582,69 @@ const irParaPolitica = () =>
           {{ t('AGENTS_RODIZIO.CONFIGURE') }}
         </button>
       </div>
-    </header>
-
-    <!-- Datas próprias em linha separada, com rótulo, limites e o aviso de que falta escolher. -->
-    <div
-      v-if="periodo === 'personalizado'"
-      class="flex flex-wrap items-center justify-end gap-3 px-3 py-2 -mt-2 bg-white border rounded-xl border-n-weak dark:bg-n-solid-2"
-    >
-      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
-        {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
-        <input
-          v-model="de"
-          type="date"
-          :max="ate || hoje"
-          class="h-8 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
-          @change="trocarIntervalo"
-        />
-      </label>
-      <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
-        {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
-        <input
-          v-model="ate"
-          type="date"
-          :min="de"
-          :max="hoje"
-          class="h-8 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
-          @change="trocarIntervalo"
-        />
-      </label>
-      <span v-if="!de || !ate" class="text-xs text-n-slate-10">
-        {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
-      </span>
-    </div>
+      <template #filters>
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Período e time numa caixa só: são as duas perguntas de "o que estou vendo". -->
+          <div
+            class="flex items-center h-8 bg-white border divide-x rounded-lg dark:bg-n-solid-2 border-n-weak divide-n-weak"
+          >
+            <!-- `mb-0` e `border-0` matam a margem e a borda que a regra global de `select` traz. -->
+            <select
+              v-model="periodo"
+              :aria-label="t('AGENTS_RODIZIO.PERIOD.LABEL')"
+              class="h-full py-0 pl-2 pr-7 mb-0 text-sm bg-transparent border-0 rounded-l-lg w-auto text-n-slate-12"
+              @change="trocarPeriodo"
+            >
+              <option
+                v-for="item in periodos"
+                :key="item.value"
+                :value="item.value"
+              >
+                {{ item.label }}
+              </option>
+            </select>
+            <select
+              v-model="teamId"
+              :aria-label="t('AGENTS_RODIZIO.TEAM_LABEL')"
+              class="h-full py-0 pl-2 pr-7 mb-0 text-sm bg-transparent border-0 rounded-r-lg w-auto text-n-slate-12"
+              @change="carregar"
+            >
+              <option value="">{{ t('AGENTS_RODIZIO.ALL_TEAMS') }}</option>
+              <option v-for="time in times" :key="time.id" :value="time.id">
+                {{ teamDisplayName(time.name) }}
+              </option>
+            </select>
+          </div>
+          <!-- Datas próprias com rótulo, limites e o aviso de que falta escolher. -->
+          <template v-if="periodo === 'personalizado'">
+            <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+              {{ t('AGENTS_RODIZIO.PERIOD.FROM') }}
+              <input
+                v-model="de"
+                type="date"
+                :max="ate || hoje"
+                class="h-8 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+                @change="trocarIntervalo"
+              />
+            </label>
+            <label class="flex items-center gap-2 m-0 text-sm text-n-slate-11">
+              {{ t('AGENTS_RODIZIO.PERIOD.TO') }}
+              <input
+                v-model="ate"
+                type="date"
+                :min="de"
+                :max="hoje"
+                class="h-8 px-2 mb-0 text-sm bg-white border rounded-lg dark:bg-n-solid-3 border-n-weak text-n-slate-12"
+                @change="trocarIntervalo"
+              />
+            </label>
+            <span v-if="!de || !ate" class="text-xs text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.PERIOD.PICK_BOTH') }}
+            </span>
+          </template>
+        </div>
+      </template>
+    </ReportHeader>
 
     <p v-if="loading" class="m-0 text-sm text-n-slate-11">
       {{ t('AGENTS_RODIZIO.LOADING') }}
