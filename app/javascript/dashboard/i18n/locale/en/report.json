@@ -1060,9 +1060,9 @@
       "LABELS": "Labels",
       "INBOXES": "Inboxes",
       "TEAMS": "Teams",
-      "CSAT": "Satisfaction",
-      "NPS": "Recommendation",
-      "SLA": "Deadlines",
+      "CSAT": "CSAT",
+      "NPS": "NPS",
+      "SLA": "SLA",
       "AI": "Bot"
     },
     "PERIOD": {

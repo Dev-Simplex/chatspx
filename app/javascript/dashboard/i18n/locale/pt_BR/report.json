@@ -1060,9 +1060,9 @@
       "LABELS": "Etiquetas",
       "INBOXES": "Caixas de entrada",
       "TEAMS": "Times",
-      "CSAT": "Satisfação",
-      "NPS": "Indicação",
-      "SLA": "Prazos",
+      "CSAT": "CSAT",
+      "NPS": "NPS",
+      "SLA": "SLA",
       "AI": "Robô"
     },
     "PERIOD": {
