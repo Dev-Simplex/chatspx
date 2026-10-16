@@ -56,8 +56,9 @@ class Flows::ActionService < ActionService
   # success. Returned instead of raising so the walk stays best-effort AND leaves a trace.
   Result = Struct.new(:status, :error)
 
-  def initialize(flow:, conversation:, actor: nil)
-    super(conversation)
+  def initialize(flow:, conversation:, actor: nil, trigger_event: nil)
+    # O flow pode ter vários gatilhos (`event_names`), então o evento vem do disparo, não do flow.
+    super(conversation, trigger_event: trigger_event)
     @flow = flow
     @account = flow.account
     @actor = actor

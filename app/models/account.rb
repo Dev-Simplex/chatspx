@@ -48,6 +48,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'rodizio_conversation_tabs': { 'type': %w[boolean null] },
         'captador_integration': { 'type': %w[boolean null] },
         'ia_reentra_orfa': { 'type': %w[boolean null] },
+        'ia_assume_reaberta': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
         'template_reply_routing': {
           'type': %w[object null],
@@ -137,6 +138,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # Reentrada da IA de triagem em conversa órfã. Nasceu derivada do reply_assignment_gate
   # (modo fila), que a vetava; ver #ia_reentra_orfa_enabled? para o porquê de separar.
   store_accessor :settings, :ia_reentra_orfa
+  # A IA de triagem assume a conversa que o CLIENTE reabriu, mesmo com humano atribuído.
+  # Ver Enterprise::ActionService#customer_reopened_after_resolution?.
+  store_accessor :settings, :ia_assume_reaberta
   store_accessor :settings, :template_reply_routing
   store_accessor :settings, :contact_invite
   store_accessor :settings, :resolve_assignment_gate
@@ -271,6 +275,12 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     return ActiveModel::Type::Boolean.new.cast(ia_reentra_orfa) unless ia_reentra_orfa.nil?
 
     !reply_assignment_gate_enabled?
+  end
+
+  # Desligado por padrão: com ele, reabrir por mensagem do cliente passa a tirar a conversa do
+  # atendente que estava com ela. Quem liga é a conta que quer a IA como porta de toda reentrada.
+  def ia_assume_reaberta_enabled?
+    ActiveModel::Type::Boolean.new.cast(ia_assume_reaberta) || false
   end
 
   # Gate do motor Flow (F1). NÃO usa o bitmask de features (`feature_flags` já está no

@@ -27,7 +27,8 @@ module Enterprise::ActionService
     #
     # O que ela NÃO faz é tomar conversa que está NA MÃO de alguém: com assignee humano
     # presente o dono é ele, e a IA não entra (senão a conversa some da fila do atendente).
-    return if @conversation.assignee_id.present?
+    # A exceção é opt-in por conta: a conversa que o CLIENTE reabriu (ver abaixo).
+    return if human_owner_keeps_conversation?
 
     # Procedência (opt-in por conta): se a conversa nasceu de uma resposta a um template que um
     # HUMANO mandou 1:1 pro contato (<24h), o dono é esse humano -> a IA não assume. Cobre o caso
@@ -55,6 +56,37 @@ module Enterprise::ActionService
     # ao genérico "Sistema de Automação". O ActionService não reseta Current.executed_by
     # entre ações, e assign_ai_agent roda ANTES de assign_team (ordem segura A2b).
     Current.executed_by = assistant
+  end
+
+  # Reabertura pelo cliente (opt-in `ia_assume_reaberta`): a conversa estava resolvida, o cliente
+  # escreveu e o sistema reabriu. O atendente que ficou atribuído já tinha encerrado o caso; deixá-la
+  # com ele era o que fazia a equipe desatribuir na mão e a conversa se perder na fila geral (Tozi,
+  # 15/10). A IA assume e decide pelo HumanHistoryNote se devolve ao dono anterior ou faz a triagem.
+  #
+  # Reabertura feita pelo ATENDENTE fica com ele (decisão do Paulo em 16/10). A distinção sai do
+  # que existe no ciclo desde a última resolução, porque o evento chega igual nos dois casos (sem
+  # performed_by): humano falou no ciclo -> é dele; ninguém do cliente falou -> foi o atendente
+  # que reabriu na mão. A resposta da pesquisa de NPS não reabre a conversa, então não conta.
+  #
+  # Só no gatilho `conversation_opened`: em `message_created`, o mesmo estado (cliente falou,
+  # humano ainda não) persiste depois que a IA devolveu a conversa ao atendente, e ela a tomaria
+  # de volta a cada mensagem.
+  def human_owner_keeps_conversation?
+    @conversation.assignee_id.present? && !customer_reopened_after_resolution?
+  end
+
+  def customer_reopened_after_resolution?
+    return false unless @account.ia_assume_reaberta_enabled?
+    return false unless @trigger_event == 'conversation_opened'
+
+    resolved_at = ReportingEvent.where(conversation_id: @conversation.id, name: 'conversation_resolved').maximum(:event_end_time)
+    return false if resolved_at.nil?
+
+    cycle = @conversation.all_messages.where(private: false).where('created_at > ?', resolved_at)
+    return false if cycle.exists?(message_type: :outgoing, sender_type: 'User')
+
+    since = [resolved_at, @conversation.nps_responses.maximum(:answered_at)].compact.max
+    cycle.where(message_type: :incoming).exists?(['created_at > ?', since])
   end
 
   # Assistant existente E elegível (C8 no caminho in-process): a IA só atua em inbox onde está

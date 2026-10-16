@@ -185,7 +185,9 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
 
       gate = ::Flows::RuleAdapter.new(conditions: flow.trigger_config['conditions'], flow: flow)
       conditions_match = ::AutomationRules::ConditionsFilterService.new(gate, conversation, payload).perform
-      ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform if conditions_match.present?
+      next if conditions_match.blank?
+
+      ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload, trigger_event: event_name).perform
     end
 
     # Os Flows `trigger_type: keyword` casam contra o CONTEÚDO da mensagem, não contra um

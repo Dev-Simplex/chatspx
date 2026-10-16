@@ -37,13 +37,16 @@ class Flows::RunnerService
   # A Flows::SimulationService a lê. Ver Flows::SimulationWalk#simulate_visit para o formato.
   attr_reader :simulation_steps
 
+  # `trigger_event` fica FORA do payload de propósito: o payload é gravado no FlowRun e volta na
+  # retomada de um wait, quando o evento que disparou já não descreve o momento da conversa.
   # rubocop:disable Metrics/ParameterLists
-  def initialize(flow:, conversation:, actor: nil, trigger_payload: {}, flow_run: nil, resume_reply: nil)
+  def initialize(flow:, conversation:, actor: nil, trigger_payload: {}, flow_run: nil, resume_reply: nil, trigger_event: nil)
     # rubocop:enable Metrics/ParameterLists
     @flow = flow
     @conversation = conversation
     @actor = actor
     @payload = trigger_payload.to_h.with_indifferent_access
+    @trigger_event = trigger_event
     @graph = (flow.definition || {}).with_indifferent_access
     # Presente só na retomada (Flows::ResumeService o injeta): assim um novo `wait` ATUALIZA
     # o mesmo run em vez de criar outro. No disparo inicial nasce nil e é materializado
@@ -145,7 +148,7 @@ class Flows::RunnerService
   def build_walk_actions
     return if @dry_run
 
-    Flows::ActionService.new(flow: @flow, conversation: @conversation, actor: @actor)
+    Flows::ActionService.new(flow: @flow, conversation: @conversation, actor: @actor, trigger_event: @trigger_event)
   end
 
   # Processa UM nó e devolve o `branch` a seguir (condition/router) ou nil (action/wait/etc). No

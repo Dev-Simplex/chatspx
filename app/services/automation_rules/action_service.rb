@@ -1,6 +1,6 @@
 class AutomationRules::ActionService < ActionService
   def initialize(rule, account, conversation)
-    super(conversation)
+    super(conversation, trigger_event: rule.event_name)
     @rule = rule
     @account = account
     Current.executed_by = rule
