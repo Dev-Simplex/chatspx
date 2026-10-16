@@ -8,7 +8,7 @@ import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 import subDays from 'date-fns/subDays';
 import differenceInDays from 'date-fns/differenceInDays';
 import ActiveFilterChip from './Filters/v3/ActiveFilterChip.vue';
-import InboxScopeFilter from './Filters/InboxScopeFilter.vue';
+import ReportScopeFilters from 'dashboard/components-next/reports/ui/ReportScopeFilters.vue';
 import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import { GROUP_BY_FILTER } from '../constants';
@@ -46,6 +46,16 @@ const props = defineProps({
   showInboxScope: {
     type: Boolean,
     default: true,
+  },
+  // Recorte por time / atendente (so a tela de Conversas pede). O relatorio de conversas e de um
+  // tipo por vez (conta, time ou atendente), entao escolher um limpa o outro.
+  showTeamScope: {
+    type: Boolean,
+    default: false,
+  },
+  showAgentScope: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -86,6 +96,8 @@ const customDateRange = ref([subDays(new Date(), 6), new Date()]);
 const selectedDateRange = ref(DATE_RANGE_TYPES.LAST_7_DAYS);
 const businessHoursSelected = ref(false);
 const inboxScopeId = ref(null);
+const teamScopeId = ref(null);
+const agentScopeId = ref(null);
 const groupBy = ref(GROUP_BY_FILTER[1]);
 const groupByfilterItemsList = ref([{ id: 1, name: 'Day' }]);
 
@@ -108,6 +120,14 @@ const filterSource = computed(() => {
 // Na aba de Caixas o recorte por numero seria redundante — la o numero ja e a linha.
 const isInboxScopeVisible = computed(
   () => props.showInboxScope && props.filterType !== 'inboxes'
+);
+
+const scopeGroups = computed(() =>
+  [
+    isInboxScopeVisible.value && 'inbox',
+    props.showTeamScope && 'team',
+    props.showAgentScope && 'agent',
+  ].filter(Boolean)
 );
 
 const from = computed(() => getUnixStartOfDay(customDateRange.value[0]));
@@ -201,6 +221,8 @@ const emitChange = () => {
     to: to.value,
     businessHours: businessHoursSelected.value,
     inboxId: isInboxScopeVisible.value ? inboxScopeId.value : null,
+    teamId: props.showTeamScope ? teamScopeId.value : null,
+    agentId: props.showAgentScope ? agentScopeId.value : null,
   };
 
   if (props.showGroupBy) {
@@ -279,10 +301,29 @@ const onBusinessHoursToggle = () => {
   emitChange();
 };
 
-const onInboxScopeChange = value => {
-  writeInboxScope(value);
-  emitChange();
-};
+const scopeSelection = computed({
+  get: () => ({
+    inbox: inboxScopeId.value,
+    team: teamScopeId.value,
+    agent: agentScopeId.value,
+  }),
+  // Chega um recorte mudado por vez (ReportScopeFilters troca uma chave); as outras vem como estao.
+  set: value => {
+    if (value.inbox !== inboxScopeId.value) {
+      inboxScopeId.value = value.inbox;
+      writeInboxScope(value.inbox);
+    } else if (value.team !== teamScopeId.value) {
+      teamScopeId.value = value.team;
+      if (value.team) agentScopeId.value = null;
+    } else if (value.agent !== agentScopeId.value) {
+      agentScopeId.value = value.agent;
+      if (value.agent) teamScopeId.value = null;
+    } else {
+      return;
+    }
+    emitChange();
+  },
+});
 
 const onGroupByFilterChange = payload => {
   groupBy.value = GROUP_BY_FILTER[payload.id];
@@ -366,12 +407,12 @@ onMounted(() => {
         @add-filter="addFilter"
       />
 
-      <InboxScopeFilter
-        v-if="isInboxScopeVisible"
-        v-model="inboxScopeId"
+      <ReportScopeFilters
+        v-if="scopeGroups.length"
+        v-model="scopeSelection"
+        :groups="scopeGroups"
         :period="{ since: from, until: to }"
         class="shrink-0"
-        @change="onInboxScopeChange"
       />
 
       <ActiveFilterChip

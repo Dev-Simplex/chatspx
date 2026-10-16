@@ -44,15 +44,35 @@ export default {
       groupBy: GROUP_BY_FILTER[1],
       businessHours: false,
       inboxId: null,
+      teamId: null,
+      agentId: null,
     };
   },
   computed: {
     ...mapGetters({
       accountSummary: 'getAccountSummary',
     }),
+    // Com um atendente ou time escolhido o relatorio passa a ser daquele atendente/time
+    // (o mesmo que abrir a linha dele na aba Atendentes/Times); a caixa continua como recorte.
+    reportType() {
+      if (this.agentId) return 'agent';
+      if (this.teamId) return 'team';
+      return 'account';
+    },
+    reportEntityId() {
+      return this.agentId || this.teamId || undefined;
+    },
     drilldownFilters() {
-      const { from, to, businessHours, inboxId } = this;
-      return { from, to, type: 'account', businessHours, inboxId };
+      const { from, to, businessHours, inboxId, reportType, reportEntityId } =
+        this;
+      return {
+        from,
+        to,
+        type: reportType,
+        id: reportEntityId,
+        businessHours,
+        inboxId,
+      };
     },
   },
   methods: {
@@ -89,11 +109,21 @@ export default {
       });
     },
     getRequestPayload() {
-      const { from, to, groupBy, businessHours, inboxId } = this;
+      const {
+        from,
+        to,
+        groupBy,
+        businessHours,
+        inboxId,
+        reportType,
+        reportEntityId,
+      } = this;
 
       return {
         from,
         to,
+        type: reportType,
+        id: reportEntityId,
         groupBy: groupBy?.period,
         businessHours,
         inboxId,
@@ -112,14 +142,26 @@ export default {
         fileName,
         businessHours: this.businessHours,
         inboxId: this.inboxId,
+        type: this.reportType,
+        id: this.reportEntityId,
       });
     },
-    onFilterChange({ from, to, groupBy, businessHours, inboxId }) {
+    onFilterChange({
+      from,
+      to,
+      groupBy,
+      businessHours,
+      inboxId,
+      teamId,
+      agentId,
+    }) {
       this.from = from;
       this.to = to;
       this.groupBy = groupBy;
       this.businessHours = businessHours;
       this.inboxId = inboxId || null;
+      this.teamId = teamId || null;
+      this.agentId = agentId || null;
       this.fetchAllData();
 
       useTrack(REPORTS_EVENTS.FILTER_REPORT, {
@@ -144,6 +186,8 @@ export default {
           to,
           business_hours: businessHours,
           inbox_id: inboxId,
+          type: reportType,
+          id: reportEntityId,
         }"
       />
       <V4Button
@@ -157,6 +201,8 @@ export default {
       <ReportFilters
         :show-entity-filter="false"
         show-group-by
+        show-team-scope
+        show-agent-scope
         @filter-change="onFilterChange"
       />
     </template>

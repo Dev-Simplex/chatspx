@@ -46,8 +46,12 @@ module Api::V2::Accounts::ReportsHelper
     end
   end
 
+  # A tela de Conversas pode estar recortada por atendente ou time; fora isso e o relatorio da conta.
+  CONVERSATIONS_SCOPED_TYPES = %w[agent team].freeze
+
   def generate_conversations_report
-    builder = V2::Reports::Conversations::MetricBuilder.new(Current.account, build_params(type: :account))
+    type = CONVERSATIONS_SCOPED_TYPES.include?(params[:type]) ? params[:type].to_sym : :account
+    builder = V2::Reports::Conversations::MetricBuilder.new(Current.account, build_params(type: type, id: params[:id]))
     summary = builder.summary
 
     [generate_conversation_report_metrics(summary)]

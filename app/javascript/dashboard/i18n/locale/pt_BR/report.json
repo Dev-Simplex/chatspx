@@ -1240,15 +1240,14 @@
       "LABEL": "Período"
     },
     "FILTERS": {
-      "BUTTON": "Filtros",
-      "TITLE": "Filtros",
       "INBOX": "Caixa",
       "TEAM": "Time",
       "AGENT": "Atendente",
-      "CLEAR": "Limpar",
-      "CLOSE": "Fechar",
-      "EMPTY": "Nada para escolher.",
-      "HINT": "Uma opção por grupo. O número é quantas conversas chegaram no período."
+      "ALL_INBOXES": "Todas as caixas",
+      "ALL_TEAMS": "Todos os times",
+      "ALL_AGENTS": "Todos os atendentes",
+      "SEARCH": "Buscar...",
+      "COUNT": "{n} conversa no período | {n} conversas no período"
     }
   }
 }

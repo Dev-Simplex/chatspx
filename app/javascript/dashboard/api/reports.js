@@ -131,6 +131,8 @@ class ReportsAPI extends ApiClient {
     to: until,
     businessHours,
     inboxId,
+    type = 'account',
+    id,
   }) {
     return axios.get(`${this.url}/conversations_summary`, {
       params: {
@@ -138,6 +140,8 @@ class ReportsAPI extends ApiClient {
         until,
         business_hours: businessHours,
         inbox_id: inboxId || undefined,
+        type,
+        id,
       },
     });
   }

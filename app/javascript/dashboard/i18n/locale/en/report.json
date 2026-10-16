@@ -1240,15 +1240,14 @@
       "LABEL": "Period"
     },
     "FILTERS": {
-      "BUTTON": "Filters",
-      "TITLE": "Filters",
       "INBOX": "Inbox",
       "TEAM": "Team",
       "AGENT": "Agent",
-      "CLEAR": "Clear",
-      "CLOSE": "Close",
-      "EMPTY": "Nothing to choose.",
-      "HINT": "One option per group. The number is how many conversations arrived in the period."
+      "ALL_INBOXES": "All inboxes",
+      "ALL_TEAMS": "All teams",
+      "ALL_AGENTS": "All agents",
+      "SEARCH": "Search...",
+      "COUNT": "{n} conversation in the period | {n} conversations in the period"
     }
   }
 }

@@ -12,7 +12,7 @@ import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import OverviewReportFilters from './OverviewReportFilters.vue';
-import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+import ReportScopeFilters from 'dashboard/components-next/reports/ui/ReportScopeFilters.vue';
 import ReportHeaderFilters from './ReportHeaderFilters.vue';
 import ReportDrilldownPanel from 'dashboard/components-next/reports/ReportDrilldownPanel.vue';
 
@@ -336,7 +336,7 @@ onMounted(() => {
         :show-inbox-scope="false"
         @filter-change="onFilterChange"
       >
-        <ReportFiltersPopover
+        <ReportScopeFilters
           v-model="scopeSelection"
           :groups="['team', 'inbox']"
           :period="{ since: from, until: to }"
