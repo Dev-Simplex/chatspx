@@ -92,6 +92,10 @@ class ActionService
 
   private
 
+  # Evento que disparou a automação ('conversation_opened', ...). nil quando não se sabe (macro,
+  # retomada de um wait de flow) — quem lê trata nil como "não foi a reabertura".
+  def trigger_event_name; end
+
   def agent_belongs_to_inbox?(agent_ids)
     member_ids = @conversation.inbox.members.pluck(:user_id)
     assignable_agent_ids = member_ids + @account.administrators.ids

@@ -22,6 +22,10 @@ class AutomationRules::ActionService < ActionService
 
   private
 
+  def trigger_event_name
+    @rule.event_name
+  end
+
   def send_attachment(blob_ids)
     return if conversation_a_tweet?
     return if @conversation.inbox.read_only? # CHAT-155

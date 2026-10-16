@@ -205,7 +205,7 @@ class Api::V1::AccountsController < Api::BaseController
     [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label,
      :chat_wallpaper_url, :show_dashboard_kpi_strip, :onboarding_dismissed, :resolve_assignment_gate,
      :openai_api_key, :openai_model_default, :openai_model_advanced,
-     :reply_assignment_gate, :ia_reentra_orfa, :orphan_retriage_after, :queue_escalation_after, :takeover_request_gate,
+     :reply_assignment_gate, :ia_reentra_orfa, :ia_assume_reaberta, :orphan_retriage_after, :queue_escalation_after, :takeover_request_gate,
      :catalog_item_singular, :catalog_item_plural, :meta_catalog_id,
      { onboarding_completed_steps: [], catalog_hidden_fields: [] }]
   end

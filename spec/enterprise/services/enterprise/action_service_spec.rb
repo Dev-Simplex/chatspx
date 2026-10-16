@@ -139,6 +139,103 @@ describe ActionService do
     end
   end
 
+  # Reabertura pelo cliente (CHAT-216, opt-in `ia_assume_reaberta`): a IA assume a conversa que o
+  # cliente reabriu, mesmo com o atendente antigo atribuído. Reabertura feita pelo atendente fica com ele.
+  describe 'assign_ai_agent on a conversation reopened with a human assignee' do
+    let(:inbox) { create(:inbox, account: account) }
+    let(:agent) { create(:user, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: agent) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:event_name) { 'conversation_opened' }
+    let(:rule) do
+      create(:automation_rule, account: account, event_name: event_name,
+                               actions: [{ 'action_name' => 'assign_ai_agent', 'action_params' => [assistant.id] }])
+    end
+
+    before do
+      create(:captain_inbox, captain_assistant: assistant, inbox: inbox)
+      create(:inbox_member, inbox: inbox, user: agent)
+      account.update!(settings: account.settings.merge('ia_assume_reaberta' => true))
+      create(:reporting_event, name: 'conversation_resolved', account: account, inbox: inbox, conversation: conversation,
+                               event_end_time: 2.hours.ago)
+    end
+
+    def run_rule
+      AutomationRules::ActionService.new(rule, account, conversation).perform
+      conversation.reload
+    end
+
+    def customer_writes(at: 1.minute.ago)
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :incoming, created_at: at)
+    end
+
+    it 'gives the conversation to the AI when the customer reopened it' do
+      customer_writes
+
+      run_rule
+
+      expect(conversation.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
+      expect(conversation.assignee_id).to be_nil
+    end
+
+    it 'keeps the agent when the account did not opt in' do
+      account.update!(settings: account.settings.merge('ia_assume_reaberta' => false))
+      customer_writes
+
+      run_rule
+
+      expect(conversation.assignee).to eq(agent)
+      expect(conversation.assignee_agent_bot_id).to be_nil
+    end
+
+    it 'keeps the agent when the agent reopened it (nobody wrote since the resolution)' do
+      run_rule
+
+      expect(conversation.assignee).to eq(agent)
+    end
+
+    it 'keeps the agent when the only customer message since the resolution was the NPS answer' do
+      customer_writes(at: 30.minutes.ago)
+      create(:nps_response, conversation: conversation, answered_at: 29.minutes.ago)
+
+      run_rule
+
+      expect(conversation.assignee).to eq(agent)
+    end
+
+    it 'keeps the agent when a human already spoke in this cycle' do
+      customer_writes(at: 30.minutes.ago)
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :outgoing,
+                       sender: agent, created_at: 20.minutes.ago)
+
+      run_rule
+
+      expect(conversation.assignee).to eq(agent)
+    end
+
+    context 'when the rule fires on message_created' do
+      let(:event_name) { 'message_created' }
+
+      it 'keeps the agent (the AI would take it back on every message after handing it over)' do
+        customer_writes
+
+        run_rule
+
+        expect(conversation.assignee).to eq(agent)
+      end
+    end
+
+    it 'gives the conversation to the AI from a flow triggered by conversation_opened' do
+      customer_writes
+      flow = create(:flow, account: account)
+
+      Flows::ActionService.new(flow: flow, conversation: conversation, trigger_event: 'conversation_opened')
+                          .execute({ 'action_name' => 'assign_ai_agent', 'action_params' => [assistant.id] })
+
+      expect(conversation.reload.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
+    end
+  end
+
   # Ordem segura da triagem (C5/A2b): assign_ai_agent ANTES de assign_team — o guard A2b
   # impede o auto-assign humano do time quando o espelho captain já é o dono.
   describe 'automation rule with assign_ai_agent followed by assign_team' do
