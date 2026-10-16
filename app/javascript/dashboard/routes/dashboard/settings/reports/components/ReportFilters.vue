@@ -390,7 +390,9 @@ onMounted(() => {
       @date-range-changed="onDateRangeChange"
     />
 
-    <div class="flex gap-2 items-center w-full">
+    <!-- `flex-1`, nao `w-full`: com a largura toda esta linha espremia o periodo e a caixa Filtros
+         caia para baixo dele. -->
+    <div class="flex flex-1 gap-2 items-center w-full lg:w-auto min-w-0">
       <ActiveFilterChip
         v-if="showEntityFilter"
         :id="appliedFilters[getFilterKey()]"
