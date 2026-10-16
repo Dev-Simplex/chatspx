@@ -33,6 +33,18 @@ class Captain::PropertyRefContextService
   # no FIM do segmento — o slug é cosmético e o site resolve pelo número. Ancorar no fim é
   # o que impede casar número que faz parte do slug ("apto-123-quartos-9412" resolve 9412).
   LINK_PATTERN = %r{/imovel/[^\s/?#]*?(\d{3,6})(?:[/?#]|\z)}i
+
+  # O TERCEIRO caminho: o código escrito por extenso depois da palavra "imóvel" ou "código". É o
+  # texto pronto da comunidade da Tozi ("Vi na comunidade sobre o imóvel 10102 e quero saber
+  # mais.") e o de quem digita o código da placa. Sem ele a ficha não saía, e a triagem perguntou
+  # "alugar ou comprar?" para um imóvel só de venda (conversa 44350).
+  #
+  # Estreito de propósito, porque número solto em conversa de imóvel quase sempre é dinheiro ou
+  # metragem: o número tem que vir COLADO na palavra (só "nº", "número", "#" ou ":" no meio), ter
+  # de 4 a 6 dígitos e não ser seguido de unidade. "imóvel de 1500 reais", "imóvel 300 mil" e
+  # "imóvel R$ 2500" não casam.
+  CODIGO_PATTERN = /\b(?:im[oó]vel|c[oó]d(?:igo)?\.?)\s*(?:n[º°]\.?|n\.|n[uú]mero|\#|:)?\s*(\d{4,6})\b
+                    (?!\s*(?:mil\b|reais\b|k\b|m²|m2\b|metros?\b|[.,]\d))/ix
   # ValorCondominio entra porque a ficha PASSA A SUBSTITUIR a busca: medido com N=6, quando
   # ela está no contexto o agente responde o preço direto e não chama mais o buscar_imovel.
   # Sem o condomínio aqui, a resposta fica correta e mais POBRE que a de hoje — some um
@@ -69,9 +81,11 @@ class Captain::PropertyRefContextService
 
   # "Ref:" primeiro por ser o formato explícito; o link é o fallback. Quem manda os dois na
   # mesma mensagem está falando do mesmo imóvel — não há caso em que a ordem mude a ficha.
+  # O código escrito por extenso vem por último: os dois primeiros saem do site, este é texto
+  # digitado, e só decide quando a mensagem não traz nenhuma origem determinística.
   def codigo_citado
     texto = @message.content.to_s
-    texto[REF_PATTERN, 1].presence || codigo_do_link(texto)
+    texto[REF_PATTERN, 1].presence || codigo_do_link(texto) || texto[CODIGO_PATTERN, 1].presence
   end
 
   # Só link do domínio da PRÓPRIA conta. Sem essa amarra, link de portal ou de concorrente
