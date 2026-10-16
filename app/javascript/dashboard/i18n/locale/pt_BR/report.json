@@ -1063,7 +1063,8 @@
       "CSAT": "CSAT",
       "NPS": "NPS",
       "SLA": "SLA",
-      "AI": "Robô"
+      "AI": "Robô",
+      "GOALS": "Metas"
     },
     "PERIOD": {
       "TODAY": "Hoje",

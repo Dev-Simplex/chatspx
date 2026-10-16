@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
+import { useGoalsVisibility } from 'dashboard/composables/useGoalsVisibility';
 
 // Todos os Relatorios, em pilula, no cabecalho de cada tela (a Visao Geral vem
 // primeiro). A aba acende na tela do assunto e some para quem nao
@@ -14,6 +15,7 @@ const route = useRoute();
 const router = useRouter();
 const { shouldShow } = usePolicy();
 const { isReportEnabled } = useReportFeatures();
+const { showGoals } = useGoalsVisibility();
 
 const ALL_TABS = [
   { key: 'overview', label: 'OVERVIEW', name: 'account_overview_reports' },
@@ -57,11 +59,14 @@ const ALL_TABS = [
   { key: 'nps', label: 'NPS', name: 'nps_reports' },
   { key: 'sla', label: 'SLA', name: 'sla_reports' },
   { key: 'ai', label: 'AI', name: 'bot_reports' },
+  // Metas (CHAT-177) segue a regra de visibilidade da conta, nao so a da rota.
+  { key: 'goals', label: 'GOALS', name: 'goals_reports', when: showGoals },
 ];
 
 const tabs = computed(() =>
   ALL_TABS.filter(tab => {
     if (!isReportEnabled(tab.name)) return false;
+    if (tab.when && !tab.when.value) return false;
     const { meta } = router.resolve({ name: tab.name, params: route.params });
     return shouldShow(
       meta.featureFlag,
