@@ -1240,6 +1240,7 @@
       "LABEL": "Period"
     },
     "FILTERS": {
+      "TITLE": "Filters",
       "INBOX": "Inbox",
       "TEAM": "Team",
       "AGENT": "Agent",

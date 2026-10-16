@@ -412,7 +412,6 @@ onMounted(() => {
         v-model="scopeSelection"
         :groups="scopeGroups"
         :period="{ since: from, until: to }"
-        class="shrink-0"
       />
 
       <ActiveFilterChip

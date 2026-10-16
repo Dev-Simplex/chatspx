@@ -100,6 +100,7 @@ const pdfFilters = computed(() => ({
         </div>
       </div>
       <ReportTabs />
+      <div id="report-scope-filters" class="empty:hidden" />
     </header>
 
     <PanelOverview :period="period" :inbox-id="inboxId" />

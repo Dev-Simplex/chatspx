@@ -91,17 +91,24 @@ const pick = (group, id) => {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
-    <ReportScopeSelect
-      v-for="group in groups"
-      :key="group"
-      :model-value="selection?.[group] ?? null"
-      :icon="GROUPS[group].icon"
-      :label="t(`REPORTS_UI.FILTERS.${GROUPS[group].label}`)"
-      :all-label="t(`REPORTS_UI.FILTERS.${GROUPS[group].all}`)"
-      :options="optionsOf(group)"
-      @update:model-value="pick(group, $event)"
-      @open="load(group)"
-    />
-  </div>
+  <!-- Os botoes moram sempre no mesmo lugar: a fileira "Filtros" do cabecalho (ReportHeader e os
+       cabecalhos que o copiam), e nao na barra de cada tela, onde cada uma os alinhava de um jeito. -->
+  <Teleport defer to="#report-scope-filters">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-sm font-medium text-n-slate-11 ltr:mr-1 rtl:ml-1">
+        {{ t('REPORTS_UI.FILTERS.TITLE') }}
+      </span>
+      <ReportScopeSelect
+        v-for="group in groups"
+        :key="group"
+        :model-value="selection?.[group] ?? null"
+        :icon="GROUPS[group].icon"
+        :label="t(`REPORTS_UI.FILTERS.${GROUPS[group].label}`)"
+        :all-label="t(`REPORTS_UI.FILTERS.${GROUPS[group].all}`)"
+        :options="optionsOf(group)"
+        @update:model-value="pick(group, $event)"
+        @open="load(group)"
+      />
+    </div>
+  </Teleport>
 </template>
