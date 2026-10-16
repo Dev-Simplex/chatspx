@@ -39,7 +39,7 @@ const account = useMapGetter('getCurrentAccount');
           {{ account?.name }}
         </p>
         <h1
-          class="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
+          class="m-0 text-[28px] xl:text-[34px] font-extrabold leading-tight tracking-[-0.03em] text-n-slate-12"
         >
           {{ headerTitle }}
         </h1>

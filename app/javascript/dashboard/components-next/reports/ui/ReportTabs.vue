@@ -6,7 +6,8 @@ import { usePolicy } from 'dashboard/composables/usePolicy';
 import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 
 // Todos os Relatorios, em pilula, no cabecalho de cada tela (a Visao Geral vem
-// primeiro). A aba acende na tela do assunto e some para quem nao
+// primeiro). Em tela estreita (notebook com escala) a pilula quebra em mais linhas,
+// em vez de esconder as ultimas abas. A aba acende na tela do assunto e some para quem nao
 // tem a permissao ou o recurso da rota (o Rodizio e so de admin) e quando a conta
 // nao ligou o que o relatorio mede (CSAT, NPS, SLA).
 const { t } = useI18n();
@@ -77,7 +78,7 @@ const isActive = tab =>
 
 <template>
   <nav
-    class="inline-flex max-w-full gap-0.5 p-1 overflow-x-auto rounded-full border border-n-weak bg-n-alpha-1 no-scrollbar w-fit"
+    class="inline-flex flex-wrap max-w-full gap-0.5 p-1 rounded-full border border-n-weak bg-n-alpha-1 w-fit"
     :aria-label="t('REPORTS_UI.TABS_LABEL')"
   >
     <router-link
