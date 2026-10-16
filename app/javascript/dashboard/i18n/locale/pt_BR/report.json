@@ -1239,6 +1239,7 @@
       "LABEL": "Período"
     },
     "FILTERS": {
+      "TITLE": "Filtros",
       "INBOX": "Caixa",
       "TEAM": "Time",
       "AGENT": "Atendente",

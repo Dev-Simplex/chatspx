@@ -59,6 +59,8 @@ const account = useMapGetter('getCurrentAccount');
     <div id="report-header-filters" class="empty:hidden">
       <slot name="filters" />
     </div>
+    <!-- fileira "Filtros" (Caixa, Time, Atendente): o ReportScopeFilters da tela se leva para ca -->
+    <div id="report-scope-filters" class="empty:hidden" />
   </section>
   <!-- veredito da tela (ReportVerdict), enviado pelo Resumo rapido ou pela propria tela -->
   <div id="report-verdict" class="empty:hidden" />

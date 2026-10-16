@@ -121,7 +121,6 @@ onMounted(() => {
         v-if="showInboxScope"
         v-model="inboxScopeId"
         :period="countPeriod"
-        class="shrink-0"
         @change="onInboxScopeChange"
       />
       <!-- filtros proprios da tela (ex.: Atribuicoes pede time e caixa) -->
