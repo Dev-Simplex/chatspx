@@ -15,10 +15,10 @@ import {
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import ActiveFilterChip from '../Filters/v3/ActiveFilterChip.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
-import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+import ReportScopeFilters from 'dashboard/components-next/reports/ui/ReportScopeFilters.vue';
 
 const props = defineProps({
-  // { since, until } para as contagens do botao Filtros
+  // { since, until } para as contagens dos botoes Caixa, Time e Atendente
   period: { type: Object, default: () => ({}) },
 });
 
@@ -77,7 +77,7 @@ const filterListMenuItems = computed(() => {
     }));
 });
 
-// Caixa, atendente e time moram no botao Filtros; aqui sobram politica e etiqueta.
+// Caixa, time e atendente tem botao proprio (ReportScopeFilters); aqui sobram politica e etiqueta.
 const CHIP_KEYS = ['sla_policy_id', 'label_list'];
 const activeFilters = computed(() => {
   const activeKeys = CHIP_KEYS.filter(key => appliedFilters.value[key]);
@@ -220,7 +220,7 @@ onMounted(() => {
   <div
     class="flex flex-col flex-wrap items-start gap-2 md:items-center md:flex-nowrap md:flex-row"
   >
-    <ReportFiltersPopover
+    <ReportScopeFilters
       v-model="popoverSelection"
       :groups="['inbox', 'team', 'agent']"
       :period="props.period"

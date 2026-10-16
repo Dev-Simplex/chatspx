@@ -448,8 +448,26 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   # ======================= CONVERSAS =======================
+  # A tela de Conversas pode estar recortada por atendente ou time; fora isso e o relatorio da conta.
+  CONVERSATIONS_SCOPED_TYPES = %w[agent team].freeze
+
+  def conversations_scope
+    type = CONVERSATIONS_SCOPED_TYPES.include?(@filters[:type].to_s) ? @filters[:type].to_sym : :account
+    type == :account ? { type: :account } : { type: type, id: @filters[:id] }
+  end
+
+  def conversations_scope_label
+    scope = conversations_scope
+    return nil if scope[:type] == :account
+
+    entity = scope[:type] == :agent ? @account.users.find_by(id: scope[:id]) : @account.teams.find_by(id: scope[:id])
+    return nil if entity.nil?
+
+    "#{scope[:type] == :agent ? 'Atendente' : 'Time'} #{entity.name}"
+  end
+
   def conversations_data
-    summary = V2::Reports::Conversations::MetricBuilder.new(@account, builder_params(type: :account)).summary
+    summary = V2::Reports::Conversations::MetricBuilder.new(@account, builder_params(conversations_scope)).summary
     comparison = conversations_comparison(summary, previous_conversations_summary)
     signals = conversations_signals(summary)
     heatmap = weekday_hour_heatmap('conversations_count')
@@ -489,7 +507,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def drilldown(metric)
-    V2::Reports::Conversations::DrilldownBuilder.new(@account, builder_params(type: :account, metric: metric))
+    V2::Reports::Conversations::DrilldownBuilder.new(@account, builder_params(conversations_scope.merge(metric: metric)))
   end
 
   # 1a resposta e resolucao de cada conversa, na mesma coluna (com ou sem horario comercial) dos numeros.
@@ -548,13 +566,15 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def conversations_subtitle(summary)
-    with_inbox_scope(
+    subtitle = with_inbox_scope(
       if summary[:avg_first_response_time].to_i.positive?
         "#{summary[:conversations_count]} conversas no período · 1ª resposta média de #{format_seconds(summary[:avg_first_response_time])}."
       else
         "#{summary[:conversations_count]} conversas no período."
       end
     )
+    label = conversations_scope_label
+    label.present? ? "#{subtitle} · #{label}" : subtitle
   end
 
   # ---- Clareza Total: comparação com período anterior, manchete, herói/vilão, legenda ----
@@ -574,7 +594,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
     duration = range.last - range.first
     { since: (range.first - duration).to_i.to_s, until: range.first.to_i.to_s,
-      inbox_id: @filters[:inbox_id], business_hours: business_hours?, type: :account }
+      inbox_id: @filters[:inbox_id], business_hours: business_hours? }.merge(conversations_scope)
   end
 
   def conversations_comparison(summary, previous)

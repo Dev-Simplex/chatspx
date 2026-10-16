@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue';
-import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+import ReportScopeFilters from 'dashboard/components-next/reports/ui/ReportScopeFilters.vue';
 
-// Recorte por caixa de entrada — vale para a tela inteira, ao lado do periodo. Desenhado como o
-// botao "Filtros" do prototipo (grupo Caixa, com quantas conversas cada uma recebeu no periodo),
-// mas com a mesma interface de antes: v-model com o id da caixa (ou null) e o evento change.
+// Recorte por caixa de entrada — vale para a tela inteira, ao lado do periodo. E o botao Caixa do
+// ReportScopeFilters (com quantas conversas cada uma recebeu no periodo), com a mesma interface de
+// antes: v-model com o id da caixa (ou null) e o evento change.
 const props = defineProps({
   modelValue: {
     type: [Number, null],
@@ -29,7 +29,7 @@ const selection = computed({
 </script>
 
 <template>
-  <ReportFiltersPopover
+  <ReportScopeFilters
     v-model="selection"
     :groups="['inbox']"
     :period="period"

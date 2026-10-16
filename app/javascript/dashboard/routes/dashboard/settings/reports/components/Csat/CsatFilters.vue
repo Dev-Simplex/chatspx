@@ -14,7 +14,7 @@ import {
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import ActiveFilterChip from '../Filters/v3/ActiveFilterChip.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
-import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+import ReportScopeFilters from 'dashboard/components-next/reports/ui/ReportScopeFilters.vue';
 import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import {
   parseReportURLParams,
@@ -256,7 +256,7 @@ onMounted(() => {
       v-model:range-type="selectedDateRange"
       @date-range-changed="onDateRangeChange"
     />
-    <ReportFiltersPopover
+    <ReportScopeFilters
       v-model="popoverSelection"
       :groups="popoverGroups"
       :period="countPeriod"

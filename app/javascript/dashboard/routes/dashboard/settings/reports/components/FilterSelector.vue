@@ -1,7 +1,7 @@
 <script>
 import ReportPeriodPicker from 'dashboard/components-next/reports/ui/ReportPeriodPicker.vue';
 import ReportsFiltersDateGroupBy from './Filters/DateGroupBy.vue';
-import ReportFiltersPopover from 'dashboard/components-next/reports/ui/ReportFiltersPopover.vue';
+import ReportScopeFilters from 'dashboard/components-next/reports/ui/ReportScopeFilters.vue';
 import ReportsFiltersLabels from './Filters/Labels.vue';
 import ReportsFiltersRatings from './Filters/Ratings.vue';
 import subDays from 'date-fns/subDays';
@@ -13,7 +13,7 @@ export default {
   components: {
     ReportPeriodPicker,
     ReportsFiltersDateGroupBy,
-    ReportFiltersPopover,
+    ReportScopeFilters,
     ReportsFiltersLabels,
     ReportsFiltersRatings,
     ToggleSwitch,
@@ -65,7 +65,7 @@ export default {
     };
   },
   computed: {
-    // Caixa, time e atendente no botao Filtros (uma opcao por grupo), nos mesmos campos de antes.
+    // Caixa, time e atendente, um botao cada (uma opcao por recorte), nos mesmos campos de antes.
     popoverGroups() {
       return [
         this.showInboxFilter && 'inbox',
@@ -191,7 +191,7 @@ export default {
           :selected-option="selectedGroupByFilter"
           @on-grouping-change="onGroupingChange"
         />
-        <ReportFiltersPopover
+        <ReportScopeFilters
           v-if="popoverGroups.length"
           v-model="popoverSelection"
           :groups="popoverGroups"
