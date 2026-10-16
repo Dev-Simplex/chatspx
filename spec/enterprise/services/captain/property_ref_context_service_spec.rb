@@ -11,6 +11,8 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
       'Bairro' => 'Santorini Residence', 'Cidade' => 'Sinop', 'Dormitorios' => '3' }
   end
 
+  let(:codigos_no_acervo) { %w[9412] }
+
   def note_for(content)
     message = create(:message, account: account, inbox: inbox, conversation: conversation,
                                message_type: :incoming, content: content)
@@ -18,7 +20,7 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
     # Offline: a chave só precisa existir pro opt-in, e o acervo é dublê. `site_domain` é o
     # default do concern, mas fixá-lo aqui evita que .env de máquina mude o resultado.
     allow(service).to receive_messages(vista_api_key: 'k', site_domain: 'toziimoveis.com.br')
-    allow(service).to receive(:fetch_imovel) { |codigo| codigo == '9412' ? imovel : nil }
+    allow(service).to receive(:fetch_imovel) { |codigo| codigos_no_acervo.include?(codigo) ? imovel.merge('Codigo' => codigo) : nil }
     service.note
   end
 
@@ -66,6 +68,41 @@ RSpec.describe Captain::PropertyRefContextService, type: :model do
       nota = note_for('(Ref: 9412) https://www.toziimoveis.com.br/imovel/casa-sinop-7777')
 
       expect(nota).to include('código 9412')
+    end
+  end
+
+  # O texto pronto da comunidade da Tozi traz o código por extenso, sem "Ref:" nem link. Sem a
+  # ficha, a triagem perguntou "alugar ou comprar?" para um imóvel só de venda (conversa 44350).
+  describe 'código escrito depois de "imóvel" ou "código"' do
+    # Os números dos casos negativos também existem no acervo: se a ficha não sai, é porque o
+    # padrão não casou, e não porque o imóvel não existe.
+    let(:codigos_no_acervo) { %w[9412 9835 10102 10113 7777 1500 2500 123] }
+
+    it 'reconhece o texto pronto da comunidade' do
+      expect(note_for('Vi na comunidade sobre o imóvel 10102 e quero saber mais.')).to include('código 10102')
+    end
+
+    it 'aceita as variações de escrita' do
+      expect(note_for('quero saber do código 9835')).to include('código 9835')
+      expect(note_for('cód. 9412 ainda tem?')).to include('código 9412')
+      expect(note_for('vi o imovel 10113')).to include('código 10113')
+      expect(note_for('IMÓVEL nº 9412')).to include('código 9412')
+    end
+
+    it 'não confunde valor nem metragem com código' do
+      ['imóvel de 1500 reais', 'imóvel 300 mil', 'imóvel R$ 2500', 'imóvel 2500 reais', 'imóvel 1500 m²',
+       'imóvel 1500 metros', 'imóvel 250 mil', 'imóvel 1500,00', 'casa com 1500 m²'].each do |texto|
+        expect(note_for(texto)).to be_nil, "casou indevidamente: #{texto}"
+      end
+    end
+
+    it 'exige ao menos 4 dígitos' do
+      expect(note_for('imóvel 123')).to be_nil
+    end
+
+    it 'perde para o "Ref:" e para o link quando a mensagem traz os dois' do
+      expect(note_for('imóvel 7777 (Ref: 9412)')).to include('código 9412')
+      expect(note_for('imóvel 7777 https://www.toziimoveis.com.br/imovel/casa-sinop-9412')).to include('código 9412')
     end
   end
 
