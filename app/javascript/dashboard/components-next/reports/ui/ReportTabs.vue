@@ -5,8 +5,8 @@ import { useI18n } from 'vue-i18n';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { useReportFeatures } from 'dashboard/composables/useReportFeatures';
 
-// Todos os Relatorios, em pilula, no cabecalho de cada tela, na ordem do menu
-// lateral. A aba acende na tela do assunto e some, como no menu, para quem nao
+// Todos os Relatorios, em pilula, no cabecalho de cada tela (a Visao Geral vem
+// primeiro). A aba acende na tela do assunto e some para quem nao
 // tem a permissao ou o recurso da rota (o Rodizio e so de admin) e quando a conta
 // nao ligou o que o relatorio mede (CSAT, NPS, SLA).
 const { t } = useI18n();
@@ -16,8 +16,8 @@ const { shouldShow } = usePolicy();
 const { isReportEnabled } = useReportFeatures();
 
 const ALL_TABS = [
-  { key: 'panel', label: 'PANEL', name: 'reports_panel' },
   { key: 'overview', label: 'OVERVIEW', name: 'account_overview_reports' },
+  { key: 'panel', label: 'PANEL', name: 'reports_panel' },
   {
     key: 'conversations',
     label: 'CONVERSATIONS',
