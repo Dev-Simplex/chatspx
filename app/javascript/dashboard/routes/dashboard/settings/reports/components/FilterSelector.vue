@@ -178,9 +178,7 @@ export default {
 <template>
   <div class="relative z-30">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div
-        class="w-full grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"
-      >
+      <div class="flex flex-wrap items-center w-full gap-3">
         <ReportPeriodPicker
           v-model:date-range="customDateRange"
           @date-range-changed="onPeriodChange"

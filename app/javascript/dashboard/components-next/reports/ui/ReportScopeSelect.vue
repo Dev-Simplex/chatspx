@@ -61,16 +61,18 @@ const pick = ({ value }) => {
 
 <template>
   <div v-on-clickaway="() => toggleOpen(false)" class="relative">
+    <!-- Pilula como as do seletor de periodo: apagada sem escolha, azul com uma. -->
     <Button
       sm
-      faded
+      :ghost="!selected"
+      :faded="!!selected"
       :slate="!selected"
       :blue="!!selected"
       :label="buttonLabel"
       :icon="icon"
       :aria-label="label"
       :aria-expanded="open"
-      class="max-w-56"
+      class="max-w-56 rounded-full"
       @click="toggle"
     />
     <DropdownMenu
