@@ -25,8 +25,10 @@ const account = useMapGetter('getCurrentAccount');
 </script>
 
 <template>
+  <!-- z-[35]: acima dos cartoes (hover:z-30), para os menus de filtro cobrirem o conteudo,
+       e abaixo da barra lateral (z-40), senao o menu do perfil abre por tras do cartao -->
   <section
-    class="flex flex-col gap-4 p-5 mt-6 relative z-40 rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
+    class="flex flex-col gap-4 p-5 mt-6 relative z-[35] rounded-[22px] border border-n-weak bg-n-solid-2/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgb(255_255_255/0.7),0_14px_36px_rgb(16_24_40/0.08)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_14px_36px_rgb(0_0_0/0.4)]"
   >
     <div v-if="hasBackButton">
       <BackButton compact />
